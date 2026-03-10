@@ -84,7 +84,8 @@ class StripeGateway extends \Core\BaseGateway
         if (($payload['type'] ?? '') === 'checkout.session.completed') {
             $session = $payload['data']['object'] ?? [];
             $orderId = $session['metadata']['order_id'] ?? null;
-            if ($orderId) $this->markOrderPaid((int)$orderId, $session['payment_intent'] ?? '');
+            $paidAmount = isset($session['amount_total']) ? (float)$session['amount_total'] / 100 : null;
+            if ($orderId) $this->markOrderPaid((int)$orderId, $session['payment_intent'] ?? '', $paidAmount);
         }
 
         \Core\Response::json(['status' => 'ok']);
@@ -92,10 +93,20 @@ class StripeGateway extends \Core\BaseGateway
 
     private function api(string $ep, array $data=[], string $method='POST'): array
     {
-        $ch = curl_init('https://api.stripe.com/v1'.$ep);
-        $opts = [CURLOPT_RETURNTRANSFER=>1, CURLOPT_HTTPHEADER=>['Authorization: Bearer '.$this->cfg('secret_key')], CURLOPT_TIMEOUT=>30];
-        if ($method==='POST') { $opts[CURLOPT_POST]=1; $opts[CURLOPT_POSTFIELDS]=http_build_query($data); }
-        curl_setopt_array($ch, $opts); $body=curl_exec($ch); curl_close($ch);
+        $ch = curl_init('https://api.stripe.com/v1' . $ep);
+        $opts = [
+            CURLOPT_RETURNTRANSFER => 1,
+            CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $this->cfg('secret_key')],
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+        ];
+        if ($method === 'POST') { $opts[CURLOPT_POST] = 1; $opts[CURLOPT_POSTFIELDS] = http_build_query($data); }
+        curl_setopt_array($ch, $opts);
+        $body = curl_exec($ch);
+        $err = curl_error($ch);
+        curl_close($ch);
+        if ($err) return ['error' => $err];
         return json_decode($body, true) ?? [];
     }
 }

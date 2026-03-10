@@ -70,6 +70,11 @@ class EmailTemplateController
 
     public function delete(Request $request, array $params = []): void
     {
+        if (!Session::verifyCsrf($request->input('wk_csrf'))) {
+            Session::flash('error', 'Session expired.');
+            Response::redirect(View::url('admin/email-templates'));
+            return;
+        }
         $tpl = Database::fetch("SELECT slug FROM wk_email_templates WHERE id=?", [$params['id']]);
         $system = ['order-confirmation','shipping-notification','welcome','password-reset','abandoned-cart'];
         if ($tpl && in_array($tpl['slug'], $system)) {

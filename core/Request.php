@@ -77,12 +77,10 @@ class Request
         return $this->server[$key] ?? $default;
     }
 
-    /** Client IP address */
+    /** Client IP address — uses REMOTE_ADDR only (X-Forwarded-For is spoofable) */
     public function ip(): string
     {
-        return $this->server['HTTP_X_FORWARDED_FOR']
-            ?? $this->server['REMOTE_ADDR']
-            ?? '0.0.0.0';
+        return $this->server['REMOTE_ADDR'] ?? '0.0.0.0';
     }
 
     /** Get sanitized input */

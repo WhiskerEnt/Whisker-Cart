@@ -22,6 +22,19 @@ class PageController
 
     public function submitContact(Request $request, array $params = []): void
     {
+        if (!Session::verifyCsrf($request->input('wk_csrf'))) {
+            Session::flash('error', 'Session expired.');
+            Response::redirect(View::url('contact'));
+            return;
+        }
+
+        // Rate limit: 5 per IP per hour
+        if (!\Core\RateLimiter::attempt('contact', $request->ip(), 5, 3600)) {
+            Session::flash('error', 'Too many submissions. Please try again later.');
+            Response::redirect(View::url('contact'));
+            return;
+        }
+
         $name = $request->clean('name');
         $email = $request->clean('email');
         $subject = $request->clean('subject');
@@ -35,12 +48,17 @@ class PageController
 
         // Save to DB
         try {
-            Database::query("CREATE TABLE IF NOT EXISTS wk_contact_messages (
-                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, name VARCHAR(100), email VARCHAR(255),
-                subject VARCHAR(255), message TEXT, is_read TINYINT(1) DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB");
             Database::insert('wk_contact_messages', ['name'=>$name,'email'=>$email,'subject'=>$subject,'message'=>$message]);
-        } catch (\Exception $e) {}
+        } catch (\Exception $e) {
+            // Table might not exist if upgrading from older version — create it
+            try {
+                Database::exec("CREATE TABLE IF NOT EXISTS wk_contact_messages (
+                    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, name VARCHAR(100), email VARCHAR(255),
+                    subject VARCHAR(255), message TEXT, is_read TINYINT(1) DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB");
+                Database::insert('wk_contact_messages', ['name'=>$name,'email'=>$email,'subject'=>$subject,'message'=>$message]);
+            } catch (\Exception $e2) {}
+        }
 
         // Notify admin — use contact_email setting, fallback to superadmin
         $adminEmail = Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='contact_email'");

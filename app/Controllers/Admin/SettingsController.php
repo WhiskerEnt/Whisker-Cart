@@ -102,7 +102,7 @@ class SettingsController
                     Response::json(['success' => true, 'message' => "Connected to {$host}:{$port} — TLS: " . ($tlsOk ? 'Yes' : 'No') . ". No auth tested (no credentials)."]);
                 }
             } catch (\Throwable $e) {
-                Response::json(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
+                Response::json(['success' => false, 'message' => 'SMTP connection failed. Check your settings.']);
             }
             return;
         }

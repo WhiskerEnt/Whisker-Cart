@@ -104,6 +104,11 @@ class CategoryController
 
     public function delete(Request $request, array $params = []): void
     {
+        if (!Session::verifyCsrf($request->input('wk_csrf'))) {
+            Session::flash('error', 'Session expired.');
+            Response::redirect(View::url('admin/categories'));
+            return;
+        }
         // Move child categories to no parent
         Database::update('wk_categories', ['parent_id' => null], 'parent_id = ?', [$params['id']]);
         // Unlink products

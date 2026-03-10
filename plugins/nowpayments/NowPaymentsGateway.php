@@ -57,18 +57,29 @@ class NowPaymentsGateway extends \Core\BaseGateway
         $payload = json_decode($rawBody, true) ?? [];
         $result = $this->verifyPayment($payload);
         if ($result['success']) {
-            $order = \Core\Database::fetch("SELECT id FROM wk_orders WHERE order_number=?", [$payload['order_id'] ?? '']);
-            if ($order) $this->markOrderPaid($order['id'], $result['payment_id']);
+            $order = \Core\Database::fetch("SELECT id, total FROM wk_orders WHERE order_number=?", [$payload['order_id'] ?? '']);
+            $paidAmount = isset($payload['actually_paid']) ? (float)$payload['actually_paid'] : null;
+            if ($order) $this->markOrderPaid($order['id'], $result['payment_id'], $paidAmount);
         }
         \Core\Response::json(['status' => 'ok']);
     }
 
     private function api(string $ep, array $data): array
     {
-        $ch = curl_init($this->apiUrl().$ep);
-        curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER=>1, CURLOPT_POST=>1, CURLOPT_POSTFIELDS=>json_encode($data),
-            CURLOPT_HTTPHEADER=>['Content-Type: application/json', 'x-api-key: '.$this->cfg('api_key')], CURLOPT_TIMEOUT=>30]);
-        $body=curl_exec($ch); curl_close($ch);
+        $ch = curl_init($this->apiUrl() . $ep);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => 1,
+            CURLOPT_POST => 1,
+            CURLOPT_POSTFIELDS => json_encode($data),
+            CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'x-api-key: ' . $this->cfg('api_key')],
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+        ]);
+        $body = curl_exec($ch);
+        $err = curl_error($ch);
+        curl_close($ch);
+        if ($err) return ['error' => $err];
         return json_decode($body, true) ?? [];
     }
 }

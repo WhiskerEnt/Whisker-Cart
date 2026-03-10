@@ -7,6 +7,7 @@ use Core\Session;
 use Core\View;
 use Core\Database;
 use Core\Validator;
+use Core\RateLimiter;
 
 class AuthController
 {
@@ -21,21 +22,14 @@ class AuthController
 
     public function login(Request $request, array $params = []): void
     {
-        // Rate limit: max 5 attempts per 15 minutes per IP
-        $ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
-        $key = 'login_attempts_' . md5($ip);
-        $attempts = Session::get($key, ['count' => 0, 'first_at' => time()]);
+        // Rate limit: max 5 attempts per 15 minutes per IP (file-based, survives session clear)
+        $ip = $request->ip();
 
-        if ($attempts['count'] >= 5 && (time() - $attempts['first_at']) < 900) {
-            $wait = ceil((900 - (time() - $attempts['first_at'])) / 60);
+        if (!RateLimiter::attempt('admin_login', $ip, 5, 900)) {
+            $wait = ceil(RateLimiter::remainingSeconds('admin_login', $ip, 900) / 60);
             Session::flash('error', "Too many login attempts. Try again in {$wait} minutes.");
             Response::redirect(View::url('admin/login'));
             return;
-        }
-
-        // Reset counter if window expired
-        if ((time() - $attempts['first_at']) >= 900) {
-            $attempts = ['count' => 0, 'first_at' => time()];
         }
 
         $v = new Validator($request->all(), [
@@ -63,16 +57,20 @@ class AuthController
             [$username, $username]
         );
 
-        if (!$admin || !$admin['is_active'] || !password_verify($password, $admin['password_hash'])) {
-            $attempts['count']++;
-            Session::set($key, $attempts);
+        // Timing attack prevention: always run password_verify
+        $dummyHash = '$2y$12$WApznUPhDubmVqEwEFOdDOwTJMoCEBIBbrl2TmKnSHblMAAAAAAAA';
+        $hash = $admin ? $admin['password_hash'] : $dummyHash;
+        $passwordValid = password_verify($password, $hash);
+
+        if (!$admin || !$admin['is_active'] || !$passwordValid) {
+            // RateLimiter already tracked the attempt in attempt() call above
             Session::flash('error', 'Invalid username or password.');
             Response::redirect(View::url('admin/login'));
             return;
         }
 
         // Reset attempts on success
-        Session::remove($key);
+        RateLimiter::reset('admin_login', $ip);
         Session::setAdmin($admin['id']);
         Database::update('wk_admins', ['last_login' => date('Y-m-d H:i:s')], 'id = ?', [$admin['id']]);
 

@@ -42,10 +42,14 @@ class ChatbotController
         if ($state['step'] === 'ticket_message') {
             $message = trim($request->input('message'));
             $d = $state;
-            // Create ticket via API
-            $_POST['name'] = $d['name']; $_POST['email'] = $d['email'];
-            $_POST['phone'] = $d['phone'] ?? ''; $_POST['subject'] = $d['subject'];
-            $_POST['message'] = $message;
+
+            // Rate limit ticket creation: 3 per session per hour
+            if (!\Core\RateLimiter::attempt('chatbot_ticket', Session::cartId(), 3, 3600)) {
+                $_SESSION[$sessionKey] = ['step' => 'idle'];
+                Response::json(['reply' => "You've created too many tickets recently. Please try again later or use our [Contact Form →](contact).",
+                    'actions' => [['label'=>'Main Menu','value'=>'menu']]]);
+                return;
+            }
             $_SESSION[$sessionKey] = ['step'=>'idle'];
 
             $ticketCtrl = new \App\Controllers\Store\TicketController();
@@ -221,7 +225,12 @@ class ChatbotController
     private function matches(string $msg, array $keywords): bool
     {
         foreach ($keywords as $kw) {
-            if (str_contains($msg, $kw)) return true;
+            // Use word boundary matching for single words, str_contains for phrases
+            if (str_contains($kw, ' ')) {
+                if (str_contains($msg, $kw)) return true;
+            } else {
+                if (preg_match('/\b' . preg_quote($kw, '/') . '\b/', $msg)) return true;
+            }
         }
         return false;
     }

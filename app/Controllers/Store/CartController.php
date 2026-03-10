@@ -85,9 +85,23 @@ class CartController
         if ($quantity === 0) {
             Database::delete('wk_cart_items', 'id=? AND cart_id=?', [$itemId, $cart['id']]);
         } else {
-            Database::update('wk_cart_items', ['quantity'=>$quantity], 'id=? AND cart_id=?', [$itemId, $cart['id']]);
+            // Check stock availability before updating
+            $item = Database::fetch("SELECT product_id, variant_combo_id FROM wk_cart_items WHERE id=? AND cart_id=?", [$itemId, $cart['id']]);
+            if ($item) {
+                $comboId = $item['variant_combo_id'] ?? 0;
+                if ($comboId) {
+                    $stock = (int)Database::fetchValue("SELECT stock_quantity FROM wk_variant_combos WHERE id=?", [$comboId]);
+                } else {
+                    $stock = (int)Database::fetchValue("SELECT stock_quantity FROM wk_products WHERE id=?", [$item['product_id']]);
+                }
+                if ($quantity > $stock) {
+                    Response::json(['success' => false, 'message' => "Only {$stock} available"], 400);
+                    return;
+                }
+            }
+            Database::update('wk_cart_items', ['quantity' => $quantity], 'id=? AND cart_id=?', [$itemId, $cart['id']]);
         }
-        Response::json(['success'=>true]);
+        Response::json(['success' => true]);
     }
 
     public function remove(Request $request, array $params = []): void
@@ -100,6 +114,12 @@ class CartController
 
     public function applyCoupon(Request $request, array $params = []): void
     {
+        // Rate limit: 10 coupon attempts per session per hour
+        if (!\Core\RateLimiter::attempt('coupon', \Core\Session::cartId(), 10, 3600)) {
+            Response::json(['success' => false, 'message' => 'Too many attempts. Try again later.'], 429);
+            return;
+        }
+
         $code = strtoupper(trim($request->input('coupon_code') ?? ''));
         $coupon = Database::fetch(
             "SELECT * FROM wk_coupons WHERE code=? AND is_active=1 AND (expires_at IS NULL OR expires_at>NOW()) AND (usage_limit IS NULL OR used_count<usage_limit)",

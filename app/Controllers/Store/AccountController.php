@@ -1,11 +1,13 @@
 <?php
 namespace App\Controllers\Store;
 
-use Core\{Request, View, Database, Response, Session, Validator};
+use Core\{Request, View, Database, Response, Session, Validator, RateLimiter};
 use App\Services\EmailService;
 
 class AccountController
 {
+    private const DUMMY_HASH = '$2y$12$xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
+
     // ── Auth ──────────────────────────────────────
 
     public function showRegister(Request $request, array $params = []): void
@@ -19,11 +21,26 @@ class AccountController
         if (!Session::verifyCsrf($request->input('wk_csrf'))) {
             Session::flash('error', 'Session expired.'); Response::redirect(View::url('account/register')); return;
         }
+
+        // Rate limit: 3 registrations per IP per hour
+        $ip = $request->ip();
+        if (!RateLimiter::attempt('register', $ip, 3, 3600)) {
+            Session::flash('error', 'Too many registration attempts. Please try again later.');
+            Response::redirect(View::url('account/register')); return;
+        }
+
         $v = new Validator($request->all(), [
             'first_name' => 'required|min:2', 'last_name' => 'required|min:1',
             'email' => 'required|email', 'password' => 'required|min:8',
         ]);
         if ($v->fails()) { Session::flash('error', $v->firstError()); Response::redirect(View::url('account/register')); return; }
+
+        // Password complexity: require at least 1 number
+        $pass = $request->input('password');
+        if (!preg_match('/[0-9]/', $pass)) {
+            Session::flash('error', 'Password must contain at least one number.');
+            Response::redirect(View::url('account/register')); return;
+        }
 
         if (Database::fetchValue("SELECT COUNT(*) FROM wk_customers WHERE email=?", [$request->clean('email')])) {
             Session::flash('error', 'An account with this email already exists.');
@@ -53,20 +70,37 @@ class AccountController
         if (!Session::verifyCsrf($request->input('wk_csrf'))) {
             Session::flash('error', 'Session expired.'); Response::redirect(View::url('account/login')); return;
         }
+
+        // Rate limit: 5 attempts per IP per 15 minutes
+        $ip = $request->ip();
+        if (!RateLimiter::attempt('customer_login', $ip, 5, 900)) {
+            $wait = ceil(RateLimiter::remainingSeconds('customer_login', $ip, 900) / 60);
+            Session::flash('error', "Too many login attempts. Try again in {$wait} minutes.");
+            Response::redirect(View::url('account/login')); return;
+        }
+
         $email = $request->clean('email');
         $customer = Database::fetch("SELECT id, password_hash, is_active FROM wk_customers WHERE email=?", [$email]);
 
-        if (!$customer || !$customer['is_active'] || !password_verify($request->input('password'), $customer['password_hash'])) {
+        // Timing attack prevention: always run password_verify
+        $hash = $customer ? $customer['password_hash'] : self::DUMMY_HASH;
+        $passwordValid = password_verify($request->input('password'), $hash);
+
+        if (!$customer || !$customer['is_active'] || !$passwordValid) {
             Session::flash('error', 'Invalid email or password.');
             Response::redirect(View::url('account/login')); return;
         }
+
+        RateLimiter::reset('customer_login', $ip);
         Session::setCustomer($customer['id']);
         Response::redirect(View::url('account'));
     }
 
     public function logout(Request $request, array $params = []): void
     {
-        Session::remove('wk_customer_id');
+        Session::destroy();
+        // Restart session for flash message
+        Session::start();
         Session::flash('success', 'You have been signed out.');
         Response::redirect(View::url(''));
     }
@@ -276,7 +310,15 @@ class AccountController
         if (!Session::verifyCsrf($request->input('wk_csrf'))) {
             Session::flash('error', 'Session expired.'); Response::redirect(View::url('account/forgot-password')); return;
         }
+
+        // Rate limit: 3 per email per hour + 10 per IP per hour
+        $ip = $request->ip();
         $email = $request->clean('email');
+        if (!RateLimiter::attempt('forgot_ip', $ip, 10, 3600) || !RateLimiter::attempt('forgot_email', $email ?? 'none', 3, 3600)) {
+            Session::flash('error', 'Too many reset requests. Please try again later.');
+            Response::redirect(View::url('account/forgot-password')); return;
+        }
+
         $customer = Database::fetch("SELECT id, first_name FROM wk_customers WHERE email=?", [$email]);
 
         if ($customer) {
@@ -343,6 +385,17 @@ class AccountController
 
         // Mark password as set + delete token
         Database::query("DELETE FROM wk_settings WHERE setting_group='reset_tokens' AND setting_key=?", ['token_' . $id]);
+
+        // Cleanup all expired reset tokens
+        try {
+            $allTokens = Database::fetchAll("SELECT setting_key, setting_value FROM wk_settings WHERE setting_group='reset_tokens'");
+            foreach ($allTokens as $row) {
+                $tokenData = json_decode($row['setting_value'], true);
+                if (!$tokenData || ($tokenData['expires'] ?? 0) < time()) {
+                    Database::query("DELETE FROM wk_settings WHERE setting_group='reset_tokens' AND setting_key=?", [$row['setting_key']]);
+                }
+            }
+        } catch (\Exception $e) {}
         Database::query("INSERT INTO wk_settings (setting_group, setting_key, setting_value) VALUES ('customer_flags', ?, '1') ON DUPLICATE KEY UPDATE setting_value='1'", ['password_set_' . $id]);
 
         Session::flash('success', 'Password reset! You can now sign in.');

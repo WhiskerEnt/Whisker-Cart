@@ -330,6 +330,9 @@ class ProductController
 
     public function deleteImage(Request $request, array $params = []): void
     {
+        if (!$request->isAjax() && !Session::verifyCsrf($request->input('wk_csrf'))) {
+            Response::json(['success' => false, 'error' => 'Session expired'], 403); return;
+        }
         $imageId = (int)($params['id'] ?? 0);
         $image = Database::fetch("SELECT * FROM wk_product_images WHERE id=?", [$imageId]);
 
@@ -405,6 +408,9 @@ class ProductController
      */
     public function updateCombo(Request $request, array $params = []): void
     {
+        if (!Session::verifyCsrf($request->input('wk_csrf'))) {
+            Response::json(['success' => false, 'error' => 'Session expired'], 403); return;
+        }
         $comboId = (int)$params['id'];
         \App\Services\VariantService::updateCombo($comboId, $request->all());
 

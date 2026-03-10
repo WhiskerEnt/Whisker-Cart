@@ -43,6 +43,11 @@ class CouponController
 
     public function delete(Request $request, array $params = []): void
     {
+        if (!Session::verifyCsrf($request->input('wk_csrf'))) {
+            Session::flash('error', 'Session expired.');
+            Response::redirect(View::url('admin/coupons'));
+            return;
+        }
         Database::delete('wk_coupons','id=?',[$params['id']]);
         Session::flash('success','Coupon deleted.');
         Response::redirect(View::url('admin/coupons'));

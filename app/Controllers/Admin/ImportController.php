@@ -59,7 +59,7 @@ class ImportController
             }
             Session::flash('success', $result);
         } catch (\Exception $e) {
-            Session::flash('error', 'Import failed: ' . $e->getMessage());
+            Session::flash('error', 'Import failed. Please check your CSV format and try again.');
         }
 
         Response::redirect(View::url('admin/import'));
@@ -458,10 +458,27 @@ class ImportController
         if (!$header) return [];
         $header = array_map(fn($h) => strtolower(trim($h)), $header);
         while (($row = fgetcsv($handle)) !== false) {
-            if (count($row) === count($header)) $rows[] = array_combine($header, $row);
+            if (count($row) === count($header)) {
+                // Sanitize CSV injection: strip leading formula characters
+                $row = array_map(fn($cell) => self::sanitizeCsvCell($cell), $row);
+                $rows[] = array_combine($header, $row);
+            }
         }
         fclose($handle);
         return $rows;
+    }
+
+    /**
+     * Prevent CSV injection — strip leading characters that spreadsheets interpret as formulas.
+     */
+    private static function sanitizeCsvCell(string $value): string
+    {
+        $value = trim($value);
+        // Strip leading =, +, -, @, tab, carriage return that trigger formula execution
+        if ($value !== '' && in_array($value[0], ['=', '+', '-', '@', "\t", "\r"])) {
+            $value = "'" . $value; // Prefix with single quote (Excel safe)
+        }
+        return $value;
     }
 
     private static function uniqueSlug(string $name, string $table): string

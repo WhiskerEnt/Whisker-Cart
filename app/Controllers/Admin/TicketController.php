@@ -70,6 +70,11 @@ class TicketController
 
     public function updateStatus(Request $request, array $params = []): void
     {
+        if (!Session::verifyCsrf($request->input('wk_csrf'))) {
+            Session::flash('error', 'Session expired.');
+            Response::redirect(View::url('admin/tickets'));
+            return;
+        }
         $ticketId = (int)$params['id'];
         $newStatus = $request->input('status');
         $allowed = ['open','in_progress','waiting','resolved','closed'];

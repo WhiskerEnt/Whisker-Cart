@@ -34,6 +34,11 @@ class RazorpayGateway extends \Core\BaseGateway
     public function webhook(\Core\Request $request): void
     {
         $rawBody = file_get_contents('php://input');
+        if (empty($rawBody)) {
+            \Core\Response::json(['error' => 'Empty body'], 400);
+            return;
+        }
+
         $webhookSecret = $this->cfg('webhook_secret');
 
         // Verify webhook signature if secret is configured
@@ -53,14 +58,11 @@ class RazorpayGateway extends \Core\BaseGateway
             $payment = $payload['payload']['payment']['entity'] ?? [];
             $paymentId = $payment['id'] ?? null;
             $orderId = $payment['order_id'] ?? null;
+            $paidAmount = isset($payment['amount']) ? (float)$payment['amount'] / 100 : null; // Convert paise to rupees
 
             if ($paymentId && $orderId) {
-                \Core\Database::query(
-                    "UPDATE wk_payment_transactions SET status='success', transaction_id=? WHERE gateway_order_id=?",
-                    [$paymentId, $orderId]
-                );
                 $txn = \Core\Database::fetch("SELECT order_id FROM wk_payment_transactions WHERE gateway_order_id=?", [$orderId]);
-                if ($txn) $this->markOrderPaid($txn['order_id'], $paymentId);
+                if ($txn) $this->markOrderPaid($txn['order_id'], $paymentId, $paidAmount);
             }
         }
 
@@ -69,10 +71,21 @@ class RazorpayGateway extends \Core\BaseGateway
 
     private function api(string $ep, array $data): array
     {
-        $ch = curl_init('https://api.razorpay.com/v1'.$ep);
-        curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER=>1, CURLOPT_POST=>1, CURLOPT_POSTFIELDS=>json_encode($data),
-            CURLOPT_HTTPHEADER=>['Content-Type: application/json'], CURLOPT_USERPWD=>$this->cfg('key_id').':'.$this->cfg('key_secret'), CURLOPT_TIMEOUT=>30]);
-        $body = curl_exec($ch); curl_close($ch);
+        $ch = curl_init('https://api.razorpay.com/v1' . $ep);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => 1,
+            CURLOPT_POST => 1,
+            CURLOPT_POSTFIELDS => json_encode($data),
+            CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+            CURLOPT_USERPWD => $this->cfg('key_id') . ':' . $this->cfg('key_secret'),
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+        ]);
+        $body = curl_exec($ch);
+        $err = curl_error($ch);
+        curl_close($ch);
+        if ($err) return ['error' => $err];
         return json_decode($body, true) ?? [];
     }
 }

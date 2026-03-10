@@ -157,7 +157,7 @@ class CurrencyService
 
         $ctx = stream_context_create([
             'http' => ['timeout' => 5, 'ignore_errors' => true],
-            'ssl'  => ['verify_peer' => false],
+            'ssl'  => ['verify_peer' => true, 'verify_peer_name' => true],
         ]);
 
         $body = @file_get_contents($url, false, $ctx);
@@ -194,7 +194,7 @@ class CurrencyService
 
         // Fetch all rates
         $url = "https://api.frankfurter.app/latest?from={$from}";
-        $ctx = stream_context_create(['http' => ['timeout' => 5], 'ssl' => ['verify_peer' => false]]);
+        $ctx = stream_context_create(['http' => ['timeout' => 5], 'ssl' => ['verify_peer' => true, 'verify_peer_name' => true]]);
         $body = @file_get_contents($url, false, $ctx);
 
         if (!$body) return [];

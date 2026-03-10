@@ -57,6 +57,9 @@ class SeoController
 
     public function generateSitemap(Request $request, array $params = []): void
     {
+        if (!Session::verifyCsrf($request->input('wk_csrf'))) {
+            Session::flash('error', 'Session expired.'); Response::redirect(View::url('admin/seo')); return;
+        }
         $ok = SeoService::writeSitemap();
         Session::flash($ok ? 'success' : 'error', $ok ? 'Sitemap generated at /sitemap.xml' : 'Failed to write sitemap.xml — check permissions.');
         Response::redirect(View::url('admin/seo'));
@@ -64,6 +67,9 @@ class SeoController
 
     public function generateRobots(Request $request, array $params = []): void
     {
+        if (!Session::verifyCsrf($request->input('wk_csrf'))) {
+            Session::flash('error', 'Session expired.'); Response::redirect(View::url('admin/seo')); return;
+        }
         $ok = (bool) file_put_contents(WK_ROOT . '/robots.txt', SeoService::generateRobotsTxt());
         Session::flash($ok ? 'success' : 'error', $ok ? 'robots.txt generated.' : 'Failed to write robots.txt — check permissions.');
         Response::redirect(View::url('admin/seo'));

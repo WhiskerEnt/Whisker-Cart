@@ -66,6 +66,7 @@ class CheckoutController
             $existing = Database::fetch("SELECT id FROM wk_customers WHERE email=?", [$email]);
             if ($existing) {
                 $customerId = $existing['id'];
+                // Do NOT call Session::setCustomer() — guest cannot hijack existing account
             } else {
                 $customerId = Database::insert('wk_customers', [
                     'first_name'    => $request->clean('first_name') ?? '',
@@ -75,12 +76,12 @@ class CheckoutController
                     'password_hash' => password_hash(bin2hex(random_bytes(16)), PASSWORD_BCRYPT),
                     'is_active'     => 1,
                 ]);
+                // Only auto-login newly created guest accounts
+                Session::setCustomer($customerId);
             }
-            // Update customer stats
-            Session::setCustomer($customerId);
         }
 
-        $orderNumber = 'WK-' . strtoupper(date('ymd')) . '-' . strtoupper(bin2hex(random_bytes(3)));
+        $orderNumber = 'WK-' . strtoupper(date('ymd')) . '-' . strtoupper(bin2hex(random_bytes(6)));
         $orderId = Database::insert('wk_orders', [
             'order_number'=>$orderNumber, 'customer_id'=>$customerId,
             'status'=>'pending', 'subtotal'=>$cart['subtotal'],
@@ -147,6 +148,13 @@ class CheckoutController
             );
         }
 
+        // Increment coupon usage
+        $coupon = Session::get('wk_coupon');
+        if ($coupon && !empty($coupon['id'])) {
+            Database::query("UPDATE wk_coupons SET used_count = used_count + 1 WHERE id=?", [$coupon['id']]);
+            Session::remove('wk_coupon');
+        }
+
         // Mark cart converted
         Database::update('wk_carts', ['status'=>'converted'], 'session_id=? AND status=?', [Session::cartId(),'active']);
 
@@ -173,8 +181,20 @@ class CheckoutController
     public function success(Request $request, array $params = []): void
     {
         $orderNumber = $request->query('order') ?? Session::get('wk_last_order');
-        $order = $orderNumber ? Database::fetch("SELECT * FROM wk_orders WHERE order_number=?", [$orderNumber]) : null;
-        View::render('store/order-success', ['order'=>$order], 'store/layouts/main');
+        $order = null;
+
+        if ($orderNumber) {
+            $order = Database::fetch("SELECT * FROM wk_orders WHERE order_number=?", [$orderNumber]);
+            // Verify ownership: must be from current session or current customer
+            if ($order) {
+                $lastOrder = Session::get('wk_last_order');
+                $custId = Session::customerId();
+                $isOwner = ($orderNumber === $lastOrder) || ($custId && (int)$order['customer_id'] === $custId);
+                if (!$isOwner) $order = null;
+            }
+        }
+
+        View::render('store/order-success', ['order' => $order], 'store/layouts/main');
     }
 
     private function getCartData(): array

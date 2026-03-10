@@ -34,6 +34,13 @@ class EmailService
         $fromName  = Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='email' AND setting_key='from_name'") ?: 'Whisker Store';
         $smtpHost  = Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='email' AND setting_key='smtp_host'");
 
+        // Prevent email header injection — strip newlines from all header values
+        $fromEmail = str_replace(["\r", "\n", "%0a", "%0d"], '', $fromEmail);
+        $fromName  = str_replace(["\r", "\n", "%0a", "%0d"], '', $fromName);
+        $to        = str_replace(["\r", "\n", "%0a", "%0d"], '', $to);
+        $subject   = str_replace(["\r", "\n", "%0a", "%0d"], '', $subject);
+        if ($replyTo) $replyTo = str_replace(["\r", "\n", "%0a", "%0d"], '', $replyTo);
+
         $headers  = "MIME-Version: 1.0\r\nContent-type: text/html; charset=UTF-8\r\nFrom: {$fromName} <{$fromEmail}>\r\n";
         if ($replyTo) $headers .= "Reply-To: {$replyTo}\r\n";
 

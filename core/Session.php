@@ -254,6 +254,8 @@ class Session
     {
         $ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
         $ua = $_SERVER['HTTP_USER_AGENT'] ?? '';
-        return hash('sha256', $ip . '|' . $ua . '|whisker_salt_2024');
+        // Use installation-specific salt if available, otherwise fallback
+        $salt = defined('WK_BASE_URL') ? WK_BASE_URL : 'whisker_default_salt';
+        return hash('sha256', $ip . '|' . $ua . '|' . $salt);
     }
 }

@@ -11,7 +11,7 @@ class HomeController
         if ($switchCurrency) {
             $allowed = array_keys(\App\Services\CurrencyService::currencies());
             if (in_array(strtoupper($switchCurrency), $allowed)) {
-                $_SESSION['wk_display_currency'] = strtoupper($switchCurrency);
+                Session::set('wk_display_currency', strtoupper($switchCurrency));
             }
             \Core\Response::redirect(\Core\View::url(''));
             return;

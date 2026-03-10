@@ -77,10 +77,12 @@ class ProductController
         $q = $request->clean('q') ?? '';
         $products = [];
         if (strlen($q) >= 2) {
+            // Escape LIKE wildcards to prevent wildcard injection
+            $escaped = str_replace(['%', '_'], ['\\%', '\\_'], $q);
             $products = Database::fetchAll(
                 "SELECT p.*, (SELECT image_path FROM wk_product_images WHERE product_id=p.id AND is_primary=1 LIMIT 1) AS image
                  FROM wk_products p WHERE p.is_active=1 AND (p.name LIKE ? OR p.description LIKE ?) ORDER BY p.name LIMIT 20",
-                ["%{$q}%", "%{$q}%"]
+                ["%{$escaped}%", "%{$escaped}%"]
             );
         }
         View::render('store/home', ['products'=>$products, 'siteName'=>"Search: {$q}", 'tagline'=>count($products).' results', 'currency'=>'₹'], 'store/layouts/main');
