@@ -77,6 +77,10 @@ $router->group(['prefix' => '/admin', 'middleware' => ['auth', 'csrf']], functio
     $r->get('',                          [DashboardController::class, 'index']);
     $r->get('/dashboard',                [DashboardController::class, 'index']);
 
+    // System Updates
+    $r->post('/update/apply',            [DashboardController::class, 'applyUpdate']);
+    $r->post('/update/dismiss',          [DashboardController::class, 'dismissUpdate']);
+
     // Products
     $r->get('/products',                 [AdminProductController::class, 'index']);
     $r->get('/products/create',          [AdminProductController::class, 'create']);
@@ -130,6 +134,7 @@ $router->group(['prefix' => '/admin', 'middleware' => ['auth', 'csrf']], functio
     // Settings
     $r->get('/settings',                 [SettingsController::class, 'index']);
     $r->post('/settings/update',         [SettingsController::class, 'update']);
+    $r->post('/settings/change-password',[SettingsController::class, 'changePassword']);
     $r->post('/settings/test-smtp',      [SettingsController::class, 'testSmtp']);
 
     // Support Tickets

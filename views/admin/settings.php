@@ -105,6 +105,18 @@
     </div>
 </form>
 
+<!-- Change Password -->
+<form method="POST" action="<?= \Core\View::url('admin/settings/change-password') ?>">
+    <?= \Core\Session::csrfField() ?>
+    <div class="wk-card" style="margin-top:24px">
+        <h3 style="font-size:16px;font-weight:800;margin-bottom:16px">🔒 Change Admin Password</h3>
+        <div class="wk-form-group"><label>Current Password</label><input type="password" name="current_password" class="wk-input" required></div>
+        <div class="wk-form-group"><label>New Password</label><input type="password" name="new_password" class="wk-input" required minlength="8" placeholder="Min 8 characters"></div>
+        <div class="wk-form-group"><label>Confirm New Password</label><input type="password" name="confirm_password" class="wk-input" required minlength="8"></div>
+        <button type="submit" class="wk-btn wk-btn-primary" style="justify-content:center" onclick="return confirm('Change your admin password?')">Change Password</button>
+    </div>
+</form>
+
 <script>
 async function testSmtpConnection() {
     const btn = document.getElementById('testConnBtn');

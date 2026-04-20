@@ -6,7 +6,66 @@ $customerName = function($o) {
     $b = json_decode($o['billing_address']??'{}', true);
     return trim($b['name']??'') ?: ($o['customer_email']??'Guest');
 };
+
+// Check if update was dismissed (time-based)
+$dismissedData = \Core\Database::setting('system_cache', 'dismissed_update');
+$showUpdate = !empty($updateAvailable);
+if ($showUpdate && $dismissedData) {
+    $dismissed = json_decode($dismissedData, true);
+    if ($dismissed && ($dismissed['version'] ?? '') === ($updateAvailable['version'] ?? '') && ($dismissed['until'] ?? 0) > time()) {
+        $showUpdate = false;
+    }
+}
 ?>
+
+<?php if ($showUpdate): ?>
+<!-- Update Banner -->
+<div id="updateBanner" style="background:linear-gradient(135deg,#1e1b2e,#2d2640);border:2px solid <?= ($updateAvailable['severity'] ?? '') === 'critical' ? '#ef4444' : '#8b5cf6' ?>;border-radius:14px;padding:20px 24px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+    <div style="display:flex;align-items:center;gap:14px">
+        <div style="width:44px;height:44px;border-radius:12px;background:<?= ($updateAvailable['severity'] ?? '') === 'critical' ? '#ef4444' : '#8b5cf6' ?>;display:flex;align-items:center;justify-content:center;font-size:22px">🚀</div>
+        <div>
+            <div style="font-weight:800;font-size:15px;color:#fff">
+                Whisker v<?= $e($updateAvailable['version'] ?? '') ?> is available!
+                <?php if (($updateAvailable['severity'] ?? '') === 'critical'): ?>
+                <span style="background:#ef4444;color:#fff;font-size:11px;padding:2px 8px;border-radius:6px;margin-left:6px">CRITICAL</span>
+                <?php elseif (($updateAvailable['severity'] ?? '') === 'recommended'): ?>
+                <span style="background:#f59e0b;color:#000;font-size:11px;padding:2px 8px;border-radius:6px;margin-left:6px">RECOMMENDED</span>
+                <?php endif; ?>
+            </div>
+            <div style="font-size:13px;color:rgba(255,255,255,.6);margin-top:2px">
+                You're on v<?= WK_VERSION ?>.
+                <?php if (!empty($updateAvailable['changelog'])): ?>
+                <?= $e(mb_substr($updateAvailable['changelog'], 0, 120)) ?><?= strlen($updateAvailable['changelog']) > 120 ? '...' : '' ?>
+                <?php endif; ?>
+                <?php if (!empty($updateAvailable['size'])): ?>
+                (<?= $e($updateAvailable['size']) ?>)
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <?php if (!empty($updateAvailable['download_url'])): ?>
+        <form method="POST" action="<?= $url('admin/update/apply') ?>" onsubmit="return confirm('This will update Whisker to v<?= $e($updateAvailable['version']) ?>. Your config and database will NOT be affected. Continue?')">
+            <?= \Core\Session::csrfField() ?>
+            <input type="hidden" name="download_url" value="<?= $e($updateAvailable['download_url']) ?>">
+            <input type="hidden" name="sha256" value="<?= $e($updateAvailable['sha256'] ?? '') ?>">
+            <button type="submit" style="padding:10px 20px;background:linear-gradient(135deg,#8b5cf6,#ec4899);color:#fff;border:none;border-radius:10px;font-weight:800;font-size:13px;cursor:pointer">Update Now →</button>
+        </form>
+        <?php endif; ?>
+        <button onclick="dismissUpdate('<?= $e($updateAvailable['version'] ?? '') ?>', 24)" style="padding:10px 16px;background:rgba(255,255,255,.1);color:rgba(255,255,255,.6);border:none;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer">Remind Tomorrow</button>
+        <button onclick="dismissUpdate('<?= $e($updateAvailable['version'] ?? '') ?>', 168)" style="padding:10px 16px;background:rgba(255,255,255,.06);color:rgba(255,255,255,.4);border:none;border-radius:10px;font-weight:700;font-size:12px;cursor:pointer">Dismiss 7 days</button>
+    </div>
+</div>
+<script>
+function dismissUpdate(version, hours) {
+    fetch('<?= $url('admin/update/dismiss') ?>', {
+        method:'POST',
+        headers:{'Content-Type':'application/x-www-form-urlencoded','X-CSRF-Token':'<?= \Core\Session::csrfToken() ?>'},
+        body:'version='+encodeURIComponent(version)+'&hours='+hours
+    }).then(()=>document.getElementById('updateBanner').style.display='none');
+}
+</script>
+<?php endif; ?>
 
 <!-- Stats Row -->
 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px">

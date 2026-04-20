@@ -133,4 +133,55 @@ class SettingsController
 
         Response::json(['success' => false, 'message' => 'Unknown action']);
     }
+
+    /**
+     * Change admin password
+     */
+    public function changePassword(Request $request, array $params = []): void
+    {
+        if (!Session::verifyCsrf($request->input('wk_csrf'))) {
+            Session::flash('error', 'Session expired.');
+            Response::redirect(View::url('admin/settings'));
+            return;
+        }
+
+        $currentPassword = $request->input('current_password') ?? '';
+        $newPassword = $request->input('new_password') ?? '';
+        $confirmPassword = $request->input('confirm_password') ?? '';
+
+        // Validate
+        if (!$currentPassword || !$newPassword || !$confirmPassword) {
+            Session::flash('error', 'All password fields are required.');
+            Response::redirect(View::url('admin/settings'));
+            return;
+        }
+
+        if ($newPassword !== $confirmPassword) {
+            Session::flash('error', 'New passwords do not match.');
+            Response::redirect(View::url('admin/settings'));
+            return;
+        }
+
+        if (strlen($newPassword) < 8) {
+            Session::flash('error', 'New password must be at least 8 characters.');
+            Response::redirect(View::url('admin/settings'));
+            return;
+        }
+
+        // Verify current password
+        $adminId = Session::adminId();
+        $admin = Database::fetch("SELECT password_hash FROM wk_admins WHERE id=?", [$adminId]);
+        if (!$admin || !password_verify($currentPassword, $admin['password_hash'])) {
+            Session::flash('error', 'Current password is incorrect.');
+            Response::redirect(View::url('admin/settings'));
+            return;
+        }
+
+        // Update password
+        $newHash = password_hash($newPassword, PASSWORD_BCRYPT, ['cost' => 12]);
+        Database::update('wk_admins', ['password_hash' => $newHash], 'id = ?', [$adminId]);
+
+        Session::flash('success', 'Password changed successfully.');
+        Response::redirect(View::url('admin/settings'));
+    }
 }

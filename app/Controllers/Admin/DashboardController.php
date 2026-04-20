@@ -1,13 +1,19 @@
 <?php
 namespace App\Controllers\Admin;
 
-use Core\{Request, View, Database};
+use Core\{Request, View, Database, Response, Session};
 
 class DashboardController
 {
     public function index(Request $request, array $params = []): void
     {
         $currencySymbol = Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='currency_symbol'") ?: '₹';
+
+        // Check for updates (cached, hits API once per day)
+        $updateAvailable = null;
+        try {
+            $updateAvailable = \App\Services\UpdateService::check();
+        } catch (\Exception $e) {}
 
         // ── Core Stats ──
         $stats = [
@@ -88,6 +94,60 @@ class DashboardController
             'recentOrders'     => $recentOrders,
             'recentCustomers'  => $recentCustomers,
             'currency'         => $currencySymbol,
+            'updateAvailable'  => $updateAvailable,
         ], 'admin/layouts/main');
+    }
+
+    /**
+     * Apply update — downloads and extracts new version
+     */
+    public function applyUpdate(Request $request, array $params = []): void
+    {
+        if (!Session::verifyCsrf($request->input('wk_csrf'))) {
+            Session::flash('error', 'Session expired.');
+            Response::redirect(View::url('admin'));
+            return;
+        }
+
+        $downloadUrl = $request->input('download_url');
+        $sha256 = $request->input('sha256');
+        if (!$downloadUrl || !filter_var($downloadUrl, FILTER_VALIDATE_URL)) {
+            Session::flash('error', 'Invalid update URL.');
+            Response::redirect(View::url('admin'));
+            return;
+        }
+
+        $result = \App\Services\UpdateService::applyUpdate($downloadUrl, $sha256 ?: null);
+
+        if ($result['success']) {
+            Session::flash('success', $result['message']);
+        } else {
+            Session::flash('error', $result['message']);
+        }
+
+        Response::redirect(View::url('admin'));
+    }
+
+    /**
+     * Dismiss update notification (hides until next version)
+     */
+    public function dismissUpdate(Request $request, array $params = []): void
+    {
+        $version = $request->input('version') ?? '';
+        $hours = max(1, min(168, (int)($request->input('hours') ?? 24))); // 1h min, 7d max
+        if ($version) {
+            try {
+                $data = json_encode([
+                    'version' => $version,
+                    'until'   => time() + ($hours * 3600),
+                ]);
+                Database::query(
+                    "INSERT INTO wk_settings (setting_group, setting_key, setting_value) VALUES ('system_cache', 'dismissed_update', ?)
+                     ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)",
+                    [$data]
+                );
+            } catch (\Exception $e) {}
+        }
+        Response::json(['success' => true]);
     }
 }
