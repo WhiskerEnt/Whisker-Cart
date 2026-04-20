@@ -278,6 +278,8 @@ class ProductController
                 Response::json(['success' => false, 'message' => 'Failed to save temp file'], 500);
                 return;
             }
+            // Re-encode to strip any embedded payloads (polyglot attack prevention)
+            self::reencodeImage($uploadDir . $tempName, $ext);
             $tempImages = Session::get('wk_temp_images', []);
             $tempImages[] = ['tmp_path' => $uploadDir . $tempName, 'ext' => $ext];
             Session::set('wk_temp_images', $tempImages);
@@ -300,6 +302,8 @@ class ProductController
             Response::json(['success' => false, 'message' => 'Failed to move uploaded file. Check folder permissions on storage/uploads/products/'], 500);
             return;
         }
+        // Re-encode to strip any embedded payloads (polyglot attack prevention)
+        self::reencodeImage($uploadDir . $filename, $ext);
 
         $existingCount = Database::fetchValue("SELECT COUNT(*) FROM wk_product_images WHERE product_id=?", [$productId]);
 
@@ -461,6 +465,8 @@ class ProductController
             Response::json(['success' => false, 'message' => 'Upload failed'], 500);
             return;
         }
+        // Re-encode to strip any embedded payloads
+        self::reencodeImage($uploadDir . $filename, $ext);
 
         $imageId = \App\Services\VariantService::uploadOptionImage($productId, $optionId, $filename);
 
@@ -539,6 +545,66 @@ class ProductController
                  ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)",
                 [$key . '_' . $productId, trim($value)]
             );
+        }
+    }
+
+    /**
+     * Re-encode an uploaded image using GD to strip any embedded payloads.
+     * Converts the image to a clean copy — prevents polyglot attacks
+     * (e.g. PHP code hidden inside EXIF/comment data).
+     *
+     * @param string $filePath Full path to the uploaded image
+     * @param string $ext      File extension (jpg, png, webp, gif)
+     * @return bool True if re-encoded successfully
+     */
+    private static function reencodeImage(string $filePath, string $ext): bool
+    {
+        if (!extension_loaded('gd')) return true; // Skip if GD not available
+
+        try {
+            $source = match ($ext) {
+                'jpg', 'jpeg' => @imagecreatefromjpeg($filePath),
+                'png'         => @imagecreatefrompng($filePath),
+                'webp'        => function_exists('imagecreatefromwebp') ? @imagecreatefromwebp($filePath) : false,
+                'gif'         => @imagecreatefromgif($filePath),
+                default       => false,
+            };
+
+            if (!$source) return false;
+
+            // Get dimensions
+            $width = imagesx($source);
+            $height = imagesy($source);
+
+            // Create clean image
+            $clean = imagecreatetruecolor($width, $height);
+
+            // Preserve transparency for PNG and GIF
+            if ($ext === 'png' || $ext === 'gif') {
+                imagealphablending($clean, false);
+                imagesavealpha($clean, true);
+                $transparent = imagecolorallocatealpha($clean, 0, 0, 0, 127);
+                imagefilledrectangle($clean, 0, 0, $width, $height, $transparent);
+            }
+
+            // Copy image data (strips all metadata and embedded payloads)
+            imagecopy($clean, $source, 0, 0, 0, 0, $width, $height);
+
+            // Save back to same path
+            $result = match ($ext) {
+                'jpg', 'jpeg' => imagejpeg($clean, $filePath, 90),
+                'png'         => imagepng($clean, $filePath, 8),
+                'webp'        => function_exists('imagewebp') ? imagewebp($clean, $filePath, 85) : false,
+                'gif'         => imagegif($clean, $filePath),
+                default       => false,
+            };
+
+            imagedestroy($source);
+            imagedestroy($clean);
+
+            return $result;
+        } catch (\Exception $e) {
+            return false;
         }
     }
 }

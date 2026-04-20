@@ -70,7 +70,8 @@ $customer = $isLoggedIn ? \Core\Database::fetch("SELECT first_name FROM wk_custo
         </a>
 
         <nav class="wk-header-nav">
-            <a href="<?= $url('') ?>">Shop</a>
+            <a href="<?= $url('') ?>">Home</a>
+            <a href="<?= $url('shop') ?>">Shop All</a>
             <?php foreach (array_slice($parentCats, 0, 6) as $cat):
                 $children = $childMap[$cat['id']] ?? [];
             ?>

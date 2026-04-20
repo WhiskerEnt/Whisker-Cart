@@ -357,6 +357,7 @@ $requirements = [
     ['cURL Extension',           extension_loaded('curl')],
     ['JSON Extension',           extension_loaded('json')],
     ['mbstring Extension',       extension_loaded('mbstring')],
+    ['GD Extension (image processing)', extension_loaded('gd')],
     ['config/ is writable',      is_writable(WK_ROOT . '/config')],
     ['storage/ is writable',     is_writable(WK_ROOT . '/storage')],
     ['storage/uploads/ writable', is_writable(WK_ROOT . '/storage/uploads')],

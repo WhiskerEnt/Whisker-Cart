@@ -23,7 +23,7 @@ $config = require WK_ROOT . '/config/config.php';
 define('WK_BASE_URL',  $config['base_url']);
 define('WK_BASE_PATH', $config['base_path'] ?? '/');
 define('WK_DEBUG',     $config['debug'] ?? false);
-define('WK_VERSION',   $config['version'] ?? '1.0.1');
+define('WK_VERSION',   $config['version'] ?? '1.1.0');
 
 date_default_timezone_set($config['timezone'] ?? 'UTC');
 

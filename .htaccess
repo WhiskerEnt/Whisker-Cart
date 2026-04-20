@@ -39,11 +39,24 @@ RewriteRule ^plugins/.*\.php$ - [F,L]
     Header set X-XSS-Protection "1; mode=block"
     Header set Referrer-Policy "strict-origin-when-cross-origin"
     Header set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+    Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://checkout.razorpay.com https://js.stripe.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://api.razorpay.com https://api.stripe.com; frame-src https://api.razorpay.com https://js.stripe.com https://checkout.razorpay.com;"
+    Header set Strict-Transport-Security "max-age=31536000; includeSubDomains" env=HTTPS
 </IfModule>
 
-# Prevent PHP execution in uploads
+# Prevent PHP execution in uploads — multiple methods for compatibility
 <IfModule mod_rewrite.c>
-    RewriteRule ^storage/uploads/.*\.php$ - [F,L]
+    RewriteRule ^storage/uploads/.*\.(php|phtml|php3|php4|php5|php7|phps|phar|shtml)$ - [F,L]
 </IfModule>
+
+# Additional PHP block for uploads (belt and suspenders)
+<Directory "storage/uploads">
+    <IfModule mod_php.c>
+        php_flag engine off
+    </IfModule>
+    RemoveHandler .php .phtml .php3 .php4 .php5 .php7 .phps .phar
+    <FilesMatch "\.(php|phtml|php3|php4|php5|php7|phps|phar)$">
+        Require all denied
+    </FilesMatch>
+</Directory>
 
 AddDefaultCharset UTF-8

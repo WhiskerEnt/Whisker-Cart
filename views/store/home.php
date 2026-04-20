@@ -146,6 +146,11 @@ $gridProducts = $products;
                 </div>
                 <?php endforeach; ?>
             </div>
+
+            <!-- View All Link -->
+            <div style="text-align:center;margin-top:32px">
+                <a href="<?= $url('shop') ?>" style="display:inline-block;padding:14px 36px;background:var(--wk-purple);color:#fff;border-radius:12px;font-weight:800;text-decoration:none;font-size:15px;transition:all .2s">View All Products →</a>
+            </div>
         <?php endif; ?>
     </div>
 </section>

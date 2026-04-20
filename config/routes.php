@@ -14,6 +14,7 @@ use App\Controllers\Admin\{
 
 // ── Storefront ───────────────────────────────────
 $router->get('/',                    [HomeController::class, 'index']);
+$router->get('/shop',               [HomeController::class, 'shop']);
 $router->get('/product/{slug}',      [ProductController::class, 'show']);
 $router->get('/category/{slug}',     [ProductController::class, 'category']);
 $router->get('/search',              [ProductController::class, 'search']);
