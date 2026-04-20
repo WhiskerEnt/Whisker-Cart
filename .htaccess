@@ -48,15 +48,4 @@ RewriteRule ^plugins/.*\.php$ - [F,L]
     RewriteRule ^storage/uploads/.*\.(php|phtml|php3|php4|php5|php7|phps|phar|shtml)$ - [F,L]
 </IfModule>
 
-# Additional PHP block for uploads (belt and suspenders)
-<Directory "storage/uploads">
-    <IfModule mod_php.c>
-        php_flag engine off
-    </IfModule>
-    RemoveHandler .php .phtml .php3 .php4 .php5 .php7 .phps .phar
-    <FilesMatch "\.(php|phtml|php3|php4|php5|php7|phps|phar)$">
-        Require all denied
-    </FilesMatch>
-</Directory>
-
 AddDefaultCharset UTF-8
