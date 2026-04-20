@@ -112,7 +112,7 @@ class UpdateService
      * Download and apply update.
      * Returns ['success' => bool, 'message' => string]
      */
-    public static function applyUpdate(string $downloadUrl, ?string $expectedHash = null): array
+    public static function applyUpdate(string $downloadUrl, ?string $expectedHash = null, string $dbBackupMode = 'schema'): array
     {
         // SECURITY: Only allow downloads from lohit.me
         $host = parse_url($downloadUrl, PHP_URL_HOST);
@@ -130,6 +130,12 @@ class UpdateService
         $freeSpace = @disk_free_space(WK_ROOT);
         if ($freeSpace !== false && $freeSpace < 50 * 1024 * 1024) {
             return ['success' => false, 'message' => 'Not enough disk space (need at least 50MB free).'];
+        }
+
+        // ── Create backup before updating ──
+        $backupResult = self::createBackup($dbBackupMode);
+        if (!$backupResult['success']) {
+            return ['success' => false, 'message' => 'Backup failed: ' . $backupResult['message'] . ' Update aborted.'];
         }
 
         $tempDir = WK_ROOT . '/storage/cache/update_' . time();
@@ -220,11 +226,332 @@ class UpdateService
                 );
             } catch (\Exception $e) {}
 
-            return ['success' => true, 'message' => 'Update applied successfully! Please refresh the page.'];
+            return ['success' => true, 'message' => 'Update applied successfully! A backup of v' . WK_VERSION . ' was saved. Refresh the page.'];
         } catch (\Exception $e) {
             @unlink($zipPath);
             if (is_dir($tempDir)) self::deleteDirectory($tempDir);
-            return ['success' => false, 'message' => 'Update failed unexpectedly. Your store is still running.'];
+            return ['success' => false, 'message' => 'Update failed unexpectedly. Your store is still running. A backup was saved.'];
+        }
+    }
+
+    // ── Backup & Rollback ───────────────────────────
+
+    private const BACKUP_DIR = '/storage/cache/backups';
+    private const MAX_BACKUPS = 3;
+
+    /**
+     * Directories to skip when creating backup (uploads don't change during updates).
+     */
+    private static array $backupSkipDirs = [
+        'storage/uploads',
+        'storage/cache',
+        'storage/logs',
+    ];
+
+    /**
+     * Create a backup ZIP of the current installation.
+     * @param string $dbMode 'none' | 'schema' | 'full'
+     */
+    public static function createBackup(string $dbMode = 'schema'): array
+    {
+        $backupDir = WK_ROOT . self::BACKUP_DIR;
+        if (!is_dir($backupDir) && !@mkdir($backupDir, 0755, true)) {
+            return ['success' => false, 'message' => 'Cannot create backup directory.'];
+        }
+
+        $version = defined('WK_VERSION') ? WK_VERSION : 'unknown';
+        $filename = 'backup_v' . $version . '_' . date('Ymd_His') . '.zip';
+        $backupPath = $backupDir . '/' . $filename;
+
+        $zip = new \ZipArchive();
+        if ($zip->open($backupPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+            return ['success' => false, 'message' => 'Cannot create backup ZIP file.'];
+        }
+
+        // Add all files except uploads, cache, logs
+        self::addDirectoryToZip($zip, WK_ROOT, '', self::$backupSkipDirs);
+
+        // Add database backup if requested
+        if ($dbMode === 'schema' || $dbMode === 'full') {
+            $sqlDump = self::dumpDatabase($dbMode === 'full');
+            if ($sqlDump) {
+                $zip->addFromString('_db_backup.sql', $sqlDump);
+            }
+        }
+
+        $zip->close();
+
+        // Verify backup was created and has content
+        if (!file_exists($backupPath) || filesize($backupPath) < 100) {
+            @unlink($backupPath);
+            return ['success' => false, 'message' => 'Backup file is empty or corrupted.'];
+        }
+
+        // Cleanup old backups — keep only the latest MAX_BACKUPS
+        self::cleanupOldBackups($backupDir);
+
+        // Store backup info in settings
+        $backupSize = filesize($backupPath);
+        try {
+            $backupInfo = json_encode([
+                'filename' => $filename,
+                'version'  => $version,
+                'db_mode'  => $dbMode,
+                'created'  => date('Y-m-d H:i:s'),
+                'size'     => $backupSize,
+            ]);
+            Database::query(
+                "INSERT INTO wk_settings (setting_group, setting_key, setting_value) VALUES ('system_cache', 'last_backup', ?)
+                 ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)",
+                [$backupInfo]
+            );
+        } catch (\Exception $e) {}
+
+        return ['success' => true, 'message' => 'Backup created.', 'filename' => $filename, 'size' => $backupSize];
+    }
+
+    /**
+     * Estimate database size for display to user.
+     * Returns ['schema' => bytes, 'full' => bytes, 'tables' => [...]]
+     */
+    public static function estimateDbSize(): array
+    {
+        $tables = [];
+        $schemaSize = 0;
+        $fullSize = 0;
+
+        try {
+            $rows = Database::fetchAll("SHOW TABLE STATUS LIKE 'wk_%'");
+            foreach ($rows as $row) {
+                $dataLen = (int)($row['Data_length'] ?? 0);
+                $indexLen = (int)($row['Index_length'] ?? 0);
+                $rowCount = (int)($row['Rows'] ?? 0);
+                $total = $dataLen + $indexLen;
+                $tables[] = [
+                    'name'  => $row['Name'],
+                    'rows'  => $rowCount,
+                    'size'  => $total,
+                ];
+                $fullSize += $total;
+                $schemaSize += 2048; // ~2KB per table for CREATE TABLE statement
+            }
+        } catch (\Exception $e) {}
+
+        return [
+            'schema' => $schemaSize,
+            'full'   => $fullSize,
+            'tables' => $tables,
+            'table_count' => count($tables),
+        ];
+    }
+
+    /**
+     * Dump database to SQL string.
+     * @param bool $includeData If false, only dumps CREATE TABLE statements (schema only).
+     */
+    private static function dumpDatabase(bool $includeData = false): ?string
+    {
+        try {
+            $sql = "-- Whisker Database Backup\n";
+            $sql .= "-- Version: " . (defined('WK_VERSION') ? WK_VERSION : 'unknown') . "\n";
+            $sql .= "-- Date: " . date('Y-m-d H:i:s') . "\n";
+            $sql .= "-- Mode: " . ($includeData ? 'Full dump' : 'Schema only') . "\n\n";
+            $sql .= "SET FOREIGN_KEY_CHECKS = 0;\n\n";
+
+            $tables = Database::fetchAll("SHOW TABLES LIKE 'wk_%'");
+            foreach ($tables as $row) {
+                $tableName = array_values($row)[0];
+
+                // Get CREATE TABLE statement
+                $create = Database::fetch("SHOW CREATE TABLE `{$tableName}`");
+                $createSql = $create['Create Table'] ?? '';
+                $sql .= "DROP TABLE IF EXISTS `{$tableName}`;\n";
+                $sql .= $createSql . ";\n\n";
+
+                // Dump data if full mode
+                if ($includeData) {
+                    $rows = Database::fetchAll("SELECT * FROM `{$tableName}`");
+                    if (!empty($rows)) {
+                        $columns = array_keys($rows[0]);
+                        $colList = '`' . implode('`, `', $columns) . '`';
+
+                        // Batch inserts (100 rows per INSERT for performance)
+                        $chunks = array_chunk($rows, 100);
+                        foreach ($chunks as $chunk) {
+                            $values = [];
+                            foreach ($chunk as $dataRow) {
+                                $vals = [];
+                                foreach ($dataRow as $val) {
+                                    if ($val === null) {
+                                        $vals[] = 'NULL';
+                                    } else {
+                                        $vals[] = "'" . addslashes((string)$val) . "'";
+                                    }
+                                }
+                                $values[] = '(' . implode(', ', $vals) . ')';
+                            }
+                            $sql .= "INSERT INTO `{$tableName}` ({$colList}) VALUES\n" . implode(",\n", $values) . ";\n";
+                        }
+                        $sql .= "\n";
+                    }
+                }
+            }
+
+            $sql .= "SET FOREIGN_KEY_CHECKS = 1;\n";
+            return $sql;
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Rollback to a backup ZIP.
+     */
+    public static function rollback(string $filename): array
+    {
+        // Sanitize filename
+        $filename = basename($filename);
+        if (!preg_match('/^backup_v[\d.]+_\d{8}_\d{6}\.zip$/', $filename)) {
+            return ['success' => false, 'message' => 'Invalid backup filename.'];
+        }
+
+        $backupPath = WK_ROOT . self::BACKUP_DIR . '/' . $filename;
+        if (!file_exists($backupPath)) {
+            return ['success' => false, 'message' => 'Backup file not found.'];
+        }
+
+        // Verify it's a real ZIP
+        $zip = new \ZipArchive();
+        if ($zip->open($backupPath) !== true) {
+            return ['success' => false, 'message' => 'Backup file is corrupted.'];
+        }
+
+        // ZIP Slip check
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $entry = $zip->getNameIndex($i);
+            if (str_contains($entry, '..') || str_starts_with($entry, '/') || str_starts_with($entry, '\\')) {
+                $zip->close();
+                return ['success' => false, 'message' => 'Backup contains suspicious paths. Aborting.'];
+            }
+        }
+
+        // Extract to temp, then copy (same safe flow as update)
+        $tempDir = WK_ROOT . '/storage/cache/rollback_' . time();
+        if (!@mkdir($tempDir, 0755, true)) {
+            $zip->close();
+            return ['success' => false, 'message' => 'Cannot create temp directory for rollback.'];
+        }
+
+        $zip->extractTo($tempDir);
+        $zip->close();
+
+        $protectedFiles = [
+            'config/config.php',
+            'config/database.php',
+            'storage/.installed',
+        ];
+
+        self::copyDirectory($tempDir, WK_ROOT, $protectedFiles);
+        self::deleteDirectory($tempDir);
+
+        // Clear caches
+        Database::clearSettingsCache();
+        try {
+            Database::query("DELETE FROM wk_settings WHERE setting_group='system_cache' AND setting_key='update_check'");
+        } catch (\Exception $e) {}
+
+        return ['success' => true, 'message' => 'Rollback complete. Your store has been restored. Refresh the page.'];
+    }
+
+    /**
+     * Get list of available backups.
+     */
+    public static function getBackups(): array
+    {
+        $backupDir = WK_ROOT . self::BACKUP_DIR;
+        if (!is_dir($backupDir)) return [];
+
+        $backups = [];
+        foreach (glob($backupDir . '/backup_v*.zip') as $file) {
+            $name = basename($file);
+            preg_match('/^backup_v([\d.]+)_(\d{8})_(\d{6})\.zip$/', $name, $m);
+
+            // Check if ZIP contains _db_backup.sql
+            $hasDb = false;
+            try {
+                $zip = new \ZipArchive();
+                if ($zip->open($file) === true) {
+                    $hasDb = ($zip->locateName('_db_backup.sql') !== false);
+                    $zip->close();
+                }
+            } catch (\Exception $e) {}
+
+            $backups[] = [
+                'filename' => $name,
+                'version'  => $m[1] ?? 'unknown',
+                'date'     => isset($m[2], $m[3]) ? substr($m[2],0,4).'-'.substr($m[2],4,2).'-'.substr($m[2],6,2).' '.substr($m[3],0,2).':'.substr($m[3],2,2).':'.substr($m[3],4,2) : '',
+                'size'     => filesize($file),
+                'has_db'   => $hasDb,
+            ];
+        }
+
+        usort($backups, fn($a, $b) => strcmp($b['filename'], $a['filename']));
+        return $backups;
+    }
+
+    /**
+     * Add directory contents to ZIP, skipping specified directories.
+     */
+    private static function addDirectoryToZip(\ZipArchive $zip, string $baseDir, string $relativePath, array $skipDirs): void
+    {
+        $fullPath = $relativePath ? $baseDir . '/' . $relativePath : $baseDir;
+        $dir = @opendir($fullPath);
+        if (!$dir) return;
+
+        while (($file = readdir($dir)) !== false) {
+            if ($file === '.' || $file === '..') continue;
+
+            $srcPath = $fullPath . '/' . $file;
+            $relPath = $relativePath ? $relativePath . '/' . $file : $file;
+
+            // Skip specified directories
+            $skip = false;
+            foreach ($skipDirs as $skipDir) {
+                if ($relPath === $skipDir || str_starts_with($relPath, $skipDir . '/')) {
+                    $skip = true;
+                    break;
+                }
+            }
+            if ($skip) continue;
+
+            // Skip hidden files and the backup directory itself
+            if (str_starts_with($file, '.') && $file !== '.htaccess') continue;
+
+            if (is_dir($srcPath)) {
+                $zip->addEmptyDir($relPath);
+                self::addDirectoryToZip($zip, $baseDir, $relPath, $skipDirs);
+            } else {
+                $zip->addFile($srcPath, $relPath);
+            }
+        }
+        closedir($dir);
+    }
+
+    /**
+     * Keep only the latest N backups.
+     */
+    private static function cleanupOldBackups(string $backupDir): void
+    {
+        $files = glob($backupDir . '/backup_v*.zip');
+        if (count($files) <= self::MAX_BACKUPS) return;
+
+        // Sort oldest first
+        usort($files, fn($a, $b) => filemtime($a) - filemtime($b));
+
+        // Delete oldest ones
+        $toDelete = count($files) - self::MAX_BACKUPS;
+        for ($i = 0; $i < $toDelete; $i++) {
+            @unlink($files[$i]);
         }
     }
 

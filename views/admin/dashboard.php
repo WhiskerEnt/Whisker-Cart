@@ -45,10 +45,15 @@ if ($showUpdate && $dismissedData) {
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <?php if (!empty($updateAvailable['download_url'])): ?>
-        <form method="POST" action="<?= $url('admin/update/apply') ?>" onsubmit="return confirm('This will update Whisker to v<?= $e($updateAvailable['version']) ?>. Your config and database will NOT be affected. Continue?')">
+        <form method="POST" action="<?= $url('admin/update/apply') ?>" onsubmit="return confirm('This will backup your store and update to v<?= $e($updateAvailable['version']) ?>. Continue?')" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
             <?= \Core\Session::csrfField() ?>
             <input type="hidden" name="download_url" value="<?= $e($updateAvailable['download_url']) ?>">
             <input type="hidden" name="sha256" value="<?= $e($updateAvailable['sha256'] ?? '') ?>">
+            <select name="db_backup" style="padding:8px 10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:8px;color:#fff;font-size:12px;font-weight:700">
+                <option value="schema">DB: Schema only<?php if ($dbSize): ?> (~<?= round($dbSize['schema']/1024) ?>KB)<?php endif; ?></option>
+                <option value="full">DB: Full dump<?php if ($dbSize): ?> (~<?= $dbSize['full'] > 1048576 ? round($dbSize['full']/1048576,1).'MB' : round($dbSize['full']/1024).'KB' ?>)<?php endif; ?></option>
+                <option value="none">DB: No backup</option>
+            </select>
             <button type="submit" style="padding:10px 20px;background:linear-gradient(135deg,#8b5cf6,#ec4899);color:#fff;border:none;border-radius:10px;font-weight:800;font-size:13px;cursor:pointer">Update Now →</button>
         </form>
         <?php endif; ?>
@@ -67,7 +72,27 @@ function dismissUpdate(version, hours) {
 </script>
 <?php endif; ?>
 
-<!-- Stats Row -->
+<?php if (!empty($backups)): ?>
+<!-- Rollback Option -->
+<div style="background:var(--wk-card,#1a1726);border:1px solid var(--wk-border,#2a2538);border-radius:12px;padding:14px 20px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+    <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:18px">🔄</span>
+        <div>
+            <div style="font-weight:700;font-size:13px">Rollback Available</div>
+            <div style="font-size:12px;color:var(--wk-muted,#6b6580)"><?= count($backups) ?> backup<?= count($backups) > 1 ? 's' : '' ?> saved</div>
+        </div>
+    </div>
+    <form method="POST" action="<?= $url('admin/update/rollback') ?>" onsubmit="return confirm('This will restore your store to the selected backup version. Your config, database, and uploads will NOT be affected. Continue?')" style="display:flex;align-items:center;gap:8px">
+        <?= \Core\Session::csrfField() ?>
+        <select name="backup_file" style="padding:8px 12px;background:var(--wk-bg,#12101e);border:1px solid var(--wk-border,#2a2538);border-radius:8px;font-size:12px;font-weight:700;color:var(--wk-text,#e2e0ea)">
+            <?php foreach ($backups as $b): ?>
+            <option value="<?= $e($b['filename']) ?>">v<?= $e($b['version']) ?> — <?= $e($b['date']) ?> (<?= $b['size'] > 1048576 ? round($b['size']/1048576,1).'MB' : round($b['size']/1024).'KB' ?><?= $b['has_db'] ? ' + DB' : '' ?>)</option>
+            <?php endforeach; ?>
+        </select>
+        <button type="submit" style="padding:8px 16px;background:#7f1d1d;color:#fca5a5;border:none;border-radius:8px;font-weight:700;font-size:12px;cursor:pointer">Restore ↩</button>
+    </form>
+</div>
+<?php endif; ?>
 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px">
     <div class="wk-card" style="padding:20px">
         <div style="display:flex;align-items:center;gap:14px">

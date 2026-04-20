@@ -85,6 +85,15 @@ class DashboardController
             "SELECT * FROM wk_customers ORDER BY created_at DESC LIMIT 5"
         );
 
+        // Get available backups for rollback
+        $backups = \App\Services\UpdateService::getBackups();
+
+        // Estimate DB size for backup options
+        $dbSize = null;
+        if ($updateAvailable) {
+            try { $dbSize = \App\Services\UpdateService::estimateDbSize(); } catch (\Exception $e) {}
+        }
+
         View::render('admin/dashboard', [
             'pageTitle'        => 'Dashboard',
             'stats'            => $stats,
@@ -95,6 +104,8 @@ class DashboardController
             'recentCustomers'  => $recentCustomers,
             'currency'         => $currencySymbol,
             'updateAvailable'  => $updateAvailable,
+            'backups'          => $backups,
+            'dbSize'           => $dbSize,
         ], 'admin/layouts/main');
     }
 
@@ -111,13 +122,16 @@ class DashboardController
 
         $downloadUrl = $request->input('download_url');
         $sha256 = $request->input('sha256');
+        $dbBackupMode = $request->input('db_backup') ?? 'schema';
+        if (!in_array($dbBackupMode, ['none', 'schema', 'full'])) $dbBackupMode = 'schema';
+
         if (!$downloadUrl || !filter_var($downloadUrl, FILTER_VALIDATE_URL)) {
             Session::flash('error', 'Invalid update URL.');
             Response::redirect(View::url('admin'));
             return;
         }
 
-        $result = \App\Services\UpdateService::applyUpdate($downloadUrl, $sha256 ?: null);
+        $result = \App\Services\UpdateService::applyUpdate($downloadUrl, $sha256 ?: null, $dbBackupMode);
 
         if ($result['success']) {
             Session::flash('success', $result['message']);
@@ -129,7 +143,36 @@ class DashboardController
     }
 
     /**
-     * Dismiss update notification (hides until next version)
+     * Rollback to a previous backup
+     */
+    public function rollback(Request $request, array $params = []): void
+    {
+        if (!Session::verifyCsrf($request->input('wk_csrf'))) {
+            Session::flash('error', 'Session expired.');
+            Response::redirect(View::url('admin'));
+            return;
+        }
+
+        $filename = $request->input('backup_file');
+        if (!$filename) {
+            Session::flash('error', 'No backup file specified.');
+            Response::redirect(View::url('admin'));
+            return;
+        }
+
+        $result = \App\Services\UpdateService::rollback($filename);
+
+        if ($result['success']) {
+            Session::flash('success', $result['message']);
+        } else {
+            Session::flash('error', $result['message']);
+        }
+
+        Response::redirect(View::url('admin'));
+    }
+
+    /**
+     * Dismiss update notification (hides for specified hours)
      */
     public function dismissUpdate(Request $request, array $params = []): void
     {

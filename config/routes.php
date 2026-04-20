@@ -80,6 +80,7 @@ $router->group(['prefix' => '/admin', 'middleware' => ['auth', 'csrf']], functio
     // System Updates
     $r->post('/update/apply',            [DashboardController::class, 'applyUpdate']);
     $r->post('/update/dismiss',          [DashboardController::class, 'dismissUpdate']);
+    $r->post('/update/rollback',         [DashboardController::class, 'rollback']);
 
     // Products
     $r->get('/products',                 [AdminProductController::class, 'index']);
