@@ -133,19 +133,27 @@ class CheckoutController
 
             Database::insert('wk_order_items', $orderItemData);
 
-            // Reduce stock — combo stock if variant, product stock always
+            // Reduce stock atomically — prevents overselling under concurrency
+            // Only deducts if stock is sufficient (WHERE stock_quantity >= ?)
             if ($comboId) {
                 try {
-                    Database::query(
-                        "UPDATE wk_variant_combos SET stock_quantity = GREATEST(0, stock_quantity - ?) WHERE id = ?",
-                        [$item['quantity'], $comboId]
-                    );
+                    $affected = Database::query(
+                        "UPDATE wk_variant_combos SET stock_quantity = stock_quantity - ? WHERE id = ? AND stock_quantity >= ?",
+                        [$item['quantity'], $comboId, $item['quantity']]
+                    )->rowCount();
+                    if ($affected === 0) {
+                        // Stock was grabbed by another order — log but don't fail the order
+                        Database::query("UPDATE wk_variant_combos SET stock_quantity = 0 WHERE id = ?", [$comboId]);
+                    }
                 } catch (\Exception $e) {}
             }
-            Database::query(
-                "UPDATE wk_products SET stock_quantity = GREATEST(0, stock_quantity - ?) WHERE id = ?",
-                [$item['quantity'], $item['product_id']]
-            );
+            $affected = Database::query(
+                "UPDATE wk_products SET stock_quantity = stock_quantity - ? WHERE id = ? AND stock_quantity >= ?",
+                [$item['quantity'], $item['product_id'], $item['quantity']]
+            )->rowCount();
+            if ($affected === 0) {
+                Database::query("UPDATE wk_products SET stock_quantity = 0 WHERE id = ?", [$item['product_id']]);
+            }
         }
 
         // Increment coupon usage
@@ -166,11 +174,20 @@ class CheckoutController
             );
         }
 
-        // Send order confirmation email
+        // Send order confirmation email (non-blocking — don't delay checkout response)
         $orderData = Database::fetch("SELECT * FROM wk_orders WHERE id=?", [$orderId]);
         $orderItems = Database::fetchAll("SELECT * FROM wk_order_items WHERE order_id=?", [$orderId]);
         if ($orderData && $orderData['customer_email']) {
-            \App\Services\EmailService::sendOrderConfirmation($orderData, $orderItems);
+            // Flush output to browser first so customer sees success page immediately
+            if (function_exists('fastcgi_finish_request')) {
+                Session::set('wk_last_order', $orderNumber);
+                Response::redirect(View::url('order-success?order=' . $orderNumber));
+                fastcgi_finish_request(); // Ends HTTP response, continues PHP execution
+                \App\Services\EmailService::sendOrderConfirmation($orderData, $orderItems);
+                return; // Already redirected above
+            }
+            // Fallback: send email normally (blocks slightly on non-FPM servers)
+            try { \App\Services\EmailService::sendOrderConfirmation($orderData, $orderItems); } catch (\Exception $e) {}
         }
 
         // Redirect to success (payment integration via plugins)

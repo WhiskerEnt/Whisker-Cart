@@ -102,4 +102,35 @@ class Database
     {
         self::connect()->exec($sql);
     }
+
+    // ── Settings Cache ──────────────────────────
+    // Loads all settings once per request, avoids 10+ DB queries per page
+
+    private static ?array $settingsCache = null;
+
+    /**
+     * Get a setting value with in-memory caching.
+     * First call loads ALL settings into memory. Subsequent calls are instant.
+     */
+    public static function setting(string $group, string $key, ?string $default = null): ?string
+    {
+        if (self::$settingsCache === null) {
+            self::$settingsCache = [];
+            try {
+                $rows = self::fetchAll("SELECT setting_group, setting_key, setting_value FROM wk_settings");
+                foreach ($rows as $row) {
+                    self::$settingsCache[$row['setting_group'] . '.' . $row['setting_key']] = $row['setting_value'];
+                }
+            } catch (\Exception $e) {}
+        }
+        return self::$settingsCache[$group . '.' . $key] ?? $default;
+    }
+
+    /**
+     * Clear settings cache (call after updating settings).
+     */
+    public static function clearSettingsCache(): void
+    {
+        self::$settingsCache = null;
+    }
 }

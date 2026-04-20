@@ -135,12 +135,12 @@ class CurrencyService
         if ($rate !== null) {
             self::$rateCache[$cacheKey] = $rate;
 
-            // Store in DB cache (1 hour TTL)
+            // Store in DB cache (6 hour TTL — exchange rates don't change frequently)
             try {
                 Database::query(
                     "INSERT INTO wk_settings (setting_group, setting_key, setting_value) VALUES ('currency_cache', ?, ?)
                      ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)",
-                    [$cacheKey, json_encode(['rate' => $rate, 'expires' => time() + 3600])]
+                    [$cacheKey, json_encode(['rate' => $rate, 'expires' => time() + 21600])]
                 );
             } catch (\Exception $e) {}
         }
