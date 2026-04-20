@@ -13,7 +13,7 @@ class ProductController
         );
         if (!$product) { Response::notFound(); return; }
 
-        $images = Database::fetchAll("SELECT * FROM wk_product_images WHERE product_id=? AND (alt_text='' OR alt_text IS NULL) ORDER BY is_primary DESC, sort_order", [$product['id']]);
+        $images = Database::fetchAll("SELECT * FROM wk_product_images WHERE product_id=? AND (alt_text='' OR alt_text IS NULL OR is_primary=1) ORDER BY is_primary DESC, sort_order", [$product['id']]);
         $related = Database::fetchAll(
             "SELECT p.*, (SELECT image_path FROM wk_product_images WHERE product_id=p.id AND is_primary=1 LIMIT 1) AS image
              FROM wk_products p WHERE p.category_id=? AND p.id!=? AND p.is_active=1 ORDER BY RAND() LIMIT 4",
