@@ -180,8 +180,9 @@ const WhiskerStore = {
         const total = slides.length;
         let current = 0;
         let timer = null;
-        const wrap = track.closest('.wk-carousel');
+        const wrap = track.closest('.wk-hero-carousel') || track.closest('.wk-carousel');
         const dots = wrap?.querySelector('.wk-carousel-dots');
+        const counter = wrap?.querySelector('.wk-hero-counter-current');
 
         if (dots) {
             for (let i = 0; i < total; i++) {
@@ -196,12 +197,13 @@ const WhiskerStore = {
             current = ((i % total) + total) % total;
             track.style.transform = `translateX(-${current * 100}%)`;
             dots?.querySelectorAll('.wk-carousel-dot').forEach((d, j) => d.classList.toggle('active', j === current));
+            if (counter) counter.textContent = current + 1;
         }
 
         wrap?.querySelector('.wk-carousel-prev')?.addEventListener('click', () => go(current - 1));
         wrap?.querySelector('.wk-carousel-next')?.addEventListener('click', () => go(current + 1));
 
-        function start() { stop(); timer = setInterval(() => go(current + 1), 4500); }
+        function start() { stop(); timer = setInterval(() => go(current + 1), 5000); }
         function stop() { if (timer) clearInterval(timer); }
 
         wrap?.addEventListener('mouseenter', stop);

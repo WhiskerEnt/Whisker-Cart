@@ -10,30 +10,88 @@ $showPrice = function($amount) use ($baseSymbol, $baseCurrency, $displayCurrency
     if ($displayCurrency === $baseCurrency) return $base;
     $converted = \App\Services\CurrencyService::convert($amount, $baseCurrency, $displayCurrency);
     return \App\Services\CurrencyService::format($converted, $displayCurrency)
-         . ' <span style="font-size:11px;color:var(--wk-muted);font-weight:500">(' . $base . ')</span>';
+         . ' <span style="font-size:11px;color:rgba(255,255,255,.6);font-weight:500">(' . $base . ')</span>';
 };
 $price = $showPrice;
 
-$carouselProducts = array_filter($products, fn($p) => $p['is_featured']);
+$showPriceNormal = function($amount) use ($baseSymbol, $baseCurrency, $displayCurrency) {
+    $base = $baseSymbol . number_format($amount, 2);
+    if ($displayCurrency === $baseCurrency) return $base;
+    $converted = \App\Services\CurrencyService::convert($amount, $baseCurrency, $displayCurrency);
+    return \App\Services\CurrencyService::format($converted, $displayCurrency)
+         . ' <span style="font-size:11px;color:var(--wk-muted);font-weight:500">(' . $base . ')</span>';
+};
+$priceNormal = $showPriceNormal;
+
+$carouselProducts = array_values(array_filter($products, fn($p) => $p['is_featured']));
 $gridProducts = $products;
 ?>
 
-<!-- Hero Banner -->
-<section style="background:linear-gradient(135deg, var(--wk-purple), #ec4899);padding:64px 0;position:relative;overflow:hidden">
+<!-- ═══ HERO CAROUSEL ═══ -->
+<?php if (count($carouselProducts) > 0): ?>
+<section class="wk-hero-carousel" id="featured">
+    <div class="wk-hero-track wk-carousel-track">
+        <?php foreach ($carouselProducts as $i => $p):
+            $prc = $p['sale_price'] ?: $p['price'];
+            $hasSale = $p['sale_price'] && $p['sale_price'] < $p['price'];
+        ?>
+        <div class="wk-hero-slide wk-carousel-slide">
+            <!-- Background image -->
+            <?php if ($p['image']): ?>
+            <div class="wk-hero-slide-bg">
+                <img src="<?= $url('storage/uploads/products/'.$p['image']) ?>" alt="">
+            </div>
+            <?php endif; ?>
+            <!-- Gradient overlay -->
+            <div class="wk-hero-slide-overlay"></div>
+            <!-- Content -->
+            <div class="wk-container wk-hero-slide-content">
+                <div class="wk-hero-slide-text">
+                    <?php if ($hasSale): ?><span class="wk-hero-badge">🔥 Sale</span><?php endif; ?>
+                    <?php if ($p['category_name'] ?? null): ?><div class="wk-hero-cat"><?= $e($p['category_name']) ?></div><?php endif; ?>
+                    <h2 class="wk-hero-name"><?= $e($p['name']) ?></h2>
+                    <?php if ($p['short_description']): ?><p class="wk-hero-desc"><?= $e($p['short_description']) ?></p><?php endif; ?>
+                    <div class="wk-hero-price">
+                        <span class="wk-hero-price-current"><?= $price($prc) ?></span>
+                        <?php if ($hasSale): ?><span class="wk-hero-price-original"><?= $price($p['price']) ?></span><?php endif; ?>
+                    </div>
+                    <div class="wk-hero-actions">
+                        <a href="<?= $url('product/'.urlencode($p['slug'])) ?>" class="wk-hero-btn-primary">View Product →</a>
+                        <?php if ($p['stock_quantity'] > 0 && ($p['variant_count'] ?? 0) == 0): ?>
+                        <button class="wk-hero-btn-cart" data-add-to-cart="<?= $p['id'] ?>">🛒 Add to Cart</button>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <div class="wk-hero-slide-img" onclick="window.location='<?= $url('product/'.urlencode($p['slug'])) ?>'">
+                    <?php if ($p['image']): ?>
+                    <img src="<?= $url('storage/uploads/products/'.$p['image']) ?>" alt="<?= $e($p['name']) ?>">
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+        <?php endforeach; ?>
+    </div>
+    <!-- Nav arrows -->
+    <button class="wk-hero-prev wk-carousel-prev">‹</button>
+    <button class="wk-hero-next wk-carousel-next">›</button>
+    <!-- Dots -->
+    <div class="wk-hero-dots wk-carousel-dots"></div>
+    <!-- Slide counter -->
+    <div class="wk-hero-counter"><span class="wk-hero-counter-current">1</span> / <?= count($carouselProducts) ?></div>
+</section>
+<?php else: ?>
+<!-- Fallback hero if no featured products -->
+<section style="background:linear-gradient(135deg, var(--wk-purple), var(--wk-pink));padding:80px 0;position:relative;overflow:hidden">
     <div style="position:absolute;inset:0;opacity:.06;background:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22><circle cx=%2250%22 cy=%2250%22 r=%2240%22 fill=%22white%22/></svg>') repeat;background-size:120px"></div>
     <div class="wk-container" style="position:relative;text-align:center">
         <h1 style="font-size:clamp(32px,5vw,52px);font-weight:900;color:#fff;margin-bottom:12px;line-height:1.1"><?= $e($heroTitle ?? $siteName) ?></h1>
         <p style="font-size:clamp(16px,2vw,20px);color:rgba(255,255,255,.85);max-width:600px;margin:0 auto 28px;font-weight:500"><?= $e($heroSubtitle ?? $tagline) ?></p>
-        <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
-            <a href="<?= $url('shop') ?>" style="display:inline-block;padding:16px 40px;background:#fff;color:var(--wk-purple);border-radius:14px;font-weight:800;font-size:16px;text-decoration:none;transition:all .2s;box-shadow:0 4px 20px rgba(0,0,0,.15)"><?= $e($heroCta ?? 'Shop Now') ?> →</a>
-            <?php if (count($carouselProducts) > 0): ?>
-            <a href="#featured" style="display:inline-block;padding:16px 32px;background:rgba(255,255,255,.15);color:#fff;border-radius:14px;font-weight:700;font-size:15px;text-decoration:none;border:2px solid rgba(255,255,255,.3)">✨ Featured</a>
-            <?php endif; ?>
-        </div>
+        <a href="<?= $url('shop') ?>" style="display:inline-block;padding:16px 40px;background:#fff;color:var(--wk-purple);border-radius:14px;font-weight:800;font-size:16px;text-decoration:none;box-shadow:0 4px 20px rgba(0,0,0,.15)"><?= $e($heroCta ?? 'Shop Now') ?> →</a>
     </div>
 </section>
+<?php endif; ?>
 
-<!-- Featured Categories -->
+<!-- ═══ FEATURED CATEGORIES ═══ -->
 <?php if (!empty($categories)): ?>
 <section class="wk-section" style="padding-bottom:0">
     <div class="wk-container">
@@ -60,7 +118,7 @@ $gridProducts = $products;
 </section>
 <?php endif; ?>
 
-<!-- On Sale -->
+<!-- ═══ ON SALE ═══ -->
 <?php if (!empty($saleProducts)): ?>
 <section class="wk-section" style="padding-bottom:0">
     <div class="wk-container">
@@ -88,8 +146,8 @@ $gridProducts = $products;
                 <div onclick="window.location='<?= $url('product/'.urlencode($p['slug'])) ?>'" style="padding:14px 16px;cursor:pointer">
                     <div style="font-weight:800;font-size:14px;color:var(--wk-text);margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><?= $e($p['name']) ?></div>
                     <div class="wk-product-price">
-                        <span class="current"><?= $price($prc) ?></span>
-                        <span class="original"><?= $price($p['price']) ?></span>
+                        <span class="current"><?= $priceNormal($prc) ?></span>
+                        <span class="original"><?= $priceNormal($p['price']) ?></span>
                     </div>
                 </div>
             </div>
@@ -99,59 +157,7 @@ $gridProducts = $products;
 </section>
 <?php endif; ?>
 
-<!-- Featured Carousel -->
-<?php if (count($carouselProducts) > 0): ?>
-<section class="wk-section" style="padding-bottom:0" id="featured">
-    <div class="wk-container">
-        <h2 class="wk-section-title">✨ Featured</h2>
-        <p class="wk-section-sub">Our top picks for you</p>
-        <div class="wk-carousel">
-            <div class="wk-carousel-track">
-                <?php foreach ($carouselProducts as $p):
-                    $prc = $p['sale_price'] ?: $p['price'];
-                    $hasSale = $p['sale_price'] && $p['sale_price'] < $p['price'];
-                ?>
-                <div class="wk-carousel-slide">
-                    <div class="wk-carousel-slide-inner">
-                        <div class="wk-carousel-img" onclick="window.location='<?= $url('product/'.urlencode($p['slug'])) ?>'">
-                            <?php if ($p['image']): ?>
-                                <img src="<?= $url('storage/uploads/products/'.$p['image']) ?>" alt="<?= $e($p['name']) ?>">
-                            <?php else: ?>
-                                <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:64px;opacity:.15;background:var(--wk-bg)">📦</div>
-                            <?php endif; ?>
-                            <?php if ($hasSale): ?><span class="wk-product-badge">Sale</span><?php endif; ?>
-                        </div>
-                        <div class="wk-carousel-info" onclick="window.location='<?= $url('product/'.urlencode($p['slug'])) ?>'" style="cursor:pointer">
-                            <?php if ($p['category_name'] ?? null): ?><div class="wk-product-cat"><?= $e($p['category_name']) ?></div><?php endif; ?>
-                            <h3 class="wk-carousel-name"><?= $e($p['name']) ?></h3>
-                            <?php if ($p['short_description']): ?><p class="wk-carousel-desc"><?= $e($p['short_description']) ?></p><?php endif; ?>
-                            <div class="wk-product-price" style="margin-bottom:16px">
-                                <span class="current" style="font-size:24px"><?= $price($prc) ?></span>
-                                <?php if ($hasSale): ?><span class="original"><?= $price($p['price']) ?></span><?php endif; ?>
-                            </div>
-                        </div>
-                        <?php if ($p['stock_quantity'] > 0): ?>
-                            <?php if (($p['variant_count'] ?? 0) > 0): ?>
-                                <a href="<?= $url('product/'.urlencode($p['slug'])) ?>" class="wk-carousel-add-btn" style="text-decoration:none;text-align:center;display:block">🎨 View Options →</a>
-                            <?php else: ?>
-                                <button class="wk-carousel-add-btn" data-add-to-cart="<?= $p['id'] ?>">🛒 Quick Add to Cart</button>
-                            <?php endif; ?>
-                        <?php else: ?>
-                            <button class="wk-carousel-add-btn" disabled style="opacity:.5;cursor:not-allowed;background:#6b7280">Sold Out</button>
-                        <?php endif; ?>
-                    </div>
-                </div>
-                <?php endforeach; ?>
-            </div>
-            <button class="wk-carousel-prev">‹</button>
-            <button class="wk-carousel-next">›</button>
-            <div class="wk-carousel-dots"></div>
-        </div>
-    </div>
-</section>
-<?php endif; ?>
-
-<!-- All Products -->
+<!-- ═══ ALL PRODUCTS ═══ -->
 <section class="wk-section" id="products">
     <div class="wk-container">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
@@ -192,8 +198,8 @@ $gridProducts = $products;
                         <?php if ($p['category_name'] ?? null): ?><div class="wk-product-cat"><?= $e($p['category_name']) ?></div><?php endif; ?>
                         <div class="wk-product-name"><?= $e($p['name']) ?></div>
                         <div class="wk-product-price">
-                            <span class="current"><?= $price($prc) ?></span>
-                            <?php if ($hasSale): ?><span class="original"><?= $price($p['price']) ?></span><?php endif; ?>
+                            <span class="current"><?= $priceNormal($prc) ?></span>
+                            <?php if ($hasSale): ?><span class="original"><?= $priceNormal($p['price']) ?></span><?php endif; ?>
                         </div>
                     </div>
                     <?php if ($p['stock_quantity'] > 0): ?>

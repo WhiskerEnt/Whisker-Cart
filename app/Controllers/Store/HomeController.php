@@ -38,10 +38,13 @@ class HomeController
         // Get categories for filter nav (with product count and first product image)
         $categories = Database::fetchAll(
             "SELECT c.id, c.name, c.slug, c.description,
-                    (SELECT COUNT(*) FROM wk_products p WHERE p.category_id=c.id AND p.is_active=1) AS product_count,
+                    (SELECT COUNT(*) FROM wk_products p
+                     JOIN wk_categories sc ON sc.id=p.category_id AND sc.is_active=1
+                     WHERE (sc.id=c.id OR sc.parent_id=c.id) AND p.is_active=1) AS product_count,
                     (SELECT pi.image_path FROM wk_products p2
+                     JOIN wk_categories sc2 ON sc2.id=p2.category_id AND sc2.is_active=1
                      JOIN wk_product_images pi ON pi.product_id=p2.id AND pi.is_primary=1
-                     WHERE p2.category_id=c.id AND p2.is_active=1 LIMIT 1) AS cover_image
+                     WHERE (sc2.id=c.id OR sc2.parent_id=c.id) AND p2.is_active=1 LIMIT 1) AS cover_image
              FROM wk_categories c WHERE c.is_active=1 AND c.parent_id IS NULL
              ORDER BY c.sort_order, c.name"
         );
