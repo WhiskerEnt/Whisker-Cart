@@ -6,6 +6,23 @@ class CheckoutController
 {
     public function index(Request $request, array $params = []): void
     {
+        // Release stock from expired unpaid orders (15 min window)
+        try {
+            $expiredOrders = Database::fetchAll(
+                "SELECT id FROM wk_orders WHERE status IN ('pending','payment_failed') AND payment_status != 'captured' AND created_at < DATE_SUB(NOW(), INTERVAL 15 MINUTE) LIMIT 10"
+            );
+            foreach ($expiredOrders as $expired) {
+                $items = Database::fetchAll("SELECT product_id, quantity, variant_combo_id FROM wk_order_items WHERE order_id=?", [$expired['id']]);
+                foreach ($items as $item) {
+                    Database::query("UPDATE wk_products SET stock_quantity = stock_quantity + ? WHERE id = ?", [$item['quantity'], $item['product_id']]);
+                    if ($item['variant_combo_id'] ?? null) {
+                        try { Database::query("UPDATE wk_variant_combos SET stock_quantity = stock_quantity + ? WHERE id = ?", [$item['quantity'], $item['variant_combo_id']]); } catch (\Exception $e) {}
+                    }
+                }
+                Database::update('wk_orders', ['status' => 'cancelled', 'payment_status' => 'expired'], 'id=?', [$expired['id']]);
+            }
+        } catch (\Exception $e) {}
+
         $cart = $this->getCartData();
         $gateways = Database::fetchAll("SELECT gateway_code,display_name,description FROM wk_payment_gateways WHERE is_active=1 ORDER BY sort_order");
         $currency = Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='currency_symbol'") ?: '₹';
@@ -140,9 +157,52 @@ class CheckoutController
             } catch (\Exception $e) {}
 
             Database::insert('wk_order_items', $orderItemData);
+        }
 
-            // Reduce stock atomically — prevents overselling under concurrency
-            // Only deducts if stock is sufficient (WHERE stock_quantity >= ?)
+        $orderData = Database::fetch("SELECT * FROM wk_orders WHERE id=?", [$orderId]);
+        $orderItems = Database::fetchAll("SELECT * FROM wk_order_items WHERE order_id=?", [$orderId]);
+
+        // ── Initiate Payment Gateway ──
+        // Must happen BEFORE stock deduction and cart conversion.
+        // If gateway fails, we delete the order and send customer back.
+        $gatewayCode = $request->clean('payment_gateway');
+        $payResult = null;
+
+        if ($gatewayCode) {
+            try {
+                $gateway = PluginManager::loadGateway($gatewayCode);
+                if ($gateway) {
+                    $payResult = $gateway->createOrder([
+                        'id'           => $orderId,
+                        'order_number' => $orderNumber,
+                        'total'        => $total,
+                        'currency'     => Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='currency'") ?: 'INR',
+                    ]);
+
+                    // Verify gateway returned something useful
+                    $hasRedirect = !empty($payResult['session_url']) || !empty($payResult['form_url']) || !empty($payResult['invoice_url']) || !empty($payResult['gateway_order_id']);
+                    if (!$hasRedirect || !empty($payResult['error'])) {
+                        throw new \Exception('Gateway returned no payment URL');
+                    }
+                } else {
+                    throw new \Exception('Gateway not found: ' . $gatewayCode);
+                }
+            } catch (\Exception $e) {
+                // Gateway init failed — mark order as payment_failed, let customer retry
+                Database::update('wk_orders', [
+                    'status' => 'payment_failed',
+                    'payment_status' => 'failed',
+                ], 'id=?', [$orderId]);
+                Session::set('wk_last_order', $orderNumber);
+                Session::flash('error', 'Payment could not be initiated. You have 15 minutes to retry before your order is released.');
+                Response::redirect(View::url('order-success?order=' . $orderNumber));
+                return;
+            }
+        }
+
+        // ── Stock deduction (only after gateway is confirmed) ──
+        foreach ($cart['items'] as $item) {
+            $comboId = $item['variant_combo_id'] ?? null;
             if ($comboId) {
                 try {
                     $affected = Database::query(
@@ -150,7 +210,6 @@ class CheckoutController
                         [$item['quantity'], $comboId, $item['quantity']]
                     )->rowCount();
                     if ($affected === 0) {
-                        // Stock was grabbed by another order — log but don't fail the order
                         Database::query("UPDATE wk_variant_combos SET stock_quantity = 0 WHERE id = ?", [$comboId]);
                     }
                 } catch (\Exception $e) {}
@@ -182,23 +241,60 @@ class CheckoutController
             );
         }
 
-        // Send order confirmation email (non-blocking — don't delay checkout response)
         $orderData = Database::fetch("SELECT * FROM wk_orders WHERE id=?", [$orderId]);
         $orderItems = Database::fetchAll("SELECT * FROM wk_order_items WHERE order_id=?", [$orderId]);
+
+        // ── Redirect to payment ──
+        if ($payResult) {
+            // Stripe: redirect to Stripe Checkout
+            if (!empty($payResult['session_url'])) {
+                Response::redirect($payResult['session_url']);
+                return;
+            }
+
+            // CCAvenue: redirect with encrypted form
+            if (!empty($payResult['form_url'])) {
+                echo '<html><body><form id="ccav" method="POST" action="' . htmlspecialchars($payResult['form_url']) . '">';
+                echo '<input type="hidden" name="encRequest" value="' . htmlspecialchars($payResult['encrypted_data']) . '">';
+                echo '<input type="hidden" name="access_code" value="' . htmlspecialchars($payResult['access_code']) . '">';
+                echo '</form><script>document.getElementById("ccav").submit();</script></body></html>';
+                return;
+            }
+
+            // NOWPayments: redirect to crypto invoice
+            if (!empty($payResult['invoice_url'])) {
+                Response::redirect($payResult['invoice_url']);
+                return;
+            }
+
+            // Razorpay: store data for modal on success page
+            if (!empty($payResult['gateway_order_id'])) {
+                Session::set('wk_payment_data', [
+                    'gateway'          => $gatewayCode,
+                    'gateway_order_id' => $payResult['gateway_order_id'],
+                    'key_id'           => $payResult['key_id'] ?? '',
+                    'amount'           => $payResult['amount'] ?? 0,
+                    'order_number'     => $orderNumber,
+                    'order_id'         => $orderId,
+                    'email'            => $request->clean('email') ?? '',
+                    'phone'            => $request->clean('phone') ?? '',
+                    'name'             => trim($request->clean('first_name') . ' ' . $request->clean('last_name')),
+                ]);
+            }
+        }
+
+        // Send confirmation email
         if ($orderData && $orderData['customer_email']) {
-            // Flush output to browser first so customer sees success page immediately
             if (function_exists('fastcgi_finish_request')) {
                 Session::set('wk_last_order', $orderNumber);
                 Response::redirect(View::url('order-success?order=' . $orderNumber));
-                fastcgi_finish_request(); // Ends HTTP response, continues PHP execution
+                fastcgi_finish_request();
                 \App\Services\EmailService::sendOrderConfirmation($orderData, $orderItems);
-                return; // Already redirected above
+                return;
             }
-            // Fallback: send email normally (blocks slightly on non-FPM servers)
             try { \App\Services\EmailService::sendOrderConfirmation($orderData, $orderItems); } catch (\Exception $e) {}
         }
 
-        // Redirect to success (payment integration via plugins)
         Session::set('wk_last_order', $orderNumber);
         Response::redirect(View::url('order-success?order='.$orderNumber));
     }
@@ -220,6 +316,45 @@ class CheckoutController
         }
 
         View::render('store/order-success', ['order' => $order], 'store/layouts/main');
+    }
+
+    /**
+     * AJAX: Verify Razorpay payment after client-side checkout
+     */
+    public function verifyPayment(Request $request, array $params = []): void
+    {
+        $input = json_decode(file_get_contents('php://input'), true) ?? [];
+        $orderId = (int)($input['order_id'] ?? 0);
+
+        if (!$orderId) {
+            Response::json(['success' => false, 'message' => 'Missing order ID']);
+            return;
+        }
+
+        // Get the gateway for this order
+        $order = Database::fetch("SELECT payment_gateway FROM wk_orders WHERE id=?", [$orderId]);
+        if (!$order || !$order['payment_gateway']) {
+            Response::json(['success' => false, 'message' => 'Order not found']);
+            return;
+        }
+
+        try {
+            $gateway = PluginManager::loadGateway($order['payment_gateway']);
+            if (!$gateway) {
+                Response::json(['success' => false, 'message' => 'Gateway not found']);
+                return;
+            }
+
+            $result = $gateway->verifyPayment($input);
+            if ($result['success']) {
+                $gateway->markOrderPaid($orderId, $result['payment_id'] ?? '');
+                Response::json(['success' => true]);
+            } else {
+                Response::json(['success' => false, 'message' => 'Verification failed']);
+            }
+        } catch (\Exception $e) {
+            Response::json(['success' => false, 'message' => 'Payment verification error']);
+        }
     }
 
     private function getCartData(): array

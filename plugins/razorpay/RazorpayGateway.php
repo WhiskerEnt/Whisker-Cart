@@ -54,7 +54,7 @@ class RazorpayGateway extends \Core\BaseGateway
         $payload = json_decode($rawBody, true) ?? [];
         $event = $payload['event'] ?? '';
 
-        if ($event === 'payment.captured' || $event === 'payment.authorized') {
+        if ($event === 'payment.captured') {
             $payment = $payload['payload']['payment']['entity'] ?? [];
             $paymentId = $payment['id'] ?? null;
             $orderId = $payment['order_id'] ?? null;

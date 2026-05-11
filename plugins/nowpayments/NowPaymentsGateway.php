@@ -58,7 +58,8 @@ class NowPaymentsGateway extends \Core\BaseGateway
         $result = $this->verifyPayment($payload);
         if ($result['success']) {
             $order = \Core\Database::fetch("SELECT id, total FROM wk_orders WHERE order_number=?", [$payload['order_id'] ?? '']);
-            $paidAmount = isset($payload['actually_paid']) ? (float)$payload['actually_paid'] : null;
+            // Use price_amount (fiat) for verification, not actually_paid (crypto)
+            $paidAmount = isset($payload['price_amount']) ? (float)$payload['price_amount'] : null;
             if ($order) $this->markOrderPaid($order['id'], $result['payment_id'], $paidAmount);
         }
         \Core\Response::json(['status' => 'ok']);

@@ -18,6 +18,25 @@ class DashboardController
         // Cleanup expired rate limiter files (lightweight, runs on every dashboard load)
         try { \Core\RateLimiter::cleanup(7200); } catch (\Exception $e) {}
 
+        // Release stock from expired unpaid orders (15 min window)
+        try {
+            $expiredOrders = Database::fetchAll(
+                "SELECT id FROM wk_orders WHERE status IN ('pending','payment_failed') AND payment_status != 'captured' AND created_at < DATE_SUB(NOW(), INTERVAL 15 MINUTE)"
+            );
+            foreach ($expiredOrders as $expired) {
+                // Restore stock
+                $items = Database::fetchAll("SELECT product_id, quantity, variant_combo_id FROM wk_order_items WHERE order_id=?", [$expired['id']]);
+                foreach ($items as $item) {
+                    Database::query("UPDATE wk_products SET stock_quantity = stock_quantity + ? WHERE id = ?", [$item['quantity'], $item['product_id']]);
+                    if ($item['variant_combo_id'] ?? null) {
+                        try { Database::query("UPDATE wk_variant_combos SET stock_quantity = stock_quantity + ? WHERE id = ?", [$item['quantity'], $item['variant_combo_id']]); } catch (\Exception $e) {}
+                    }
+                }
+                // Mark as expired
+                Database::update('wk_orders', ['status' => 'cancelled', 'payment_status' => 'expired'], 'id=?', [$expired['id']]);
+            }
+        } catch (\Exception $e) {}
+
         // Check for updates (cached, hits API once per day)
         $updateAvailable = null;
         try {

@@ -30,6 +30,7 @@ $router->post('/cart/clear',         [CartController::class, 'clear']);
 // Checkout
 $router->get('/checkout',            [CheckoutController::class, 'index']);
 $router->post('/checkout/process',   [CheckoutController::class, 'process'], ['csrf']);
+$router->post('/checkout/verify-payment', [CheckoutController::class, 'verifyPayment']);
 $router->get('/order-success',       [CheckoutController::class, 'success']);
 
 // Pages, Contact, Chatbot

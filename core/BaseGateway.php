@@ -52,7 +52,7 @@ abstract class BaseGateway implements PaymentGatewayInterface
      * Skips if order is already paid/shipped/delivered (prevents double-crediting).
      * Optionally verifies the paid amount matches the order total.
      */
-    protected function markOrderPaid(int $orderId, string $paymentId, ?float $paidAmount = null): void
+    public function markOrderPaid(int $orderId, string $paymentId, ?float $paidAmount = null): void
     {
         // Idempotency: skip if already paid/processed
         $order = Database::fetch("SELECT id, status, payment_status, total FROM wk_orders WHERE id=?", [$orderId]);
@@ -88,11 +88,16 @@ abstract class BaseGateway implements PaymentGatewayInterface
             [$paymentId, $orderId, $this->code]
         );
 
-        // Reduce stock (only once due to idempotency guard above)
+        // Reduce stock atomically (only once due to idempotency guard above)
         $items = Database::fetchAll("SELECT product_id, quantity FROM wk_order_items WHERE order_id=?", [$orderId]);
         foreach ($items as $item) {
-            Database::query("UPDATE wk_products SET stock_quantity=GREATEST(0,stock_quantity-?) WHERE id=?",
-                [$item['quantity'], $item['product_id']]);
+            $affected = Database::query(
+                "UPDATE wk_products SET stock_quantity = stock_quantity - ? WHERE id = ? AND stock_quantity >= ?",
+                [$item['quantity'], $item['product_id'], $item['quantity']]
+            )->rowCount();
+            if ($affected === 0) {
+                Database::query("UPDATE wk_products SET stock_quantity = 0 WHERE id = ?", [$item['product_id']]);
+            }
         }
     }
 }
