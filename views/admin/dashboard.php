@@ -49,10 +49,10 @@ if ($showUpdate && $dismissedData) {
             <?= \Core\Session::csrfField() ?>
             <input type="hidden" name="download_url" value="<?= $e($updateAvailable['download_url']) ?>">
             <input type="hidden" name="sha256" value="<?= $e($updateAvailable['sha256'] ?? '') ?>">
-            <select name="db_backup" style="padding:8px 10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:8px;color:#fff;font-size:12px;font-weight:700">
-                <option value="schema">DB: Schema only<?php if ($dbSize): ?> (~<?= round($dbSize['schema']/1024) ?>KB)<?php endif; ?></option>
-                <option value="full">DB: Full dump<?php if ($dbSize): ?> (~<?= $dbSize['full'] > 1048576 ? round($dbSize['full']/1048576,1).'MB' : round($dbSize['full']/1024).'KB' ?>)<?php endif; ?></option>
-                <option value="none">DB: No backup</option>
+            <select name="db_backup" style="padding:8px 10px;background:#1e1b2e;border:1px solid rgba(255,255,255,.15);border-radius:8px;color:#fff;font-size:12px;font-weight:700">
+                <option value="schema" style="background:#1e1b2e;color:#fff">DB: Schema only<?php if ($dbSize): ?> (~<?= round($dbSize['schema']/1024) ?>KB)<?php endif; ?></option>
+                <option value="full" style="background:#1e1b2e;color:#fff">DB: Full dump<?php if ($dbSize): ?> (~<?= $dbSize['full'] > 1048576 ? round($dbSize['full']/1048576,1).'MB' : round($dbSize['full']/1024).'KB' ?>)<?php endif; ?></option>
+                <option value="none" style="background:#1e1b2e;color:#fff">DB: No backup</option>
             </select>
             <button type="submit" style="padding:10px 20px;background:linear-gradient(135deg,#8b5cf6,#ec4899);color:#fff;border:none;border-radius:10px;font-weight:800;font-size:13px;cursor:pointer">Update Now →</button>
         </form>

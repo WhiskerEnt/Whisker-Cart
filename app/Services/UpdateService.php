@@ -212,6 +212,26 @@ class UpdateService
             // Copy files recursively, skipping protected files
             self::copyDirectory($sourceDir, WK_ROOT, $protectedFiles);
 
+            // Update version string in config.php (the only change we make to protected config)
+            $configPath = WK_ROOT . '/config/config.php';
+            if (file_exists($configPath)) {
+                $configContent = file_get_contents($configPath);
+                // Read new version from the sample config
+                $sampleConfig = $sourceDir . '/config/config.sample.php';
+                if (file_exists($sampleConfig)) {
+                    $sampleContent = file_get_contents($sampleConfig);
+                    if (preg_match("/'version'\s*=>\s*'([^']+)'/", $sampleContent, $m)) {
+                        $newVersion = $m[1];
+                        $configContent = preg_replace(
+                            "/'version'\s*=>\s*'[^']+'/",
+                            "'version'     => '{$newVersion}'",
+                            $configContent
+                        );
+                        file_put_contents($configPath, $configContent, LOCK_EX);
+                    }
+                }
+            }
+
             // Cleanup
             @unlink($zipPath);
             self::deleteDirectory($tempDir);
