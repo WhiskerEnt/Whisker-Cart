@@ -1,5 +1,18 @@
 -- WHISKER v1.2.0 — Complete Database Schema (26 tables)
 
+CREATE TABLE IF NOT EXISTS wk_password_resets (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_type ENUM('admin','customer') NOT NULL,
+    user_id INT UNSIGNED NOT NULL,
+    token_hash VARCHAR(64) NOT NULL COMMENT 'SHA256 of the token',
+    ip_address VARCHAR(45) DEFAULT NULL,
+    expires_at DATETIME NOT NULL,
+    used_at DATETIME DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_token (token_hash),
+    INDEX idx_user (user_type, user_id)
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS wk_tax_rates (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     country VARCHAR(2) DEFAULT NULL COMMENT 'ISO country code, NULL = all countries',

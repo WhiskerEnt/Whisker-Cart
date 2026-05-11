@@ -254,6 +254,13 @@ class ProductController
             return;
         }
 
+        // Additional validation: must be a real image with valid dimensions
+        $imageInfo = @getimagesize($file['tmp_name']);
+        if (!$imageInfo || $imageInfo[0] < 1 || $imageInfo[1] < 1) {
+            Response::json(['success' => false, 'message' => 'File is not a valid image.'], 400);
+            return;
+        }
+
         if ($file['size'] > 5 * 1024 * 1024) {
             Response::json(['success' => false, 'message' => 'Max file size is 5MB'], 400);
             return;
@@ -334,7 +341,7 @@ class ProductController
 
     public function deleteImage(Request $request, array $params = []): void
     {
-        if (!$request->isAjax() && !Session::verifyCsrf($request->input('wk_csrf'))) {
+        if (!Session::verifyCsrf($request->input('wk_csrf') ?? $request->header('X-CSRF-Token'))) {
             Response::json(['success' => false, 'error' => 'Session expired'], 403); return;
         }
         $imageId = (int)($params['id'] ?? 0);
@@ -356,6 +363,9 @@ class ProductController
 
     public function setPrimaryImage(Request $request, array $params = []): void
     {
+        if (!Session::verifyCsrf($request->input('wk_csrf') ?? $request->header('X-CSRF-Token'))) {
+            Response::json(['success' => false, 'error' => 'Session expired'], 403); return;
+        }
         $imageId = (int)($params['id'] ?? 0);
         $image = Database::fetch("SELECT * FROM wk_product_images WHERE id=?", [$imageId]);
         if ($image) {
@@ -370,6 +380,9 @@ class ProductController
      */
     public function quickCategory(Request $request, array $params = []): void
     {
+        if (!Session::verifyCsrf($request->input('wk_csrf') ?? $request->header('X-CSRF-Token'))) {
+            Response::json(['success' => false, 'error' => 'Session expired'], 403); return;
+        }
         $name = trim($request->input('name') ?? '');
         $parentId = $request->input('parent_id') ?: null;
 
@@ -400,6 +413,9 @@ class ProductController
      */
     public function saveVariants(Request $request, array $params = []): void
     {
+        if (!Session::verifyCsrf($request->input('wk_csrf') ?? $request->header('X-CSRF-Token'))) {
+            Response::json(['success' => false, 'error' => 'Session expired'], 403); return;
+        }
         $productId = (int)$params['id'];
         \App\Services\VariantService::saveGroups($productId, $request->all());
         $combos = \App\Services\VariantService::generateCombos($productId);
@@ -429,6 +445,9 @@ class ProductController
      */
     public function uploadVariantOptionImage(Request $request, array $params = []): void
     {
+        if (!Session::verifyCsrf($request->input('wk_csrf') ?? $request->header('X-CSRF-Token'))) {
+            Response::json(['success' => false, 'error' => 'Session expired'], 403); return;
+        }
         $productId = (int)$request->input('product_id');
         $optionId = (int)$request->input('option_id');
 

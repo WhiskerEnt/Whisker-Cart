@@ -31,6 +31,13 @@ class ImportController
             return;
         }
 
+        // File size limit: 10MB max
+        if ($_FILES['csv_file']['size'] > 10 * 1024 * 1024) {
+            Session::flash('error', 'CSV file too large. Maximum size is 10MB.');
+            Response::redirect(View::url('admin/import'));
+            return;
+        }
+
         $ext = strtolower(pathinfo($_FILES['csv_file']['name'], PATHINFO_EXTENSION));
         if ($ext !== 'csv') {
             Session::flash('error', 'Only .csv files are accepted.');
@@ -41,6 +48,13 @@ class ImportController
         $rows = self::parseCSV($_FILES['csv_file']['tmp_name']);
         if (empty($rows)) {
             Session::flash('error', 'CSV has no data rows or headers are missing.');
+            Response::redirect(View::url('admin/import'));
+            return;
+        }
+
+        // Row cap: 10,000 rows max to prevent memory exhaustion
+        if (count($rows) > 10000) {
+            Session::flash('error', 'CSV has ' . number_format(count($rows)) . ' rows. Maximum is 10,000. Split your file into smaller batches.');
             Response::redirect(View::url('admin/import'));
             return;
         }

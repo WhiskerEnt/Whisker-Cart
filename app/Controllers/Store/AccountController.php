@@ -322,13 +322,30 @@ class AccountController
         $customer = Database::fetch("SELECT id, first_name FROM wk_customers WHERE email=?", [$email]);
 
         if ($customer) {
-            // Generate reset token
             $token = bin2hex(random_bytes(32));
-            Database::query(
-                "INSERT INTO wk_settings (setting_group, setting_key, setting_value) VALUES ('reset_tokens', ?, ?)
-                 ON DUPLICATE KEY UPDATE setting_value=?",
-                ['token_' . $customer['id'], json_encode(['token' => $token, 'expires' => time() + 3600]), json_encode(['token' => $token, 'expires' => time() + 3600])]
-            );
+            $tokenHash = hash('sha256', $token);
+            $expiresAt = date('Y-m-d H:i:s', time() + 3600);
+
+            // Delete existing tokens for this customer
+            try { Database::query("DELETE FROM wk_password_resets WHERE user_type='customer' AND user_id=?", [$customer['id']]); } catch (\Exception $e) {}
+
+            // Store hashed token
+            try {
+                Database::insert('wk_password_resets', [
+                    'user_type'  => 'customer',
+                    'user_id'    => $customer['id'],
+                    'token_hash' => $tokenHash,
+                    'ip_address' => $ip,
+                    'expires_at' => $expiresAt,
+                ]);
+            } catch (\Exception $e) {
+                // Fallback for old installs without the table
+                Database::query(
+                    "INSERT INTO wk_settings (setting_group, setting_key, setting_value) VALUES ('reset_tokens', ?, ?)
+                     ON DUPLICATE KEY UPDATE setting_value=?",
+                    ['token_' . $customer['id'], json_encode(['token' => $token, 'expires' => time() + 3600]), json_encode(['token' => $token, 'expires' => time() + 3600])]
+                );
+            }
 
             // Send reset email
             $resetUrl = View::url('account/reset-password?token=' . $token . '&id=' . $customer['id']);
@@ -370,32 +387,44 @@ class AccountController
         if (strlen($newPass) < 8) { Session::flash('error', 'Password must be at least 8 characters.'); Response::redirect(View::url('account/forgot-password')); return; }
         if ($newPass !== $confirm) { Session::flash('error', 'Passwords do not match.'); Response::redirect(View::url('account/forgot-password')); return; }
 
-        // Verify token
-        $stored = Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='reset_tokens' AND setting_key=?", ['token_' . $id]);
-        if (!$stored) { Session::flash('error', 'Invalid or expired link.'); Response::redirect(View::url('account/forgot-password')); return; }
+        // Verify token — try new table first, fallback to old
+        $tokenHash = hash('sha256', $token);
+        $validToken = false;
 
-        $data = json_decode($stored, true);
-        if (!$data || $data['token'] !== $token || $data['expires'] < time()) {
-            Session::flash('error', 'Link expired. Please request a new one.');
+        try {
+            $row = Database::fetch(
+                "SELECT id FROM wk_password_resets WHERE user_type='customer' AND user_id=? AND token_hash=? AND expires_at > NOW() AND used_at IS NULL",
+                [$id, $tokenHash]
+            );
+            if ($row) $validToken = true;
+        } catch (\Exception $e) {}
+
+        if (!$validToken) {
+            // Fallback: old wk_settings storage
+            $stored = Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='reset_tokens' AND setting_key=?", ['token_' . $id]);
+            if ($stored) {
+                $data = json_decode($stored, true);
+                if ($data && hash_equals($data['token'] ?? '', $token) && ($data['expires'] ?? 0) >= time()) {
+                    $validToken = true;
+                }
+            }
+        }
+
+        if (!$validToken) {
+            Session::flash('error', 'Invalid or expired link. Please request a new one.');
             Response::redirect(View::url('account/forgot-password')); return;
         }
 
         // Update password
         Database::update('wk_customers', ['password_hash' => password_hash($newPass, PASSWORD_BCRYPT, ['cost' => 12])], 'id=?', [$id]);
 
-        // Mark password as set + delete token
-        Database::query("DELETE FROM wk_settings WHERE setting_group='reset_tokens' AND setting_key=?", ['token_' . $id]);
+        // Delete tokens from both tables
+        try { Database::query("DELETE FROM wk_password_resets WHERE user_type='customer' AND user_id=?", [$id]); } catch (\Exception $e) {}
+        try { Database::query("DELETE FROM wk_settings WHERE setting_group='reset_tokens' AND setting_key=?", ['token_' . $id]); } catch (\Exception $e) {}
 
-        // Cleanup all expired reset tokens
-        try {
-            $allTokens = Database::fetchAll("SELECT setting_key, setting_value FROM wk_settings WHERE setting_group='reset_tokens'");
-            foreach ($allTokens as $row) {
-                $tokenData = json_decode($row['setting_value'], true);
-                if (!$tokenData || ($tokenData['expires'] ?? 0) < time()) {
-                    Database::query("DELETE FROM wk_settings WHERE setting_group='reset_tokens' AND setting_key=?", [$row['setting_key']]);
-                }
-            }
-        } catch (\Exception $e) {}
+        // Cleanup expired tokens from new table
+        try { Database::query("DELETE FROM wk_password_resets WHERE expires_at < NOW()"); } catch (\Exception $e) {}
+
         Database::query("INSERT INTO wk_settings (setting_group, setting_key, setting_value) VALUES ('customer_flags', ?, '1') ON DUPLICATE KEY UPDATE setting_value='1'", ['password_set_' . $id]);
 
         Session::flash('success', 'Password reset! You can now sign in.');

@@ -1,4 +1,4 @@
-![Version](https://img.shields.io/badge/version-1.2.0-8b5cf6?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-1.2.1-8b5cf6?style=for-the-badge)
 ![License](https://img.shields.io/badge/license-Whisker%20Free-f59e0b?style=for-the-badge)
 ![PHP](https://img.shields.io/badge/PHP-8.0+-777BB4?style=for-the-badge&logo=php&logoColor=white)
 ![MySQL](https://img.shields.io/badge/MySQL-5.7+-4479A1?style=for-the-badge&logo=mysql&logoColor=white)
@@ -69,7 +69,7 @@ Upload it to any ₹99/month shared hosting, run the 6-step installer, and you h
 - Product management with drag-drop image upload
 - Category management (nested, with sort order)
 - Order management with status tracking, shipping info, and tracking numbers
-- Invoice/receipt generation with tax breakdown
+- Invoice/receipt generation with tax breakdown, store logo, address, and GSTIN/VAT number
 - Customer management with order history and spend totals
 - Coupon system with usage tracking
 - **CSV import** — categories, products, and variants in a single file
@@ -82,6 +82,8 @@ Upload it to any ₹99/month shared hosting, run the 6-step installer, and you h
 - Shipping carrier & rate configuration
 - **Auto-updater** with backup, SHA256 verification, auto-migrations, and one-click rollback
 - **Homepage style picker** — switch between Classic and Modern layouts
+- **Admin forgot password** — email-based reset with rate limiting
+- **Low stock email alerts** — daily notification when products hit ≤5 stock
 
 ### Payments
 - **Razorpay** — UPI, Cards, Netbanking (webhook signature verified)
@@ -173,9 +175,9 @@ See the [Upgrading wiki page](https://github.com/WhiskerEnt/Whisker-Cart/wiki/Up
 
 ## The Numbers
 
-- ~135 files, 26 database tables
+- ~140 files, 26 database tables
 - 0 external dependencies
-- 280KB zipped
+- 290KB zipped
 - 5 minute install
 - 100+ stores deployed
 - Works on PHP 8.0+ and any shared hosting
@@ -223,5 +225,5 @@ Whisker Free Edition is released under the Whisker Free License v1.0. Free to us
 
 ---
 
-**🐱 Whisker v1.2.0** · Built by Lohit T
+**🐱 Whisker v1.2.1** · Built by Lohit T
 📧 [mail@lohit.me](mailto:mail@lohit.me)

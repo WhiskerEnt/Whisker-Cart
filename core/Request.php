@@ -46,6 +46,7 @@ class Request
     public function isPost(): bool      { return $this->method === 'POST'; }
     public function isGet(): bool       { return $this->method === 'GET'; }
     public function isAjax(): bool      { return ($this->server['HTTP_X_REQUESTED_WITH'] ?? '') === 'XMLHttpRequest'; }
+    public function header(string $name): ?string { $key = 'HTTP_' . strtoupper(str_replace('-', '_', $name)); return $this->server[$key] ?? null; }
 
     /** Get a query parameter (?key=value) */
     public function query(string $key, $default = null)

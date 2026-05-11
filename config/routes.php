@@ -70,6 +70,10 @@ $router->post('/account/reset-password',   [AccountController::class, 'resetPass
 $router->get('/admin/login',         [AuthController::class, 'showLogin']);
 $router->post('/admin/login',        [AuthController::class, 'login'], ['csrf']);
 $router->get('/admin/logout',        [AuthController::class, 'logout']);
+$router->get('/admin/forgot-password',  [AuthController::class, 'showForgotPassword']);
+$router->post('/admin/forgot-password', [AuthController::class, 'forgotPassword'], ['csrf']);
+$router->get('/admin/reset-password',   [AuthController::class, 'showResetPassword']);
+$router->post('/admin/reset-password',  [AuthController::class, 'resetPassword'], ['csrf']);
 
 // ── Admin Panel (auth + csrf protected) ──────────
 $router->group(['prefix' => '/admin', 'middleware' => ['auth', 'csrf']], function ($r) {

@@ -15,10 +15,48 @@ class DashboardController
             $migrationResult = \App\Services\MigrationService::checkAndRun();
         } catch (\Exception $e) {}
 
+        // Cleanup expired rate limiter files (lightweight, runs on every dashboard load)
+        try { \Core\RateLimiter::cleanup(7200); } catch (\Exception $e) {}
+
         // Check for updates (cached, hits API once per day)
         $updateAvailable = null;
         try {
             $updateAvailable = \App\Services\UpdateService::check();
+        } catch (\Exception $e) {}
+
+        // Low stock email alert (once per day)
+        try {
+            $lastAlert = Database::setting('system_cache', 'last_stock_alert');
+            if (!$lastAlert || (time() - (int)$lastAlert) > 86400) {
+                $lowStockItems = Database::fetchAll(
+                    "SELECT name, sku, stock_quantity FROM wk_products WHERE is_active=1 AND stock_quantity > 0 AND stock_quantity <= 5 ORDER BY stock_quantity ASC LIMIT 20"
+                );
+                if (!empty($lowStockItems)) {
+                    $adminEmail = Database::fetchValue("SELECT email FROM wk_admins WHERE role='superadmin' LIMIT 1");
+                    if ($adminEmail) {
+                        $rows = '';
+                        foreach ($lowStockItems as $item) {
+                            $rows .= '<tr><td style="padding:8px 12px;border-bottom:1px solid #eee">' . htmlspecialchars($item['name']) . '</td>'
+                                    . '<td style="padding:8px 12px;border-bottom:1px solid #eee">' . htmlspecialchars($item['sku'] ?? '-') . '</td>'
+                                    . '<td style="padding:8px 12px;border-bottom:1px solid #eee;font-weight:700;color:#ef4444">' . $item['stock_quantity'] . '</td></tr>';
+                        }
+                        \App\Services\EmailService::send($adminEmail, 'Low Stock Alert — ' . count($lowStockItems) . ' products', '
+                            <h2>Low Stock Alert</h2>
+                            <p>The following products have 5 or fewer items in stock:</p>
+                            <table style="width:100%;border-collapse:collapse;font-size:14px">
+                                <thead><tr style="background:#f9fafb"><th style="padding:8px 12px;text-align:left">Product</th><th style="padding:8px 12px;text-align:left">SKU</th><th style="padding:8px 12px;text-align:left">Stock</th></tr></thead>
+                                <tbody>' . $rows . '</tbody>
+                            </table>
+                            <p style="margin-top:16px;color:#6b7280;font-size:13px">This alert is sent once per day. Restock soon to avoid lost sales.</p>
+                        ');
+                    }
+                }
+                Database::query(
+                    "INSERT INTO wk_settings (setting_group, setting_key, setting_value) VALUES ('system_cache', 'last_stock_alert', ?)
+                     ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)",
+                    [(string)time()]
+                );
+            }
         } catch (\Exception $e) {}
 
         // ── Core Stats ──

@@ -162,6 +162,10 @@
         <button type="submit" class="btn-login">Sign In →</button>
     </form>
 
+    <div style="text-align:center;margin-top:16px">
+        <a href="<?= \Core\View::url('admin/forgot-password') ?>" style="font-size:13px;color:var(--wk-purple);font-weight:700;text-decoration:none">Forgot Password?</a>
+    </div>
+
     <div class="login-footer">
         Whisker v<?= WK_VERSION ?> · Free Edition
     </div>

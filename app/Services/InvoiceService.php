@@ -48,6 +48,10 @@ class InvoiceService
 
         $storeName = Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='site_name'") ?: 'Whisker Store';
         $currency = Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='currency_symbol'") ?: '₹';
+        $storeAddress = Database::setting('general', 'store_address') ?? '';
+        $storePhone = Database::setting('general', 'store_phone') ?? '';
+        $storeTaxId = Database::setting('general', 'store_tax_id') ?? '';
+        $storeLogo = Database::setting('general', 'store_logo') ?? '';
 
         $fmt = fn($v) => $currency . number_format((float)$v, 2);
 
@@ -91,6 +95,7 @@ class InvoiceService
 <div class="invoice">
     <div class="header">
         <div>
+            ' . ($storeLogo ? '<img src="' . htmlspecialchars($storeLogo) . '" alt="' . htmlspecialchars($storeName) . '" style="max-height:60px;max-width:200px;margin-bottom:8px"><br>' : '') . '
             <div class="invoice-title">INVOICE</div>
             <div style="color:#6b7280;margin-top:4px">
                 <strong>' . htmlspecialchars($invoice['invoice_number'] ?? '') . '</strong><br>
@@ -100,7 +105,10 @@ class InvoiceService
         <div style="text-align:right">
             <div style="font-size:20px;font-weight:900">' . htmlspecialchars($storeName) . '</div>
             <div style="color:#6b7280;margin-top:4px;font-size:13px">
-                Order: ' . htmlspecialchars($order['order_number']) . '<br>
+                ' . ($storeAddress ? nl2br(htmlspecialchars($storeAddress)) . '<br>' : '') . '
+                ' . ($storePhone ? 'Phone: ' . htmlspecialchars($storePhone) . '<br>' : '') . '
+                ' . ($storeTaxId ? '<strong>GSTIN/Tax ID: ' . htmlspecialchars($storeTaxId) . '</strong><br>' : '') . '
+                <br>Order: ' . htmlspecialchars($order['order_number']) . '<br>
                 ' . date('M j, Y g:i A', strtotime($order['created_at'])) . '
             </div>
         </div>
