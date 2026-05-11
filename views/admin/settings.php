@@ -92,11 +92,101 @@
             <div class="wk-card">
                 <div class="wk-card-header"><h2>🛒 Checkout</h2></div>
                 <div class="wk-card-body">
-                    <div class="wk-form-group"><label>Tax Rate (%)</label><input type="number" step="0.01" name="checkout_tax_rate" class="wk-input" value="<?= $v('checkout','tax_rate') ?>"></div>
+                    <div class="wk-form-group"><label>Minimum Order Amount</label><input type="number" step="0.01" name="checkout_min_order" class="wk-input" value="<?= $v('checkout','min_order') ?>"></div>
+                    <div class="wk-form-group"><label>Guest Checkout</label>
+                        <select name="checkout_guest_checkout" class="wk-input">
+                            <option value="1" <?= $v('checkout','guest_checkout')!=='0'?'selected':'' ?>>Enabled</option>
+                            <option value="0" <?= $v('checkout','guest_checkout')==='0'?'selected':'' ?>>Disabled</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="wk-card">
+                <div class="wk-card-header"><h2>🌍 Tax Configuration</h2></div>
+                <div class="wk-card-body">
+                    <div style="background:var(--wk-purple-soft);border:1px solid var(--wk-purple);border-radius:10px;padding:14px;margin-bottom:20px;font-size:13px">
+                        <strong>How it works:</strong> Whisker automatically calculates tax based on your store location and the customer's address. Set your store country and state below. For most stores, the built-in rates are sufficient — no manual configuration needed.
+                    </div>
+
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+                        <div class="wk-form-group">
+                            <label>Store Country</label>
+                            <select name="general_store_country" class="wk-input">
+                                <?php
+                                $currentCountry = $v('general','store_country') ?: 'IN';
+                                $countries = ['IN'=>'India','US'=>'United States','GB'=>'United Kingdom','DE'=>'Germany','FR'=>'France','IT'=>'Italy','ES'=>'Spain','NL'=>'Netherlands','BE'=>'Belgium','AT'=>'Austria','PL'=>'Poland','PT'=>'Portugal','SE'=>'Sweden','DK'=>'Denmark','FI'=>'Finland','IE'=>'Ireland','GR'=>'Greece','CZ'=>'Czech Republic','RO'=>'Romania','HU'=>'Hungary','BG'=>'Bulgaria','HR'=>'Croatia','SK'=>'Slovakia','SI'=>'Slovenia','LT'=>'Lithuania','LV'=>'Latvia','EE'=>'Estonia','CY'=>'Cyprus','LU'=>'Luxembourg','MT'=>'Malta','AU'=>'Australia','CA'=>'Canada','JP'=>'Japan','SG'=>'Singapore','AE'=>'UAE','SA'=>'Saudi Arabia','BR'=>'Brazil','MX'=>'Mexico','ZA'=>'South Africa','NG'=>'Nigeria','KE'=>'Kenya'];
+                                foreach ($countries as $code => $name):
+                                ?>
+                                <option value="<?= $code ?>" <?= $currentCountry===$code?'selected':'' ?>><?= $name ?> (<?= $code ?>)</option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="wk-form-group">
+                            <label>Store State / Province</label>
+                            <input type="text" name="general_store_state" class="wk-input" value="<?= $v('general','store_state') ?>" placeholder="e.g. KA, CA, TX">
+                            <div style="font-size:11px;color:var(--wk-text-muted);margin-top:4px">Used for GST (CGST+SGST vs IGST) and US Sales Tax (nexus)</div>
+                        </div>
+                    </div>
+
                     <div class="wk-form-group">
-                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-                            <input type="checkbox" name="checkout_guest_checkout" value="1" <?= ($s['checkout']['guest_checkout']??'1')==='1'?'checked':'' ?>> Allow guest checkout
-                        </label>
+                        <label>Fallback Tax Rate (%)</label>
+                        <input type="number" step="0.01" name="checkout_tax_rate" class="wk-input" value="<?= $v('checkout','tax_rate') ?>" style="max-width:200px">
+                        <div style="font-size:11px;color:var(--wk-text-muted);margin-top:4px">Used only when no country-specific rate applies (e.g. unlisted countries)</div>
+                    </div>
+
+                    <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--wk-border)">
+                        <div style="font-weight:800;font-size:14px;margin-bottom:12px">Built-in Tax Rules</div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px">
+                            <div style="padding:12px;background:var(--wk-bg);border-radius:8px">
+                                <div style="font-weight:700;color:var(--wk-purple)">🇮🇳 India (GST)</div>
+                                <div style="color:var(--wk-text-muted);margin-top:4px">Standard 18% · Reduced 12% · Low 5%</div>
+                                <div style="color:var(--wk-text-muted)">Auto-splits CGST+SGST (same state) or IGST (different state)</div>
+                            </div>
+                            <div style="padding:12px;background:var(--wk-bg);border-radius:8px">
+                                <div style="font-weight:700;color:var(--wk-purple)">🇪🇺 EU (VAT)</div>
+                                <div style="color:var(--wk-text-muted);margin-top:4px">Per-country rates for all 27 member states</div>
+                                <div style="color:var(--wk-text-muted)">Standard & reduced classes</div>
+                            </div>
+                            <div style="padding:12px;background:var(--wk-bg);border-radius:8px">
+                                <div style="font-weight:700;color:var(--wk-purple)">🇬🇧 UK (VAT)</div>
+                                <div style="color:var(--wk-text-muted);margin-top:4px">Standard 20% · Reduced 5%</div>
+                            </div>
+                            <div style="padding:12px;background:var(--wk-bg);border-radius:8px">
+                                <div style="font-weight:700;color:var(--wk-purple)">🇺🇸 US (Sales Tax)</div>
+                                <div style="color:var(--wk-text-muted);margin-top:4px">State-level rates for all 50 states</div>
+                                <div style="color:var(--wk-text-muted)">Nexus-based (only charges in store's state)</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--wk-border)">
+                        <div style="font-weight:800;font-size:14px;margin-bottom:8px">Custom Tax Rates</div>
+                        <div style="font-size:13px;color:var(--wk-text-muted);margin-bottom:12px">Add custom rates to override built-in rules. Higher priority rates take precedence. Manage via database table <code>wk_tax_rates</code>.</div>
+                        <?php
+                        try {
+                            $customRates = \Core\Database::fetchAll("SELECT * FROM wk_tax_rates WHERE is_active=1 ORDER BY priority DESC, country, state");
+                        } catch (\Exception $e) { $customRates = []; }
+                        ?>
+                        <?php if (empty($customRates)): ?>
+                            <div style="padding:16px;text-align:center;color:var(--wk-text-muted);font-size:13px;background:var(--wk-bg);border-radius:8px">No custom rates configured. Built-in rules are active.</div>
+                        <?php else: ?>
+                            <table class="wk-table" style="font-size:13px">
+                                <thead><tr><th>Country</th><th>State</th><th>Class</th><th>Rate</th><th>Label</th><th>Priority</th></tr></thead>
+                                <tbody>
+                                <?php foreach ($customRates as $rate): ?>
+                                <tr>
+                                    <td><?= $rate['country'] ?: 'All' ?></td>
+                                    <td><?= $rate['state'] ?: 'All' ?></td>
+                                    <td><?= $rate['tax_class'] ?></td>
+                                    <td><?= $rate['rate'] ?>%</td>
+                                    <td><?= htmlspecialchars($rate['label']) ?></td>
+                                    <td><?= $rate['priority'] ?></td>
+                                </tr>
+                                <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
