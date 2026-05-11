@@ -145,7 +145,7 @@ class InvoiceService
     <div style="display:flex;justify-content:flex-end;margin-top:20px">
         <div style="width:280px;font-size:14px">
             <div style="display:flex;justify-content:space-between;padding:6px 0"><span style="color:#6b7280">Subtotal</span><span style="font-weight:700;font-family:monospace">' . $fmt($order['subtotal']) . '</span></div>
-            <div style="display:flex;justify-content:space-between;padding:6px 0"><span style="color:#6b7280">Tax</span><span style="font-weight:700;font-family:monospace">' . $fmt($order['tax_amount']) . '</span></div>
+            ' . self::taxBreakdownHtml($order, $fmt) . '
             <div style="display:flex;justify-content:space-between;padding:6px 0"><span style="color:#6b7280">Shipping</span><span style="font-weight:700;font-family:monospace">' . $fmt($order['shipping_amount']) . '</span></div>
             ' . ($order['discount_amount'] > 0 ? '<div style="display:flex;justify-content:space-between;padding:6px 0"><span style="color:#10b981">Discount</span><span style="font-weight:700;color:#10b981;font-family:monospace">-' . $fmt($order['discount_amount']) . '</span></div>' : '') . '
             <div style="display:flex;justify-content:space-between;padding:12px 0 0;border-top:2px solid #1e1b2e;margin-top:8px;font-size:20px"><span style="font-weight:900">Total</span><span style="font-weight:900;font-family:monospace">' . $fmt($order['total']) . '</span></div>
@@ -159,5 +159,24 @@ class InvoiceService
 </div>
 </body>
 </html>';
+    }
+
+    /**
+     * Generate HTML for tax breakdown lines in invoice.
+     * Shows CGST+SGST, IGST, VAT, Sales Tax, etc. depending on order data.
+     */
+    private static function taxBreakdownHtml(array $order, callable $fmt): string
+    {
+        $details = json_decode($order['tax_details'] ?? '[]', true);
+        if (!empty($details) && is_array($details)) {
+            $html = '';
+            foreach ($details as $b) {
+                $label = htmlspecialchars($b['label'] ?? 'Tax') . ' (' . ($b['rate'] ?? 0) . '%)';
+                $html .= '<div style="display:flex;justify-content:space-between;padding:6px 0"><span style="color:#6b7280">' . $label . '</span><span style="font-weight:700;font-family:monospace">' . $fmt($b['amount'] ?? 0) . '</span></div>';
+            }
+            return $html;
+        }
+        // Fallback: single tax line
+        return '<div style="display:flex;justify-content:space-between;padding:6px 0"><span style="color:#6b7280">Tax</span><span style="font-weight:700;font-family:monospace">' . $fmt($order['tax_amount']) . '</span></div>';
     }
 }

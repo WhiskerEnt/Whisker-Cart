@@ -1,4 +1,4 @@
-![Version](https://img.shields.io/badge/version-1.1.0-8b5cf6?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-1.2.0-8b5cf6?style=for-the-badge)
 ![License](https://img.shields.io/badge/license-Whisker%20Free-f59e0b?style=for-the-badge)
 ![PHP](https://img.shields.io/badge/PHP-8.0+-777BB4?style=for-the-badge&logo=php&logoColor=white)
 ![MySQL](https://img.shields.io/badge/MySQL-5.7+-4479A1?style=for-the-badge&logo=mysql&logoColor=white)
@@ -26,19 +26,22 @@ Upload it to any ₹99/month shared hosting, run the 6-step installer, and you h
 
 **🤖 Built-in AI Chatbot** — Your customers get instant answers without leaving the storefront. Order tracking, support tickets, policy lookups, product questions — all handled by a chatbot widget that works out of the box. No API keys, no third-party service, no monthly fees. No other lightweight cart has this.
 
-**📦 Zero Dependencies** — No Composer, no Node, no framework. Pure PHP. Upload to any hosting and it works. The entire cart is ~270KB zipped.
+**🌍 Global Tax Engine** — GST (India, with CGST+SGST/IGST split), VAT (all 27 EU countries + UK), US Sales Tax (all 50 states, nexus-based). Custom rates per country/state. Tax breakdown on invoices. Works automatically based on customer address.
+
+**📦 Zero Dependencies** — No Composer, no Node, no framework. Pure PHP. Upload to any hosting and it works. The entire cart is ~280KB zipped.
 
 **🇮🇳 India-First Payments** — Razorpay (UPI, cards, netbanking) is a first-class citizen, not a third-party plugin. Plus Stripe, CCAvenue, and crypto via NOWPayments.
 
-**🔄 One-Click Updates** — Built-in auto-updater checks for new versions, creates a backup (code + database), verifies SHA256 integrity, and applies updates from your admin dashboard. Rollback to any previous version if something goes wrong.
+**🔄 One-Click Updates** — Built-in auto-updater checks for new versions, creates a backup (code + database), verifies SHA256 integrity, applies updates, and runs database migrations automatically. Rollback to any previous version if something goes wrong.
 
-**🔒 Security-First** — 45-point security audit. Rate limiting on all forms, CSRF on every action, webhook signature verification on all payment gateways, GD image re-encoding to prevent upload attacks, atomic stock deduction to prevent overselling. Not bolted on later — built from the start.
+**🔒 Security-First** — 45-point security audit. Rate limiting on all forms, CSRF on every action, webhook signature verification on all payment gateways, GD image re-encoding to prevent upload attacks, atomic stock deduction to prevent overselling.
 
 ---
 
 ## Features
 
 ### Storefront
+- Two homepage layouts: **Classic** (simple hero + grid) or **Modern** (hero banner, category grid, sale section, carousel)
 - Responsive mobile-first design with 5 color themes
 - Product catalog with nested categories and search
 - **Shop page** with pagination, category filters, and sorting (price, name, date)
@@ -51,12 +54,22 @@ Upload it to any ₹99/month shared hosting, run the 6-step installer, and you h
 - **AI chatbot widget** — order tracking, ticket creation, FAQ, policy lookups
 - Image carousel with thumbnails
 
+### Tax Engine
+- **India GST** — CGST + SGST (intra-state) or IGST (inter-state) at 18%, 12%, or 5%
+- **EU VAT** — per-country rates for all 27 member states
+- **UK VAT** — 20% standard, 5% reduced
+- **US Sales Tax** — state-level rates, nexus-based
+- Custom tax rates per country/state via admin panel
+- Per-product tax class (standard, reduced, zero, exempt)
+- Tax breakdown on invoices (shows each tax line individually)
+- Automatic fallback to global rate for unlisted countries
+
 ### Admin Panel
 - Dashboard with revenue charts, order stats, and trend data
 - Product management with drag-drop image upload
 - Category management (nested, with sort order)
 - Order management with status tracking, shipping info, and tracking numbers
-- Invoice/receipt PDF generation
+- Invoice/receipt generation with tax breakdown
 - Customer management with order history and spend totals
 - Coupon system with usage tracking
 - **CSV import** — categories, products, and variants in a single file
@@ -67,7 +80,8 @@ Upload it to any ₹99/month shared hosting, run the 6-step installer, and you h
 - SEO settings with live Google preview
 - Sitemap & robots.txt generator
 - Shipping carrier & rate configuration
-- **Auto-updater** with backup, SHA256 verification, and one-click rollback
+- **Auto-updater** with backup, SHA256 verification, auto-migrations, and one-click rollback
+- **Homepage style picker** — switch between Classic and Modern layouts
 
 ### Payments
 - **Razorpay** — UPI, Cards, Netbanking (webhook signature verified)
@@ -100,10 +114,12 @@ Upload it to any ₹99/month shared hosting, run the 6-step installer, and you h
 - Atomic stock deduction (prevents overselling under concurrency)
 - Non-blocking checkout emails on PHP-FPM servers
 - Timing-safe login (prevents user enumeration)
+- URL-encoded slugs in all templates (prevents slug injection)
 
 ### Performance
 - **Settings cache** — all settings loaded once per request (1 query instead of 10+)
 - **Currency cache** — exchange rates cached 6 hours
+- **Tax rate cache** — loaded once per request from DB
 - **Atomic stock** — `WHERE stock_quantity >= ?` prevents race conditions
 - **Non-blocking emails** — `fastcgi_finish_request()` on PHP-FPM
 - Runs on shared hosting, handles 500+ orders/day on a decent VPS
@@ -141,12 +157,13 @@ No command line. No Composer. No SSH. Works on any cPanel hosting.
 
 ## Updating
 
-Starting with v1.1.0, updates are handled from the admin dashboard:
+Updates are handled from the admin dashboard:
 
 1. A notification banner appears when a new version is available
 2. Choose your database backup level (schema only, full dump, or none)
 3. Click **Update Now** — Whisker backs up your files, downloads the update, verifies integrity, and applies it
-4. If anything goes wrong, click **Restore** to rollback to the previous version
+4. Database migrations run automatically on first dashboard load after update
+5. If anything goes wrong, click **Restore** to rollback to the previous version
 
 Your config files, database credentials, and product images are never touched during updates.
 
@@ -156,9 +173,9 @@ See the [Upgrading wiki page](https://github.com/WhiskerEnt/Whisker-Cart/wiki/Up
 
 ## The Numbers
 
-- ~130 files, 25 database tables
+- ~135 files, 26 database tables
 - 0 external dependencies
-- 270KB zipped
+- 280KB zipped
 - 5 minute install
 - 100+ stores deployed
 - Works on PHP 8.0+ and any shared hosting
@@ -182,7 +199,6 @@ See the [Upgrading wiki page](https://github.com/WhiskerEnt/Whisker-Cart/wiki/Up
 
 ## Premium (Coming Soon)
 
-- Tax engine (GST, VAT, Sales Tax)
 - Abandoned cart recovery emails
 - Revenue analytics dashboard
 - REST API
@@ -207,5 +223,5 @@ Whisker Free Edition is released under the Whisker Free License v1.0. Free to us
 
 ---
 
-**🐱 Whisker v1.1.0** · Built by Lohit T
+**🐱 Whisker v1.2.0** · Built by Lohit T
 📧 [mail@lohit.me](mailto:mail@lohit.me)

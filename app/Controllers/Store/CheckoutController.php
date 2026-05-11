@@ -56,7 +56,14 @@ class CheckoutController
 
         $taxRate = (float)(Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='checkout' AND setting_key='tax_rate'") ?: 18);
         $shipping = self::calculateShipping($cart);
-        $tax = round($cart['subtotal'] * ($taxRate / 100), 2);
+
+        // Use TaxService for smart tax calculation based on customer address
+        $custAddress = [
+            'country' => $request->clean('country') ?? '',
+            'state'   => $request->clean('state') ?? '',
+        ];
+        $taxResult = \App\Services\TaxService::calculate($cart['subtotal'], $custAddress);
+        $tax = $taxResult['amount'];
         $total = $cart['subtotal'] + $tax + $shipping;
 
         // Auto-create or find customer by email
@@ -90,6 +97,7 @@ class CheckoutController
             'payment_gateway'=>$request->clean('payment_gateway'),
             'customer_email'=>$request->clean('email'),
             'customer_phone'=>$request->clean('phone'),
+            'tax_details'=>json_encode($taxResult['breakdown'] ?? []),
             'shipping_address'=>json_encode([
                 'name'=>$request->clean('first_name').' '.$request->clean('last_name'),
                 'line1'=>$request->clean('address1'), 'city'=>$request->clean('city'),

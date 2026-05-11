@@ -9,6 +9,12 @@ class DashboardController
     {
         $currencySymbol = Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='currency_symbol'") ?: '₹';
 
+        // Run pending database migrations if version changed
+        $migrationResult = null;
+        try {
+            $migrationResult = \App\Services\MigrationService::checkAndRun();
+        } catch (\Exception $e) {}
+
         // Check for updates (cached, hits API once per day)
         $updateAvailable = null;
         try {
@@ -88,6 +94,15 @@ class DashboardController
         // Get available backups for rollback
         $backups = \App\Services\UpdateService::getBackups();
 
+        // Show migration results if any ran
+        if ($migrationResult && $migrationResult['ran'] > 0) {
+            $msg = $migrationResult['ran'] . ' database migration' . ($migrationResult['ran'] > 1 ? 's' : '') . ' applied automatically.';
+            if (!empty($migrationResult['errors'])) {
+                $msg .= ' (' . count($migrationResult['errors']) . ' error' . (count($migrationResult['errors']) > 1 ? 's' : '') . ')';
+            }
+            Session::flash('success', $msg);
+        }
+
         // Estimate DB size for backup options
         $dbSize = null;
         if ($updateAvailable) {
@@ -140,6 +155,30 @@ class DashboardController
         }
 
         Response::redirect(View::url('admin'));
+    }
+
+    /**
+     * AJAX: Manual update check from settings page
+     */
+    public function checkUpdate(Request $request, array $params = []): void
+    {
+        // Clear cached check to force a fresh API call
+        try {
+            Database::query("DELETE FROM wk_settings WHERE setting_group='system_cache' AND setting_key='update_check'");
+            Database::clearSettingsCache();
+        } catch (\Exception $e) {}
+
+        $update = \App\Services\UpdateService::check();
+        if ($update) {
+            Response::json([
+                'available' => true,
+                'version'   => $update['version'] ?? '',
+                'changelog' => $update['changelog'] ?? '',
+                'severity'  => $update['severity'] ?? 'normal',
+            ]);
+        } else {
+            Response::json(['available' => false]);
+        }
     }
 
     /**

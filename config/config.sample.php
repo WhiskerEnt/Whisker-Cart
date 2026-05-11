@@ -12,5 +12,5 @@ return [
     'base_path'   => '/whisker',                    // URL path prefix (use '/' if at domain root)
     'debug'       => false,
     'timezone'    => 'Asia/Kolkata',
-    'version'     => '1.1.0',
+    'version'     => '1.2.0',
 ];

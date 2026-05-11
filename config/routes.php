@@ -78,6 +78,7 @@ $router->group(['prefix' => '/admin', 'middleware' => ['auth', 'csrf']], functio
     $r->get('/dashboard',                [DashboardController::class, 'index']);
 
     // System Updates
+    $r->post('/update/check',            [DashboardController::class, 'checkUpdate']);
     $r->post('/update/apply',            [DashboardController::class, 'applyUpdate']);
     $r->post('/update/dismiss',          [DashboardController::class, 'dismissUpdate']);
     $r->post('/update/rollback',         [DashboardController::class, 'rollback']);

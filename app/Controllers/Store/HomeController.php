@@ -35,17 +35,50 @@ class HomeController
 
         $seoMeta = \App\Services\SeoService::renderMeta([]);
 
-        // Get categories for filter nav
-        $categories = Database::fetchAll("SELECT id, name, slug FROM wk_categories WHERE is_active=1 AND parent_id IS NULL ORDER BY sort_order, name");
+        // Get categories for filter nav (with product count and first product image)
+        $categories = Database::fetchAll(
+            "SELECT c.id, c.name, c.slug, c.description,
+                    (SELECT COUNT(*) FROM wk_products p WHERE p.category_id=c.id AND p.is_active=1) AS product_count,
+                    (SELECT pi.image_path FROM wk_products p2
+                     JOIN wk_product_images pi ON pi.product_id=p2.id AND pi.is_primary=1
+                     WHERE p2.category_id=c.id AND p2.is_active=1 LIMIT 1) AS cover_image
+             FROM wk_categories c WHERE c.is_active=1 AND c.parent_id IS NULL
+             ORDER BY c.sort_order, c.name"
+        );
 
-        View::render('store/home', [
-            'products'   => $featured,
-            'siteName'   => $siteName,
-            'tagline'    => $tagline,
-            'currency'   => $currency,
-            'seoMeta'    => $seoMeta,
-            'categories' => $categories,
-            'isHomepage' => true,
+        // Get on-sale products for sale section
+        $saleProducts = Database::fetchAll(
+            "SELECT p.*, c.name AS category_name,
+                    (SELECT image_path FROM wk_product_images WHERE product_id=p.id AND is_primary=1 LIMIT 1) AS image,
+                    (SELECT COUNT(*) FROM wk_variant_combos WHERE product_id=p.id AND is_active=1) AS variant_count,
+                    ROUND((1 - p.sale_price / p.price) * 100) AS discount_pct
+             FROM wk_products p
+             LEFT JOIN wk_categories c ON c.id=p.category_id
+             WHERE p.is_active=1 AND p.sale_price IS NOT NULL AND p.sale_price > 0 AND p.sale_price < p.price AND p.price > 0 AND p.stock_quantity > 0
+             ORDER BY discount_pct DESC LIMIT 8"
+        );
+
+        // Hero settings
+        $heroTitle = Database::setting('general', 'hero_title') ?? $siteName;
+        $heroSubtitle = Database::setting('general', 'hero_subtitle') ?? $tagline;
+        $heroCta = Database::setting('general', 'hero_cta') ?? 'Shop Now';
+
+        // Homepage layout: v1 (classic) or v2 (modern with categories/sale)
+        $homeLayout = Database::setting('general', 'homepage_style') ?? 'v2';
+        $viewName = in_array($homeLayout, ['v1', 'v2']) ? 'store/home-' . $homeLayout : 'store/home-v2';
+
+        View::render($viewName, [
+            'products'     => $featured,
+            'siteName'     => $siteName,
+            'tagline'      => $tagline,
+            'currency'     => $currency,
+            'seoMeta'      => $seoMeta,
+            'categories'   => $categories,
+            'saleProducts' => $saleProducts,
+            'heroTitle'    => $heroTitle,
+            'heroSubtitle' => $heroSubtitle,
+            'heroCta'      => $heroCta,
+            'isHomepage'   => true,
         ], 'store/layouts/main');
     }
 

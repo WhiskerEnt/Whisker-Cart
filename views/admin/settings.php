@@ -65,6 +65,31 @@
             </div>
 
             <div class="wk-card">
+                <div class="wk-card-header"><h2>🏠 Homepage Layout</h2></div>
+                <div class="wk-card-body">
+                    <?php $currentLayout = $v('general','homepage_style') ?: 'v2'; ?>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                        <label style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:20px;border:2px solid <?= $currentLayout==='v1'?'var(--wk-purple)':'var(--wk-border)' ?>;border-radius:12px;cursor:pointer;transition:all .2s;background:<?= $currentLayout==='v1'?'var(--wk-purple-soft)':'transparent' ?>" onclick="this.parentElement.querySelectorAll('label').forEach(l=>{l.style.borderColor='var(--wk-border)';l.style.background='transparent'});this.style.borderColor='var(--wk-purple)';this.style.background='var(--wk-purple-soft)'">
+                            <input type="radio" name="general_homepage_style" value="v1" <?= $currentLayout==='v1'?'checked':'' ?> style="accent-color:var(--wk-purple)">
+                            <div style="font-size:32px">🏪</div>
+                            <div style="text-align:center">
+                                <div style="font-weight:800;font-size:14px">Classic</div>
+                                <div style="font-size:11px;color:var(--wk-text-muted)">Simple hero, featured carousel, product grid</div>
+                            </div>
+                        </label>
+                        <label style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:20px;border:2px solid <?= $currentLayout==='v2'?'var(--wk-purple)':'var(--wk-border)' ?>;border-radius:12px;cursor:pointer;transition:all .2s;background:<?= $currentLayout==='v2'?'var(--wk-purple-soft)':'transparent' ?>" onclick="this.parentElement.querySelectorAll('label').forEach(l=>{l.style.borderColor='var(--wk-border)';l.style.background='transparent'});this.style.borderColor='var(--wk-purple)';this.style.background='var(--wk-purple-soft)'">
+                            <input type="radio" name="general_homepage_style" value="v2" <?= $currentLayout==='v2'?'checked':'' ?> style="accent-color:var(--wk-purple)">
+                            <div style="font-size:32px">✨</div>
+                            <div style="text-align:center">
+                                <div style="font-weight:800;font-size:14px">Modern</div>
+                                <div style="font-size:11px;color:var(--wk-text-muted)">Hero banner, category grid, sale section, featured carousel</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="wk-card">
                 <div class="wk-card-header"><h2>🛒 Checkout</h2></div>
                 <div class="wk-card-body">
                     <div class="wk-form-group"><label>Tax Rate (%)</label><input type="number" step="0.01" name="checkout_tax_rate" class="wk-input" value="<?= $v('checkout','tax_rate') ?>"></div>
@@ -116,6 +141,48 @@
         <button type="submit" class="wk-btn wk-btn-primary" style="justify-content:center" onclick="return confirm('Change your admin password?')">Change Password</button>
     </div>
 </form>
+
+<!-- System Update Section -->
+<div class="wk-card" style="margin-top:24px">
+    <div class="wk-card-header"><h2>🔄 System Update</h2></div>
+    <div class="wk-card-body">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+            <div>
+                <div style="font-weight:700;font-size:14px">Current Version: v<?= WK_VERSION ?></div>
+                <div style="font-size:12px;color:var(--wk-text-muted);margin-top:2px">Check if a newer version of Whisker is available</div>
+            </div>
+            <button type="button" id="checkUpdateBtn" onclick="checkForUpdate()" class="wk-btn wk-btn-secondary wk-btn-sm">🔍 Check for Updates</button>
+        </div>
+        <div id="updateResult" style="margin-top:12px"></div>
+    </div>
+</div>
+
+<script>
+async function checkForUpdate() {
+    const btn = document.getElementById('checkUpdateBtn');
+    const result = document.getElementById('updateResult');
+    btn.disabled = true; btn.textContent = 'Checking...';
+    result.innerHTML = '<span style="color:var(--wk-text-muted)">Contacting update server...</span>';
+
+    try {
+        const res = await fetch('<?= \Core\View::url('admin/update/check') ?>', {method:'POST', headers:{'X-CSRF-Token':'<?= \Core\Session::csrfToken() ?>'}});
+        const data = await res.json();
+        if (data.available) {
+            result.innerHTML = '<div style="background:var(--wk-purple-soft);border:2px solid var(--wk-purple);border-radius:10px;padding:14px;margin-top:8px">'
+                + '<div style="font-weight:800;font-size:14px">Whisker v' + data.version + ' is available!</div>'
+                + (data.severity === 'critical' ? '<span style="background:#ef4444;color:#fff;font-size:11px;padding:2px 8px;border-radius:6px;font-weight:700">CRITICAL</span> ' : '')
+                + (data.changelog ? '<div style="font-size:13px;color:var(--wk-text-muted);margin-top:6px">' + data.changelog.substring(0,200) + '</div>' : '')
+                + '<div style="margin-top:10px"><a href="<?= \Core\View::url('admin') ?>" class="wk-btn wk-btn-primary wk-btn-sm">Go to Dashboard to Update →</a></div>'
+                + '</div>';
+        } else {
+            result.innerHTML = '<span style="color:var(--wk-green);font-weight:700">✅ You are on the latest version (v<?= WK_VERSION ?>)</span>';
+        }
+    } catch(e) {
+        result.innerHTML = '<span style="color:var(--wk-red)">❌ Could not reach update server. Check your internet connection.</span>';
+    }
+    btn.disabled = false; btn.textContent = '🔍 Check for Updates';
+}
+</script>
 
 <script>
 async function testSmtpConnection() {

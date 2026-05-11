@@ -81,7 +81,7 @@ $buildUrl = function($overrides = []) use ($url, $currentParams) {
                     $hasSale = $p['sale_price'] && $p['sale_price'] < $p['price'];
                 ?>
                 <div class="wk-product-card">
-                    <div class="wk-product-img" onclick="window.location='<?= $url('product/'.$p['slug']) ?>'">
+                    <div class="wk-product-img" onclick="window.location='<?= $url('product/'.urlencode($p['slug'])) ?>'">
                         <?php if ($p['image']): ?>
                             <img src="<?= $url('storage/uploads/products/'.$p['image']) ?>" alt="<?= $e($p['name']) ?>">
                         <?php else: ?>
@@ -95,7 +95,7 @@ $buildUrl = function($overrides = []) use ($url, $currentParams) {
                             <span class="wk-product-badge featured">Featured</span>
                         <?php endif; ?>
                     </div>
-                    <div class="wk-product-info">
+                    <div class="wk-product-info" onclick="window.location='<?= $url('product/'.urlencode($p['slug'])) ?>'" style="cursor:pointer">
                         <?php if ($p['category_name'] ?? null): ?>
                             <div class="wk-product-cat"><?= $e($p['category_name']) ?></div>
                         <?php endif; ?>
@@ -107,7 +107,7 @@ $buildUrl = function($overrides = []) use ($url, $currentParams) {
                     </div>
                     <?php if ($p['stock_quantity'] > 0): ?>
                         <?php if (($p['variant_count'] ?? 0) > 0): ?>
-                            <a href="<?= $url('product/'.$p['slug']) ?>" class="wk-add-btn" style="text-decoration:none;text-align:center;display:block">🎨 View Options</a>
+                            <a href="<?= $url('product/'.urlencode($p['slug'])) ?>" class="wk-add-btn" style="text-decoration:none;text-align:center;display:block">🎨 View Options</a>
                         <?php else: ?>
                             <button class="wk-add-btn" data-add-to-cart="<?= $p['id'] ?>">🛒 Add to Cart</button>
                         <?php endif; ?>

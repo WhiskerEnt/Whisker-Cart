@@ -1,0 +1,4 @@
+-- v1.1.0 — Abandoned cart email columns
+ALTER TABLE wk_carts ADD COLUMN IF NOT EXISTS email VARCHAR(255) DEFAULT NULL AFTER session_id;
+ALTER TABLE wk_carts ADD COLUMN IF NOT EXISTS reminder_sent_at DATETIME DEFAULT NULL;
+ALTER TABLE wk_carts ADD COLUMN IF NOT EXISTS reminder_count INT UNSIGNED DEFAULT 0;
