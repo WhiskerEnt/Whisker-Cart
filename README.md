@@ -1,4 +1,4 @@
-![Version](https://img.shields.io/badge/version-1.2.1-8b5cf6?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-1.3.0-8b5cf6?style=for-the-badge)
 ![License](https://img.shields.io/badge/license-Whisker%20Free-f59e0b?style=for-the-badge)
 ![PHP](https://img.shields.io/badge/PHP-8.0+-777BB4?style=for-the-badge&logo=php&logoColor=white)
 ![MySQL](https://img.shields.io/badge/MySQL-5.7+-4479A1?style=for-the-badge&logo=mysql&logoColor=white)
@@ -9,6 +9,8 @@
 Beautiful storefront. Powerful admin panel. Built-in AI chatbot. Zero monthly fees.
 
 🌐 **[Live Demo](https://whisker.lohit.me)** · 📖 **[Documentation](https://github.com/WhiskerEnt/Whisker-Cart/wiki)** · 📧 **[mail@lohit.me](mailto:mail@lohit.me)**
+
+> **v1.3.0 is a security update.** Recommended for all installs — patches multiple vulnerabilities found in a full file-by-file audit. See [CHANGELOG](CHANGELOG.md).
 
 ---
 
@@ -28,13 +30,13 @@ Upload it to any ₹99/month shared hosting, run the 6-step installer, and you h
 
 **🌍 Global Tax Engine** — GST (India, with CGST+SGST/IGST split), VAT (all 27 EU countries + UK), US Sales Tax (all 50 states, nexus-based). Custom rates per country/state. Tax breakdown on invoices. Works automatically based on customer address.
 
-**📦 Zero Dependencies** — No Composer, no Node, no framework. Pure PHP. Upload to any hosting and it works. The entire cart is ~280KB zipped.
+**📦 Zero Dependencies** — No Composer, no Node, no framework. Pure PHP. Upload to any hosting and it works. The entire cart is ~290KB zipped.
 
 **🇮🇳 India-First Payments** — Razorpay (UPI, cards, netbanking) is a first-class citizen, not a third-party plugin. Plus Stripe, CCAvenue, and crypto via NOWPayments.
 
 **🔄 One-Click Updates** — Built-in auto-updater checks for new versions, creates a backup (code + database), verifies SHA256 integrity, applies updates, and runs database migrations automatically. Rollback to any previous version if something goes wrong.
 
-**🔒 Security-First** — 45-point security audit. Rate limiting on all forms, CSRF on every action, webhook signature verification on all payment gateways, GD image re-encoding to prevent upload attacks, atomic stock deduction to prevent overselling.
+**🔒 Security-First** — Full file-by-file security audit covering all 119 PHP files. Rate limiting on all forms, CSRF on every action, webhook signature verification on all payment gateways, GD image re-encoding to prevent upload attacks, atomic stock deduction to prevent overselling.
 
 ---
 
@@ -107,16 +109,19 @@ Upload it to any ₹99/month shared hosting, run the 6-step installer, and you h
 - CSRF protection on all forms (41 verification points)
 - 100% PDO prepared statements
 - Session fingerprinting (IP + User-Agent) with 15-min timeout
-- Rate limiting on login, registration, forgot password, contact, chatbot, coupons (7 endpoints)
-- XSS output escaping via `View::e()`
+- Rate limiting on login, registration, forgot password, contact, chatbot, coupons, password change (8 endpoints)
+- XSS output escaping via `View::e()` plus HtmlSanitizer for admin-authored HTML
 - File upload validation (MIME + extension whitelist + GD re-encoding)
 - Content-Security-Policy, HSTS, X-Frame-Options, X-Content-Type-Options headers
 - PHP execution blocked in uploads directory
-- Webhook signature verification on all payment gateways
+- Webhook signature verification on all payment gateways (HMAC + timing-safe compare + replay protection where the gateway supports it)
+- SSRF protection on admin-controlled outbound calls (port whitelist + private-IP rejection)
 - Atomic stock deduction (prevents overselling under concurrency)
+- Atomic compare-and-set on order cancellation (no double restocks)
 - Non-blocking checkout emails on PHP-FPM servers
 - Timing-safe login (prevents user enumeration)
 - URL-encoded slugs in all templates (prevents slug injection)
+- Update download host check with strict dot-boundary validation
 
 ### Performance
 - **Settings cache** — all settings loaded once per request (1 query instead of 10+)
@@ -164,7 +169,7 @@ Updates are handled from the admin dashboard:
 1. A notification banner appears when a new version is available
 2. Choose your database backup level (schema only, full dump, or none)
 3. Click **Update Now** — Whisker backs up your files, downloads the update, verifies integrity, and applies it
-4. Database migrations run automatically on first dashboard load after update
+4. Database migrations run automatically as part of the update step
 5. If anything goes wrong, click **Restore** to rollback to the previous version
 
 Your config files, database credentials, and product images are never touched during updates.
@@ -175,9 +180,9 @@ See the [Upgrading wiki page](https://github.com/WhiskerEnt/Whisker-Cart/wiki/Up
 
 ## The Numbers
 
-- ~140 files, 26 database tables
+- 119 PHP files, 27 database tables
 - 0 external dependencies
-- 290KB zipped
+- ~290KB zipped
 - 5 minute install
 - 100+ stores deployed
 - Works on PHP 8.0+ and any shared hosting
@@ -225,5 +230,5 @@ Whisker Free Edition is released under the Whisker Free License v1.0. Free to us
 
 ---
 
-**🐱 Whisker v1.2.1** · Built by Lohit T
+**🐱 Whisker v1.3.0** · Built by Lohit T
 📧 [mail@lohit.me](mailto:mail@lohit.me)
