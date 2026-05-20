@@ -39,9 +39,23 @@ class ShippingController
             return;
         }
 
+        // L16: structured validation. The carrier `code` is intentionally
+        // optional but, if present, must look like a short identifier.
+        $v = new Validator($request->all(), [
+            'name' => 'required|min:2|max:100',
+            'code' => 'max:50',
+        ]);
+        if ($v->fails()) {
+            Session::flash('error', $v->firstError());
+            Response::redirect(View::url('admin/shipping'));
+            return;
+        }
         $name = trim($request->input('name') ?? '');
-        if (empty($name)) {
-            Session::flash('error', 'Carrier name is required.');
+        // M26 follow-up: reject javascript: et al on the tracking-URL
+        // template before it can land in any <a href> at display time.
+        $trackingTemplate = trim($request->input('tracking_url_template') ?? '');
+        if ($trackingTemplate !== '' && !View::isSafeUrl($trackingTemplate)) {
+            Session::flash('error', 'Tracking URL template must be http(s) or a relative path.');
             Response::redirect(View::url('admin/shipping'));
             return;
         }
@@ -49,7 +63,7 @@ class ShippingController
         Database::insert('wk_shipping_carriers', [
             'name'                 => htmlspecialchars($name, ENT_QUOTES, 'UTF-8'),
             'code'                 => $request->clean('code') ?? '',
-            'tracking_url_template'=> trim($request->input('tracking_url_template') ?? ''),
+            'tracking_url_template'=> $trackingTemplate,
             'is_active'            => 1,
         ]);
 
@@ -65,10 +79,28 @@ class ShippingController
             return;
         }
 
+        // L16: same validation as store(). Without this, admin can clear the
+        // name field and trigger a 500 on the NOT NULL constraint.
+        $v = new Validator($request->all(), [
+            'name' => 'required|min:2|max:100',
+            'code' => 'max:50',
+        ]);
+        if ($v->fails()) {
+            Session::flash('error', $v->firstError());
+            Response::redirect(View::url('admin/shipping'));
+            return;
+        }
+        $trackingTemplate = trim($request->input('tracking_url_template') ?? '');
+        if ($trackingTemplate !== '' && !View::isSafeUrl($trackingTemplate)) {
+            Session::flash('error', 'Tracking URL template must be http(s) or a relative path.');
+            Response::redirect(View::url('admin/shipping'));
+            return;
+        }
+
         Database::update('wk_shipping_carriers', [
             'name'                 => $request->clean('name'),
             'code'                 => $request->clean('code') ?? '',
-            'tracking_url_template'=> trim($request->input('tracking_url_template') ?? ''),
+            'tracking_url_template'=> $trackingTemplate,
             'is_active'            => $request->input('is_active') ? 1 : 0,
         ], 'id=?', [$params['id']]);
 
@@ -135,6 +167,8 @@ class ShippingController
              ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value)",
             [$flat]
         );
+        // M10/M14: invalidate request-scoped settings cache.
+        Database::clearSettingsCache();
 
         Session::flash('success', 'Shipping settings saved!');
         Response::redirect(View::url('admin/shipping/settings'));

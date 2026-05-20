@@ -1,19 +1,46 @@
 <?php
 /**
- * WHISKER — Web Installer v1.0.0
+ * WHISKER — Web Installer
  * 6 steps: Requirements → Database → Store Setup → Admin Account → Gateway Setup → Complete
- * Author: Lohit T (mail@lohit.me)
+ *
+ * Security model:
+ *   - Dual-sentinel lockout: refuses to run if /config/config.php OR /storage/.installed exists.
+ *   - HTTPS required (except localhost) — refuses to accept credentials over plain HTTP.
+ *   - Per-session CSRF token on every POST.
+ *   - MySQL identifier whitelisting for db_name (no SQLi via backtick interpolation).
+ *   - var_export() for config file generation (no PHP injection via string interpolation).
  */
 
 if (!defined('WK_ROOT')) {
     define('WK_ROOT', dirname(__DIR__));
 }
 
-// Already installed? Block access
-if (file_exists(WK_ROOT . '/storage/.installed')) {
+// ── Dual-sentinel lockout ─────────────────────────────────────────────
+// The front controller (index.php) treats /config/config.php as the
+// authoritative installed marker. /storage/.installed is a second sentinel
+// the installer maintains for its own check. If either is present, the
+// installer refuses to run — a missing storage/.installed alone (deleted by
+// accident, restore, or attack) cannot reopen a completed install.
+if (file_exists(WK_ROOT . '/config/config.php') || file_exists(WK_ROOT . '/storage/.installed')) {
     http_response_code(403);
     echo '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Whisker</title></head><body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#faf8f6">';
-    echo '<div style="text-align:center"><h1>🐱 Already Installed</h1><p>Whisker is already installed and running.</p><p style="color:#6b7280;font-size:13px;margin-top:12px">For security, the installer is locked. Delete <code>storage/.installed</code> to re-run.</p><p><a href="/" style="color:#8b5cf6">Go to your store →</a></p></div>';
+    echo '<div style="text-align:center"><h1>🐱 Already Installed</h1><p>Whisker is already installed and running.</p><p style="color:#6b7280;font-size:13px;margin-top:12px">For security, the installer is locked. To re-install, remove <code>config/config.php</code> and <code>storage/.installed</code>.</p><p><a href="/" style="color:#8b5cf6">Go to your store →</a></p></div>';
+    echo '</body></html>';
+    exit;
+}
+
+// ── HTTPS requirement ─────────────────────────────────────────────────
+// The installer accepts gateway secrets and admin credentials. Refuse plain
+// HTTP unless the request originates from the local host (developer setup).
+$_install_is_https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+    || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https')
+    || (($_SERVER['HTTP_X_FORWARDED_SSL']   ?? '') === 'on');
+$_install_remote = $_SERVER['REMOTE_ADDR'] ?? '';
+$_install_is_local = in_array($_install_remote, ['127.0.0.1', '::1', 'localhost'], true);
+if (!$_install_is_https && !$_install_is_local) {
+    http_response_code(400);
+    echo '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Whisker — HTTPS Required</title></head><body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#faf8f6">';
+    echo '<div style="text-align:center;max-width:500px;padding:24px"><h1>🔒 HTTPS Required</h1><p style="color:#6b7280;margin-top:12px;line-height:1.6">The Whisker installer accepts database credentials, gateway secrets, and your admin password. Running it over plain HTTP would leak these in transit.</p><p style="color:#6b7280;margin-top:12px;line-height:1.6">Please install an SSL certificate (most hosts include free Let\'s Encrypt) and reload this page over <code>https://</code>.</p></div>';
     echo '</body></html>';
     exit;
 }
@@ -23,19 +50,58 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+// ── Install CSRF token ────────────────────────────────────────────────
+// Per-session token, generated once, verified on every POST. The token is
+// surfaced to the view as $csrfToken and embedded in each form.
+if (empty($_SESSION['wk_install_csrf'])) {
+    $_SESSION['wk_install_csrf'] = bin2hex(random_bytes(32));
+}
+$csrfToken = $_SESSION['wk_install_csrf'];
+
+$_install_verify_csrf = static function (): bool {
+    $submitted = $_POST['_install_csrf'] ?? '';
+    $expected  = $_SESSION['wk_install_csrf'] ?? '';
+    return is_string($submitted) && $expected !== '' && hash_equals($expected, $submitted);
+};
+
+// MySQL identifier rule: letters, digits, underscores, dollar sign. We omit
+// the dollar sign for safety — Whisker doesn't need it and it complicates
+// shell quoting in backups. 64 char max matches MySQL's hard limit.
+$_install_valid_db_name = static function (string $name): bool {
+    return (bool)preg_match('/^[A-Za-z0-9_]{1,64}$/', $name);
+};
+
 $step = isset($_GET['step']) ? (int)$_GET['step'] : 1;
 $step = max(1, min(6, $step));
 $error = '';
 
-// ── AJAX: Test DB Connection ─────────────────
+// ── AJAX: Test DB Connection ─────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['_ajax_action'] ?? '') === 'test_db') {
     header('Content-Type: application/json');
+
+    if (!$_install_verify_csrf()) {
+        echo json_encode(['success' => false, 'message' => 'Session expired. Please reload the page.']);
+        exit;
+    }
+
+    $dbHost = trim((string)($_POST['db_host'] ?? ''));
+    $dbPort = (int)($_POST['db_port'] ?? 3306);
+    $dbName = trim((string)($_POST['db_name'] ?? ''));
+    $dbUser = trim((string)($_POST['db_user'] ?? ''));
+    $dbPass = (string)($_POST['db_pass'] ?? '');
+
+    if (!$_install_valid_db_name($dbName)) {
+        echo json_encode(['success' => false, 'message' => 'Database name must contain only letters, numbers, and underscores (max 64 characters).']);
+        exit;
+    }
+
     try {
-        $dsn = sprintf('mysql:host=%s;port=%d;charset=utf8mb4', trim($_POST['db_host']), (int)$_POST['db_port']);
-        $pdo = new PDO($dsn, trim($_POST['db_user']), $_POST['db_pass'], [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_TIMEOUT => 5,
+        $dsn = sprintf('mysql:host=%s;port=%d;charset=utf8mb4', $dbHost, $dbPort);
+        $pdo = new PDO($dsn, $dbUser, $dbPass, [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_TIMEOUT => 5,
         ]);
-        $dbName = trim($_POST['db_name']);
+        // $dbName is whitelist-validated above, safe to interpolate into backticks.
         $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$dbName}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
         $pdo->exec("USE `{$dbName}`");
         echo json_encode(['success' => true, 'message' => "Connected! Database '{$dbName}' is ready."]);
@@ -45,8 +111,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['_ajax_action'] ?? '') === 
     exit;
 }
 
-// ── Handle POST submissions ──────────────────
+// ── Handle POST submissions ──────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($_POST['_ajax_action'])) {
+
+    if (!$_install_verify_csrf()) {
+        $error = 'Session expired. Please reload the page and try again.';
+    } else {
 
     switch ($step) {
         case 1:
@@ -113,15 +183,18 @@ AddDefaultCharset UTF-8' . $cpanelHandler . "\n";
                 $error = 'Database name and username are required.'; break;
             }
 
+            if (!$_install_valid_db_name($dbName)) {
+                $error = 'Database name must contain only letters, numbers, and underscores (max 64 characters).'; break;
+            }
+
             try {
                 $dsn = sprintf('mysql:host=%s;port=%d;charset=utf8mb4', $dbHost, $dbPort);
                 $pdo = new PDO($dsn, $dbUser, $dbPass, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
 
-                // Try to use existing database (don't try to CREATE — shared hosting blocks it)
+                // $dbName is whitelist-validated above, safe to interpolate into backticks.
                 try {
                     $pdo->exec("USE `{$dbName}`");
                 } catch (\Exception $e) {
-                    // If USE fails, try creating it (works on VPS/dedicated)
                     try {
                         $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$dbName}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
                         $pdo->exec("USE `{$dbName}`");
@@ -322,13 +395,73 @@ AddDefaultCharset UTF-8' . $cpanelHandler . "\n";
                 $basePath = $parsed['path'] ?? '/';
                 if ($basePath === '') $basePath = '/';
 
-                // Write config files
+                // ── Write config files via var_export ──
+                // Using var_export() instead of string interpolation prevents PHP
+                // injection — even if any value below contained "');system('rm -rf
+                // /'); //" it would be safely serialized as a quoted string
+                // literal, not executable code.
                 $salt = bin2hex(random_bytes(32));
-                file_put_contents(WK_ROOT . '/config/config.php', "<?php\nreturn [\n    'app_name' => 'Whisker',\n    'base_url' => '{$baseUrl}',\n    'base_path' => '{$basePath}',\n    'debug' => false,\n    'timezone' => '{$inst['timezone']}',\n    'version' => '1.0.0',\n    'salt' => '{$salt}',\n];\n");
-                file_put_contents(WK_ROOT . '/config/database.php', "<?php\nreturn [\n    'host' => '{$inst['db_host']}',\n    'port' => {$inst['db_port']},\n    'name' => '{$inst['db_name']}',\n    'user' => '{$inst['db_user']}',\n    'pass' => '{$inst['db_pass']}',\n    'charset' => 'utf8mb4',\n    'prefix' => 'wk_',\n];\n");
 
-                // Mark as installed
-                file_put_contents(WK_ROOT . '/storage/.installed', date('Y-m-d H:i:s') . "\nDO NOT DELETE THIS FILE\n");
+                // Read the shipped version from app/version.php — the single
+                // source of truth. Don't store version in config.php; the
+                // front controller no longer reads it from there (this used
+                // to require a brittle preg_replace at update time).
+                $installedVersion = is_file(WK_ROOT . '/app/version.php')
+                    ? (string) require WK_ROOT . '/app/version.php'
+                    : '1.3.0';
+
+                $appConfig = [
+                    'app_name' => 'Whisker',
+                    'base_url' => $baseUrl,
+                    'base_path' => $basePath,
+                    'debug'    => false,
+                    'timezone' => $inst['timezone'],
+                    'salt'     => $salt,
+                ];
+                $dbConfig = [
+                    'host'    => $inst['db_host'],
+                    'port'    => (int)$inst['db_port'],
+                    'name'    => $inst['db_name'],
+                    'user'    => $inst['db_user'],
+                    'pass'    => $inst['db_pass'],
+                    'charset' => 'utf8mb4',
+                    'prefix'  => 'wk_',
+                ];
+
+                $appConfigPhp = "<?php\n// Whisker — Application Configuration\n// Generated by installer on " . date('Y-m-d H:i:s') . "\nreturn " . var_export($appConfig, true) . ";\n";
+                $dbConfigPhp  = "<?php\n// Whisker — Database Configuration\n// Generated by installer on " . date('Y-m-d H:i:s') . "\nreturn " . var_export($dbConfig, true) . ";\n";
+
+                if (file_put_contents(WK_ROOT . '/config/config.php', $appConfigPhp, LOCK_EX) === false) {
+                    throw new \RuntimeException('Could not write config/config.php — check directory permissions.');
+                }
+                if (file_put_contents(WK_ROOT . '/config/database.php', $dbConfigPhp, LOCK_EX) === false) {
+                    throw new \RuntimeException('Could not write config/database.php — check directory permissions.');
+                }
+
+                // Mark as installed (second sentinel — front controller already
+                // uses config/config.php existence as the primary check).
+                // L4: include SHA-256 checksums of the freshly-written config
+                // files so a future integrity-check job can detect tampering
+                // (a malicious actor swapping config/database.php to point at
+                // their own DB would change the hash). The marker is plain
+                // text and human-readable; a structured JSON line keeps it
+                // both diff-friendly and parseable.
+                //
+                // whisker_version records what version this site was FIRST
+                // installed at — never updated by the auto-updater, useful
+                // as an audit trail and for support diagnosing schema state
+                // on legacy installs.
+                $integrity = json_encode([
+                    'installed_at'         => date('Y-m-d H:i:s'),
+                    'whisker_version'      => $installedVersion,
+                    'config_php_sha256'    => hash_file('sha256', WK_ROOT . '/config/config.php'),
+                    'database_php_sha256'  => hash_file('sha256', WK_ROOT . '/config/database.php'),
+                ]);
+                file_put_contents(
+                    WK_ROOT . '/storage/.installed',
+                    "DO NOT DELETE THIS FILE\n" . $integrity . "\n",
+                    LOCK_EX
+                );
 
                 // Store base_url in settings too for SeoService
                 $pdo->prepare("INSERT INTO wk_settings (setting_group, setting_key, setting_value) VALUES ('general', 'base_url', ?) ON DUPLICATE KEY UPDATE setting_value=?")
@@ -342,13 +475,15 @@ AddDefaultCharset UTF-8' . $cpanelHandler . "\n";
             break;
     }
 
+    } // end CSRF-valid block
+
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($error) && $step < 6) {
         header('Location: ?step=' . $step);
         exit;
     }
 }
 
-// ── Requirements ─────────────────────────────
+// ── Requirements ─────────────────────────────────────────────────────
 $requirements = [
     ['PHP Version ≥ 8.0',       version_compare(PHP_VERSION, '8.0.0', '>=')],
     ['PDO Extension',            extension_loaded('pdo')],

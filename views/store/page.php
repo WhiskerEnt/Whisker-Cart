@@ -3,7 +3,13 @@
     <div class="wk-container" style="max-width:800px">
         <h1 style="font-size:32px;font-weight:900;margin-bottom:24px"><?= $e($page['title']) ?></h1>
         <div style="font-size:15px;line-height:1.9;color:var(--wk-text)" class="wk-page-content">
-            <?= $page['content'] ?>
+            <?php
+            // Defense in depth: rows written before sanitize-on-save was added
+            // may still contain unsafe HTML, and we'd rather purify twice than
+            // never. The sanitizer is idempotent — purifying already-clean
+            // HTML returns the same HTML.
+            echo \App\Services\HtmlSanitizer::purify((string)($page['content'] ?? ''));
+            ?>
         </div>
     </div>
 </section>

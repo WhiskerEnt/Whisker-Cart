@@ -161,7 +161,7 @@ $countries = \App\Services\CurrencyService::countries();
                     </div>
                     <?php endif; ?>
                     <?php if (!empty($notes['tracking_url'])): ?>
-                    <a href="<?= $e($notes['tracking_url']) ?>" target="_blank" style="display:inline-flex;align-items:center;gap:6px;margin-top:12px;background:linear-gradient(135deg,#8b5cf6,#ec4899);color:#fff;padding:10px 20px;border-radius:8px;font-weight:800;font-size:13px;text-decoration:none">Track Package ↗</a>
+                    <a href="<?= \Core\View::safeUrl($notes['tracking_url']) ?>" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:6px;margin-top:12px;background:linear-gradient(135deg,#8b5cf6,#ec4899);color:#fff;padding:10px 20px;border-radius:8px;font-weight:800;font-size:13px;text-decoration:none">Track Package ↗</a>
                     <?php endif; ?>
                 </div>
             <?php endif; ?>

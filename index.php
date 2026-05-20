@@ -23,7 +23,15 @@ $config = require WK_ROOT . '/config/config.php';
 define('WK_BASE_URL',  $config['base_url']);
 define('WK_BASE_PATH', $config['base_path'] ?? '/');
 define('WK_DEBUG',     $config['debug'] ?? false);
-define('WK_VERSION',   $config['version'] ?? '1.2.1');
+
+// WK_VERSION is read from app/version.php — the single source of truth
+// shipped with each release. Falls back to $config['version'] for old
+// installs that don't have the file yet (the first update will create it).
+// Final fallback is the hardcoded current version for the truly worst case.
+$versionFile = WK_ROOT . '/app/version.php';
+define('WK_VERSION', is_file($versionFile)
+    ? (string) require $versionFile
+    : (string) ($config['version'] ?? '1.3.0'));
 
 date_default_timezone_set($config['timezone'] ?? 'UTC');
 

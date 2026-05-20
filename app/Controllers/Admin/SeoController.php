@@ -50,6 +50,8 @@ class SeoController
             $val = in_array($f, $checkboxes) ? ($request->input($f) ? '1' : '0') : trim($request->input($f) ?? '');
             Database::query("INSERT INTO wk_settings (setting_group, setting_key, setting_value) VALUES ('seo', ?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)", [$f, $val]);
         }
+        // M10/M14: invalidate the request-scoped settings cache.
+        Database::clearSettingsCache();
 
         Session::flash('success', 'SEO settings saved.');
         Response::redirect(View::url('admin/seo'));

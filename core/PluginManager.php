@@ -17,6 +17,24 @@ namespace Core;
  *   "class": "RazorpayGateway",
  *   "description": "Accept payments via Razorpay"
  * }
+ *
+ * ── SECURITY MODEL (L17) ──────────────────────────────────────────────
+ * Plugins are TRUSTED CODE. The `class` field in plugin.json is loaded
+ * with require_once and instantiated, so anyone who can drop a file
+ * into plugins/ effectively has full app privileges. This is the same
+ * trust model as WordPress's wp-content/plugins/ directory and is
+ * acceptable while:
+ *   - Plugin installation requires FTP/SSH access (not a web upload UI)
+ *   - The bundled plugins ship from the same source as core
+ *
+ * If a "Install plugin from URL" or "Plugin marketplace" feature is
+ * ever added, this module MUST be hardened first:
+ *   - Verify manifest signatures (e.g. Ed25519 over the canonicalized JSON)
+ *   - Refuse unsigned plugins by default
+ *   - Sandbox plugin execution (process isolation or at least namespace
+ *     restrictions / capability checks)
+ * Without those, a remote-install feature becomes a one-click RCE
+ * vector. Flag any PR touching this file that involves a remote source.
  */
 class PluginManager
 {

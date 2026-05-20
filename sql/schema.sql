@@ -212,7 +212,7 @@ CREATE TABLE IF NOT EXISTS wk_orders (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     order_number VARCHAR(30) NOT NULL UNIQUE,
     customer_id INT UNSIGNED DEFAULT NULL,
-    status ENUM('pending','processing','paid','shipped','delivered','cancelled','refunded') DEFAULT 'pending',
+    status ENUM('pending','processing','paid','shipped','delivered','cancelled','refunded','payment_failed') DEFAULT 'pending',
     subtotal DECIMAL(12,2) NOT NULL DEFAULT 0.00,
     tax_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
     tax_details JSON DEFAULT NULL COMMENT 'Tax breakdown [{label,rate,amount}]',

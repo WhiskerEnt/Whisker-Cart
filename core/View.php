@@ -92,4 +92,47 @@ class View
     {
         return $symbol . number_format($amount, 2);
     }
+
+    /**
+     * Helper: validate a URL is safe to embed in href/src attributes.
+     *
+     * Returns an HTML-escaped, attribute-safe URL string. If the input has a
+     * dangerous scheme (javascript:, vbscript:, data:, etc.) or is
+     * protocol-relative, returns '#' so the link is inert. Use this whenever
+     * an admin-controlled URL (tracking_url, logo_url, og_image,
+     * external links from order notes) is rendered into HTML.
+     */
+    public static function safeUrl(string $url, bool $allowDataImage = false): string
+    {
+        $safe = self::isSafeUrl($url, $allowDataImage) ? $url : '#';
+        return htmlspecialchars($safe, ENT_QUOTES, 'UTF-8');
+    }
+
+    /**
+     * Returns true if the URL is safe to render in href/src.
+     * Accepts: http(s), mailto:, tel:, rooted-relative /paths, bare slugs.
+     * Rejects: javascript:, vbscript:, file:, protocol-relative //...
+     * Special case: data:image/* allowed only when $allowDataImage is true
+     * (caller must pass true for <img src> contexts, false for href).
+     */
+    public static function isSafeUrl(string $url, bool $allowDataImage = false): bool
+    {
+        $u = trim($url);
+        if ($u === '') return false;
+        if (str_starts_with($u, '//')) return false;                     // protocol-relative — inert
+        if (str_starts_with($u, '/')) return true;                       // rooted relative
+        if (str_starts_with($u, '#')) return true;                       // fragment-only
+        if (preg_match('#^([a-z][a-z0-9+.\-]*):#i', $u, $m)) {
+            $scheme = strtolower($m[1]);
+            if (in_array($scheme, ['http', 'https', 'mailto', 'tel'], true)) return true;
+            if ($allowDataImage && $scheme === 'data' && preg_match('#^data:image/(png|jpe?g|gif|webp|svg\+xml);#i', $u)) {
+                // Note: data:image/svg+xml CAN carry XSS. Most webmail clients
+                // strip these; we allow because legitimate inline images are
+                // common in email templates.
+                return true;
+            }
+            return false;
+        }
+        return true;                                                     // bare slug — relative
+    }
 }

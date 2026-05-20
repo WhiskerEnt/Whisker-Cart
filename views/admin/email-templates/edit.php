@@ -39,8 +39,14 @@
                         <span style="flex:1"></span>
                         <button type="button" onclick="toggleSource()" style="background:#1e1b2e;color:#e2e8f0;border:none;border-radius:4px;padding:5px 10px;cursor:pointer;font-size:11px;font-family:var(--font-mono);font-weight:700">&lt;/&gt;</button>
                     </div>
-                    <div id="editor" contenteditable="true" style="min-height:450px;padding:28px;font-size:14px;line-height:1.8;outline:none;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif"><?= $t['body'] ?></div>
-                    <textarea name="body" id="bodyHidden" style="display:none"><?= $e($t['body']) ?></textarea>
+                    <?php
+                    // Sanitize before injecting into contenteditable — rows
+                    // stored before sanitize-on-save was introduced may still
+                    // hold <script> or event handlers. Idempotent.
+                    $editorBody = \App\Services\HtmlSanitizer::purify((string)$t['body']);
+                    ?>
+                    <div id="editor" contenteditable="true" style="min-height:450px;padding:28px;font-size:14px;line-height:1.8;outline:none;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif"><?= $editorBody ?></div>
+                    <textarea name="body" id="bodyHidden" style="display:none"><?= $e($editorBody) ?></textarea>
                     <textarea id="sourceView" style="display:none;width:100%;min-height:450px;padding:20px;font-family:var(--font-mono);font-size:12px;border:none;outline:none;resize:vertical;background:#1e1b2e;color:#e2e8f0;line-height:1.6"></textarea>
                 </div>
             </div>

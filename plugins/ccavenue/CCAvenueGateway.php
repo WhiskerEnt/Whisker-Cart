@@ -32,6 +32,20 @@ class CCAvenueGateway extends \Core\BaseGateway
 
     public function webhook(\Core\Request $request): void
     {
+        // L6: rate-limit by source IP. See RazorpayGateway::webhook comment.
+        if (!\Core\RateLimiter::attempt('webhook_ccavenue', $request->ip(), 300, 300)) {
+            \Core\Response::json(['error' => 'Rate limited'], 429);
+            return;
+        }
+
+        // CCAvenue authenticates callbacks via AES-128-CBC encryption with the
+        // merchant working_key. Without a configured key, decryption returns
+        // empty and any caller could submit garbage to this endpoint.
+        if (empty($this->cfg('working_key'))) {
+            \Core\Response::json(['error' => 'Webhook not configured'], 503);
+            return;
+        }
+
         $result = $this->verifyPayment($request->all());
         if ($result['success'] && $result['order_id']) {
             $order = \Core\Database::fetch("SELECT id, total FROM wk_orders WHERE order_number=?", [$result['order_id']]);

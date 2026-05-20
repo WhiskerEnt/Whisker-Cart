@@ -25,6 +25,7 @@ $customer = $isLoggedIn ? \Core\Database::fetch("SELECT first_name FROM wk_custo
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="wk-base" content="<?= \Core\View::url('') ?>">
+    <meta name="wk-csrf" content="<?= \Core\Session::csrfToken() ?>">
     <?php if (!empty($seoMeta)): ?>
     <?= $seoMeta ?>
     <?php else: ?>
@@ -56,7 +57,7 @@ $customer = $isLoggedIn ? \Core\Database::fetch("SELECT first_name FROM wk_custo
     <div class="wk-header-inner">
         <a href="<?= $url('') ?>" class="wk-logo">
             <?php if ($logoUrl): ?>
-                <img src="<?= htmlspecialchars($logoUrl) ?>" alt="<?= $e($siteName) ?>" style="max-height:32px;max-width:160px">
+                <img src="<?= \Core\View::safeUrl($logoUrl, true) ?>" alt="<?= $e($siteName) ?>" style="max-height:32px;max-width:160px">
             <?php else: ?>
             <svg width="28" height="28" viewBox="0 0 56 56" fill="none">
                 <circle cx="28" cy="28" r="26" fill="#faf8f6" stroke="url(#hl)" stroke-width="2"/>
@@ -114,7 +115,10 @@ $customer = $isLoggedIn ? \Core\Database::fetch("SELECT first_name FROM wk_custo
                         <a href="<?= $url('account/orders') ?>" style="display:block;padding:12px 16px;font-size:13px;font-weight:700;color:var(--wk-text);border-bottom:1px solid var(--wk-border)">📦 My Orders</a>
                         <a href="<?= $url('account/profile') ?>" style="display:block;padding:12px 16px;font-size:13px;font-weight:700;color:var(--wk-text);border-bottom:1px solid var(--wk-border)">👤 Profile</a>
                         <a href="<?= $url('account/addresses') ?>" style="display:block;padding:12px 16px;font-size:13px;font-weight:700;color:var(--wk-text);border-bottom:1px solid var(--wk-border)">📍 Addresses</a>
-                        <a href="<?= $url('account/logout') ?>" style="display:block;padding:12px 16px;font-size:13px;font-weight:700;color:#ef4444">↪ Sign Out</a>
+                        <form method="POST" action="<?= $url('account/logout') ?>" style="margin:0">
+                            <?= \Core\Session::csrfField() ?>
+                            <button type="submit" style="display:block;width:100%;padding:12px 16px;font-size:13px;font-weight:700;color:#ef4444;background:none;border:none;text-align:left;cursor:pointer;font-family:inherit">↪ Sign Out</button>
+                        </form>
                     </div>
                 </div>
                 <script>document.addEventListener('click',function(e){if(!document.getElementById('accountMenu').contains(e.target))document.getElementById('accountDrop').style.display='none'});</script>
@@ -231,10 +235,46 @@ function addMessage(text, from, actions) {
     bubble.style.cssText = from==='user'
         ? 'background:var(--wk-purple);color:#fff;padding:10px 14px;border-radius:12px 12px 4px 12px;max-width:80%;font-size:13px;font-weight:600;line-height:1.5'
         : 'background:var(--wk-bg);color:var(--wk-text);padding:10px 14px;border-radius:12px 12px 12px 4px;max-width:85%;font-size:13px;line-height:1.6';
-    // Simple markdown: **bold**, [text](url), newlines
-    let html = text.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
-                   .replace(/\[(.*?)\]\((.*?)\)/g,'<a href="'+wkBase+'$2" style="color:var(--wk-purple);font-weight:700;text-decoration:underline">$1</a>')
-                   .replace(/\n/g,'<br>');
+    // Render chatbot replies safely. The reply may include markdown produced
+    // by the server from DB data, so we treat it as untrusted: HTML-escape
+    // first, then re-introduce a tiny subset of markdown (**bold**, links,
+    // newlines). Link hrefs are filtered to http/https only to block any
+    // javascript: or data: URIs that slipped through server-side validation.
+    const wkEscapeHtml = (s) => String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    const wkSafeUrl = (u) => {
+        const s = String(u || '').trim();
+        if (s === '') return '#';
+        if (/^https?:\/\//i.test(s)) return s;                   // absolute http/https
+        if (s.startsWith('//')) return '#';                       // protocol-relative — inert
+        if (s.startsWith('/')) return s;                          // rooted-relative path
+        // Reject anything containing a colon — covers javascript:, data:,
+        // vbscript: and other URI schemes. Whisker's chatbot only ever emits
+        // bare slugs ("contact", "page/refund-policy") which can't contain a
+        // colon, so this is safe.
+        if (s.includes(':')) return '#';
+        // Bare slug — prepend the site base so the link goes somewhere useful.
+        return wkBase + s;
+    };
+    const escaped = wkEscapeHtml(text);
+    let html = escaped.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                      .replace(/\[(.*?)\]\((.*?)\)/g, (_, label, url) => {
+                          const safe = wkSafeUrl(url);
+                          // Open absolute external URLs in a new tab; keep
+                          // internal navigation in the same window.
+                          const isExternal = /^https?:\/\//i.test(safe);
+                          const targetAttr = isExternal ? ' target="_blank" rel="noopener noreferrer"' : '';
+                          // label was already HTML-escaped by wkEscapeHtml above.
+                          // url goes through wkSafeUrl which only returns
+                          // scheme-safe strings, and we re-escape it for the
+                          // attribute context.
+                          return '<a href="' + wkEscapeHtml(safe) + '"' + targetAttr + ' style="color:var(--wk-purple);font-weight:700;text-decoration:underline">' + label + '</a>';
+                      })
+                      .replace(/\n/g, '<br>');
     bubble.innerHTML = html;
     d.appendChild(bubble);
     c.appendChild(d);

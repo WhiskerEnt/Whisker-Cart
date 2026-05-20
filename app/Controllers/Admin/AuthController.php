@@ -22,12 +22,13 @@ class AuthController
 
     public function login(Request $request, array $params = []): void
     {
-        // Rate limit: max 5 attempts per 15 minutes per IP (file-based, survives session clear)
-        $ip = $request->ip();
-
-        if (!RateLimiter::attempt('admin_login', $ip, 5, 900)) {
-            $wait = ceil(RateLimiter::remainingSeconds('admin_login', $ip, 900) / 60);
-            Session::flash('error', "Too many login attempts. Try again in {$wait} minutes.");
+        // M8: order matters. We check CSRF FIRST, then input validation, and
+        // only then consume a rate-limit slot. The old order (RateLimiter →
+        // Validator → CSRF) burned rate-limit slots on expired CSRF tokens
+        // and missing fields — users with a stale form could lock themselves
+        // out without ever submitting valid credentials.
+        if (!Session::verifyCsrf($request->input('wk_csrf'))) {
+            Session::flash('error', 'Session expired. Please try again.');
             Response::redirect(View::url('admin/login'));
             return;
         }
@@ -43,8 +44,13 @@ class AuthController
             return;
         }
 
-        if (!Session::verifyCsrf($request->input('wk_csrf'))) {
-            Session::flash('error', 'Session expired. Please try again.');
+        // Rate limit: max 5 attempts per 15 minutes per IP (file-based,
+        // survives session clear). Counted only when the submission is
+        // well-formed — i.e. a genuine auth attempt.
+        $ip = $request->ip();
+        if (!RateLimiter::attempt('admin_login', $ip, 5, 900)) {
+            $wait = ceil(RateLimiter::remainingSeconds('admin_login', $ip, 900) / 60);
+            Session::flash('error', "Too many login attempts. Try again in {$wait} minutes.");
             Response::redirect(View::url('admin/login'));
             return;
         }
@@ -63,7 +69,6 @@ class AuthController
         $passwordValid = password_verify($password, $hash);
 
         if (!$admin || !$admin['is_active'] || !$passwordValid) {
-            // RateLimiter already tracked the attempt in attempt() call above
             Session::flash('error', 'Invalid username or password.');
             Response::redirect(View::url('admin/login'));
             return;
@@ -127,15 +132,21 @@ class AuthController
                         'expires_at' => $expiresAt,
                     ]);
                 } catch (\Exception $e) {
-                    // Fallback: table might not exist yet on old installs
+                    // Fallback: table might not exist yet on old installs.
+                    // M23: store ONLY the SHA-256 hash, never the raw token.
                     Database::query(
                         "INSERT INTO wk_settings (setting_group, setting_key, setting_value) VALUES ('admin_reset_tokens', ?, ?)
                          ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)",
-                        ['token_' . $admin['id'], json_encode(['token' => $token, 'expires' => time() + 3600])]
+                        ['token_' . $admin['id'], json_encode(['token_hash' => $tokenHash, 'expires' => time() + 3600])]
                     );
                 }
 
-                $resetUrl = (isset($_SERVER['HTTPS']) ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? '') . View::url('admin/reset-password') . '?token=' . $token . '&id=' . $admin['id'];
+                // Finding 25: match the same HTTPS detection Session::start
+                // uses — a bare isset() treats the value 'off' as truthy and
+                // would build an https:// URL on a plain-HTTP request, while
+                // !empty(...) && !== 'off' is the correct PHP idiom.
+                $isHttps = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
+                $resetUrl = ($isHttps ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? '') . View::url('admin/reset-password') . '?token=' . $token . '&id=' . $admin['id'];
 
                 \App\Services\EmailService::send($admin['email'], 'Password Reset — Admin', '
                     <h2>Password Reset</h2>
@@ -210,6 +221,10 @@ class AuthController
 
     private static function validateResetToken(int $id, string $token): bool
     {
+        // L23: reject empty tokens explicitly. hash_equals('','') returns
+        // true, and downstream rows with malformed/missing token data would
+        // otherwise let an empty submitted token through.
+        if ($token === '') return false;
         $tokenHash = hash('sha256', $token);
 
         // Try new dedicated table first
@@ -221,13 +236,21 @@ class AuthController
             if ($row) return true;
         } catch (\Exception $e) {}
 
-        // Fallback: old wk_settings storage (for installs that haven't migrated yet)
+        // Fallback: old wk_settings storage (for installs that haven't migrated
+        // yet). M23: compare the stored hash against the hash of the submitted
+        // token, never the raw token. Accept legacy rows that still hold a raw
+        // token by hashing them on read — works for installs that pre-date
+        // the M23 fix.
         try {
             $old = Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='admin_reset_tokens' AND setting_key=?", ['token_' . $id]);
             if ($old) {
                 $data = json_decode($old, true);
-                if ($data && ($data['expires'] ?? 0) >= time() && hash_equals($data['token'] ?? '', $token)) {
-                    return true;
+                if ($data && ($data['expires'] ?? 0) >= time()) {
+                    $storedHash = $data['token_hash']
+                        ?? (isset($data['token']) ? hash('sha256', $data['token']) : '');
+                    if ($storedHash !== '' && hash_equals($storedHash, $tokenHash)) {
+                        return true;
+                    }
                 }
             }
         } catch (\Exception $e) {}

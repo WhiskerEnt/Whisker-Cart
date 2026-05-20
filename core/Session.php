@@ -152,7 +152,9 @@ class Session
     {
         if (empty($token) || empty($_SESSION['wk_csrf'])) return false;
         return hash_equals($_SESSION['wk_csrf'], $token);
-        // Token persists for the session — regenerated on login and session start
+        // Token is rotated on login (setAdmin/setCustomer) and cleared on
+        // logout (destroy), so any token captured during an unauthenticated
+        // session cannot be replayed after the auth state changes.
     }
 
     // ── Flash Messages ───────────────────────────
@@ -199,10 +201,13 @@ class Session
 
     /**
      * Set admin login — regenerates session ID to prevent fixation attacks
+     * and rotates the CSRF token so any token captured before login becomes
+     * invalid.
      */
     public static function setAdmin(int $id): void
     {
         session_regenerate_id(true); // New session ID, delete old one
+        unset($_SESSION['wk_csrf']); // Force fresh CSRF token on next read
         $_SESSION['wk_admin_id'] = $id;
         $_SESSION['wk_last_activity'] = time();
         $_SESSION['wk_fingerprint'] = self::generateFingerprint();
@@ -219,11 +224,13 @@ class Session
     }
 
     /**
-     * Set customer login — regenerates session ID
+     * Set customer login — regenerates session ID and rotates the CSRF token
+     * so any token captured before login becomes invalid.
      */
     public static function setCustomer(int $id): void
     {
         session_regenerate_id(true);
+        unset($_SESSION['wk_csrf']); // Force fresh CSRF token on next read
         $_SESSION['wk_customer_id'] = $id;
         $_SESSION['wk_last_activity'] = time();
         $_SESSION['wk_fingerprint'] = self::generateFingerprint();

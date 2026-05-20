@@ -125,7 +125,12 @@ class ProductController
 
     public function search(Request $request, array $params = []): void
     {
-        $q = $request->clean('q') ?? '';
+        // Finding 18: do NOT use $request->clean() here. clean() HTML-escapes
+        // (so "Tom & Jerry" becomes "Tom &amp; Jerry"), but wk_products.name
+        // is stored RAW — meaning the LIKE never matches products containing
+        // any of & < > ' ". The view does its own htmlspecialchars on $q at
+        // render time, so we're safe to keep the raw value here for matching.
+        $q = trim((string)($request->input('q') ?? $request->query('q') ?? ''));
         $perPage = 12;
         $page = max(1, (int)($request->query('page') ?? 1));
         $products = [];

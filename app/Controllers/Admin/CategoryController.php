@@ -46,11 +46,23 @@ class CategoryController
             return;
         }
 
+        // M24: parent_id must be 0/null OR reference an existing top-level
+        // category. Whisker's category UI is a flat 2-level structure
+        // (parent ⟶ child, no grandchildren), so the parent itself must be
+        // top-level. This also prevents cycles and orphans by construction
+        // — you can never pick a child as your parent.
+        $parentId = $this->validParentId($request->input('parent_id'), null);
+        if ($parentId === false) {
+            Session::flash('error', 'Selected parent category is invalid.');
+            Response::redirect(View::url('admin/categories/create'));
+            return;
+        }
+
         $name = $request->clean('name');
         $slug = $this->uniqueSlug($name);
 
         Database::insert('wk_categories', [
-            'parent_id'   => $request->input('parent_id') ?: null,
+            'parent_id'   => $parentId,
             'name'        => $name,
             'slug'        => $slug,
             'description' => $request->input('description') ?? '',
@@ -87,8 +99,27 @@ class CategoryController
             return;
         }
 
+        $v = new Validator($request->all(), [
+            'name' => 'required|min:2|max:100',
+        ]);
+        if ($v->fails()) {
+            Session::flash('error', $v->firstError());
+            Response::redirect(View::url('admin/categories/edit/' . $params['id']));
+            return;
+        }
+
+        // M24: parent_id must be a valid top-level category id, and must
+        // not be the row itself (self-parent). Passing the current id lets
+        // validParentId() reject the self-cycle case.
+        $parentId = $this->validParentId($request->input('parent_id'), (int)$params['id']);
+        if ($parentId === false) {
+            Session::flash('error', 'Selected parent category is invalid.');
+            Response::redirect(View::url('admin/categories/edit/' . $params['id']));
+            return;
+        }
+
         Database::update('wk_categories', [
-            'parent_id'        => $request->input('parent_id') ?: null,
+            'parent_id'        => $parentId,
             'name'             => $request->clean('name'),
             'description'      => $request->input('description') ?? '',
             'sort_order'       => (int)($request->input('sort_order') ?? 0),
@@ -100,6 +131,26 @@ class CategoryController
 
         Session::flash('success', 'Category updated!');
         Response::redirect(View::url('admin/categories'));
+    }
+
+    /**
+     * Validate a parent_id input.
+     *
+     * Returns:
+     *   null  — top-level category (no parent)
+     *   int   — a valid top-level parent category id
+     *   false — invalid (non-existent, self-reference, or not a top-level row)
+     */
+    private function validParentId($rawInput, ?int $selfId)
+    {
+        $id = (int)($rawInput ?: 0);
+        if ($id === 0) return null;
+        if ($selfId !== null && $id === $selfId) return false; // self-parent
+        $row = Database::fetch(
+            "SELECT id FROM wk_categories WHERE id=? AND parent_id IS NULL",
+            [$id]
+        );
+        return $row ? $id : false;
     }
 
     public function delete(Request $request, array $params = []): void

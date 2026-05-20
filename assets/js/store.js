@@ -4,6 +4,7 @@
  */
 const WhiskerStore = {
     _base: null,
+    _csrf: null,
 
     init() {
         this.hideLoader();
@@ -28,6 +29,42 @@ const WhiskerStore = {
             this._base = meta ? meta.content.replace(/\/+$/, '') : '';
         }
         return this._base + '/' + path.replace(/^\/+/, '');
+    },
+
+    // ── CSRF token (L1) ─────────────────────
+    // Read from <meta name="wk-csrf"> set by store layout. Cached after
+    // first read. Cart/state-changing POSTs MUST include this — either
+    // appended to FormData as 'wk_csrf' or sent as X-CSRF-Token header.
+    csrf() {
+        if (this._csrf === null) {
+            const meta = document.querySelector('meta[name="wk-csrf"]');
+            this._csrf = meta ? meta.content : '';
+        }
+        return this._csrf;
+    },
+
+    // Attach wk_csrf to a FormData and return it (chainable).
+    withCsrf(form) {
+        const token = this.csrf();
+        if (token && !form.has('wk_csrf')) form.append('wk_csrf', token);
+        return form;
+    },
+
+    // Cart-state POST helper. Auto-attaches CSRF and handles 403 (token
+    // rotated after login/logout) by reloading so the page picks up the
+    // new token from the meta tag. Callers receive the parsed JSON body
+    // or null if the page is reloading.
+    async cartFetch(path, form) {
+        const res = await fetch(this.base(path), { method: 'POST', body: this.withCsrf(form) });
+        if (res.status === 403) {
+            // Stale CSRF (most likely auth-state change in another tab).
+            // Reload to refresh the token. The page reload is a one-shot
+            // remediation — repeated 403s would loop, but verifyCsrf only
+            // ever fails on bad/missing token, not on a fresh one.
+            window.location.reload();
+            return null;
+        }
+        try { return await res.json(); } catch (e) { return null; }
     },
 
     // ── Cart Drawer ──────────────────────────
@@ -82,8 +119,8 @@ const WhiskerStore = {
                 form.append('variant_combo_id', variantCombo);
             }
 
-            const res = await fetch(this.base('cart/add'), { method: 'POST', body: form });
-            const data = await res.json();
+            const data = await this.cartFetch('cart/add', form);
+            if (data === null) return; // reloading from stale CSRF
 
             if (data.success) {
                 btn.innerHTML = '✓ Added!';
@@ -158,7 +195,8 @@ const WhiskerStore = {
 
     async updateQty(id, qty) {
         const f = new FormData(); f.append('item_id', id); f.append('quantity', Math.max(0, qty));
-        await fetch(this.base(qty <= 0 ? 'cart/remove' : 'cart/update'), { method: 'POST', body: f });
+        const data = await this.cartFetch(qty <= 0 ? 'cart/remove' : 'cart/update', f);
+        if (data === null) return;
         this.loadCart();
     },
     async removeItem(id) {
@@ -166,7 +204,8 @@ const WhiskerStore = {
         if (el) { el.style.transition = 'all .3s'; el.style.opacity = '0'; el.style.transform = 'translateX(40px)'; }
         setTimeout(async () => {
             const f = new FormData(); f.append('item_id', id);
-            await fetch(this.base('cart/remove'), { method: 'POST', body: f });
+            const data = await this.cartFetch('cart/remove', f);
+            if (data === null) return;
             this.loadCart();
         }, 300);
     },

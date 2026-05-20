@@ -1,7 +1,7 @@
 <?php
 namespace App\Controllers\Admin;
 
-use Core\{Request, View, Database, Response, Session};
+use Core\{Request, View, Database, Response, Session, Validator};
 
 class EmailTemplateController
 {
@@ -41,9 +41,24 @@ class EmailTemplateController
         if (!Session::verifyCsrf($request->input('wk_csrf'))) {
             Session::flash('error', 'Session expired.'); Response::redirect(View::url('admin/email-templates/edit/'.$params['id'])); return;
         }
+        // L16: validate length/presence before write.
+        $v = new Validator($request->all(), [
+            'name'    => 'required|min:2|max:100',
+            'subject' => 'required|min:1|max:255',
+        ]);
+        if ($v->fails()) {
+            Session::flash('error', $v->firstError());
+            Response::redirect(View::url('admin/email-templates/edit/'.$params['id'])); return;
+        }
+        // Sanitize the body before storing so a compromised admin (or low-priv
+        // role in the future) can't smuggle <script> or event handlers into a
+        // template that will later run in another admin's browser when they
+        // open the editor or preview, or in customer mailboxes that render
+        // HTML (some webmail clients run inline event handlers).
+        $body = \App\Services\HtmlSanitizer::purify((string)$request->input('body'));
         Database::update('wk_email_templates', [
             'name' => $request->clean('name'), 'subject' => $request->clean('subject'),
-            'body' => $request->input('body'), 'is_active' => $request->input('is_active') ? 1 : 0,
+            'body' => $body, 'is_active' => $request->input('is_active') ? 1 : 0,
         ], 'id=?', [$params['id']]);
         Session::flash('success', 'Template saved!');
         Response::redirect(View::url('admin/email-templates'));
@@ -59,10 +74,29 @@ class EmailTemplateController
         if (!Session::verifyCsrf($request->input('wk_csrf'))) {
             Session::flash('error', 'Session expired.'); Response::redirect(View::url('admin/email-templates/create')); return;
         }
+        // L16: validate before insert so the DB doesn't reject with a raw
+        // 500 on empty name/subject. The slug is derived from name so name
+        // must produce at least one valid char after slugification.
+        $v = new Validator($request->all(), [
+            'name'    => 'required|min:2|max:100',
+            'subject' => 'required|min:1|max:255',
+        ]);
+        if ($v->fails()) {
+            Session::flash('error', $v->firstError());
+            Response::redirect(View::url('admin/email-templates/create')); return;
+        }
         $slug = trim(strtolower(preg_replace('/[^a-z0-9]+/', '-', $request->clean('name'))), '-');
+        if ($slug === '') {
+            // Name was all non-alphanumeric — Validator passed min:2 but
+            // slugify left nothing usable. Reject explicitly.
+            Session::flash('error', 'Template name must contain at least 2 alphanumeric characters.');
+            Response::redirect(View::url('admin/email-templates/create')); return;
+        }
+        // Sanitize on save — see comment in update().
+        $body = \App\Services\HtmlSanitizer::purify((string)$request->input('body'));
         Database::insert('wk_email_templates', [
             'slug' => $slug, 'name' => $request->clean('name'),
-            'subject' => $request->clean('subject'), 'body' => $request->input('body'), 'is_active' => 1,
+            'subject' => $request->clean('subject'), 'body' => $body, 'is_active' => 1,
         ]);
         Session::flash('success', 'Template created!');
         Response::redirect(View::url('admin/email-templates'));
@@ -116,13 +150,22 @@ class EmailTemplateController
 
         $storeName = Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='site_name'") ?: 'Whisker Store';
         $logoUrl = Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='logo_url'");
-        $logoHtml = $logoUrl
-            ? '<img src="'.htmlspecialchars($logoUrl).'" style="max-height:48px;max-width:200px" alt="">'
+        $safeLogoUrl = $logoUrl && \App\Services\HtmlSanitizer::isSafeUrl((string)$logoUrl, true)
+            ? (string)$logoUrl
+            : '';
+        $logoHtml = $safeLogoUrl
+            ? '<img src="'.htmlspecialchars($safeLogoUrl).'" style="max-height:48px;max-width:200px" alt="">'
             : '<span style="font-size:22px;font-weight:900;color:#8b5cf6">🐱 '.htmlspecialchars($storeName).'</span>';
 
         $sample = self::getSampleData();
         $body = str_replace(array_keys($sample), array_values($sample), $tpl['body']);
         $subject = str_replace(array_keys($sample), array_values($sample), $tpl['subject']);
+
+        // Defense in depth: rows written before sanitize-on-save was added
+        // may still contain unsafe HTML, and the preview page is served from
+        // the admin origin — a left-over <script> here would execute with
+        // admin cookies. The sanitizer is idempotent.
+        $body = \App\Services\HtmlSanitizer::purify($body);
 
         echo '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
         <body style="margin:0;padding:0;background:#f3f0eb;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif">
@@ -146,7 +189,10 @@ class EmailTemplateController
         $storeName = Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='site_name'") ?: 'Whisker Store';
         $logoUrl = Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='logo_url'");
         $cur = Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='currency_symbol'") ?: '₹';
-        $logoHtml = $logoUrl ? '<img src="'.htmlspecialchars($logoUrl).'" style="max-height:40px" alt="">' : '🐱 '.htmlspecialchars($storeName);
+        $safeLogoUrl = $logoUrl && \App\Services\HtmlSanitizer::isSafeUrl((string)$logoUrl, true)
+            ? (string)$logoUrl
+            : '';
+        $logoHtml = $safeLogoUrl ? '<img src="'.htmlspecialchars($safeLogoUrl).'" style="max-height:40px" alt="">' : '🐱 '.htmlspecialchars($storeName);
 
         $sampleItems = '
         <table style="width:100%;font-size:14px;border-collapse:collapse">

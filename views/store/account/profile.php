@@ -44,9 +44,10 @@ $ls = 'display:block;font-size:11px;font-weight:800;text-transform:uppercase;let
         <h2 style="font-size:17px;font-weight:900;margin-bottom:20px">Change Password</h2>
         <form method="POST" action="<?= $url('account/set-password') ?>">
             <?= \Core\Session::csrfField() ?>
+            <div style="margin-bottom:14px"><label style="<?= $ls ?>">Current Password</label><input type="password" name="current_password" required placeholder="Your existing password" autocomplete="current-password" style="<?= $is ?>"></div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-                <div><label style="<?= $ls ?>">New Password</label><input type="password" name="new_password" required minlength="8" placeholder="Min 8 characters" style="<?= $is ?>"></div>
-                <div><label style="<?= $ls ?>">Confirm Password</label><input type="password" name="confirm_password" required placeholder="Type again" style="<?= $is ?>"></div>
+                <div><label style="<?= $ls ?>">New Password</label><input type="password" name="new_password" required minlength="8" placeholder="Min 8 characters" autocomplete="new-password" style="<?= $is ?>"></div>
+                <div><label style="<?= $ls ?>">Confirm Password</label><input type="password" name="confirm_password" required placeholder="Type again" autocomplete="new-password" style="<?= $is ?>"></div>
             </div>
             <button type="submit" class="wk-checkout-btn" style="margin-top:16px">Update Password</button>
         </form>

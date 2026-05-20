@@ -7,17 +7,37 @@ class TicketController
 {
     public function index(Request $request, array $params = []): void
     {
-        $status = $request->query('status') ?? '';
-        $where = $status ? "WHERE t.status='" . addslashes($status) . "'" : '';
-        $tickets = Database::fetchAll(
-            "SELECT t.*, (SELECT COUNT(*) FROM wk_ticket_replies WHERE ticket_id=t.id) AS reply_count,
-                    (SELECT created_at FROM wk_ticket_replies WHERE ticket_id=t.id ORDER BY created_at DESC LIMIT 1) AS last_reply_at
-             FROM wk_tickets t {$where} ORDER BY
-                CASE t.status WHEN 'open' THEN 1 WHEN 'in_progress' THEN 2 WHEN 'waiting' THEN 3 WHEN 'resolved' THEN 4 WHEN 'closed' THEN 5 END,
-                t.updated_at DESC LIMIT 50"
-        );
+        // Finding 13: previously used `addslashes($status)` and string-
+        // concatenated it into the SQL WHERE clause. addslashes is NOT a
+        // safe SQL escape (doesn't handle backslash escapes, charset edge
+        // cases, etc.) — real injection vector via ?status=...
+        // Fix: whitelist the status value against the known enum, then
+        // use a parameterized query. Anything off-list → no filter.
+        $rawStatus = (string)($request->query('status') ?? '');
+        $allowedStatuses = ['open','in_progress','waiting','resolved','closed'];
+        $status = in_array($rawStatus, $allowedStatuses, true) ? $rawStatus : '';
+
+        if ($status !== '') {
+            $tickets = Database::fetchAll(
+                "SELECT t.*, (SELECT COUNT(*) FROM wk_ticket_replies WHERE ticket_id=t.id) AS reply_count,
+                        (SELECT created_at FROM wk_ticket_replies WHERE ticket_id=t.id ORDER BY created_at DESC LIMIT 1) AS last_reply_at
+                 FROM wk_tickets t WHERE t.status = ? ORDER BY
+                    CASE t.status WHEN 'open' THEN 1 WHEN 'in_progress' THEN 2 WHEN 'waiting' THEN 3 WHEN 'resolved' THEN 4 WHEN 'closed' THEN 5 END,
+                    t.updated_at DESC LIMIT 50",
+                [$status]
+            );
+        } else {
+            $tickets = Database::fetchAll(
+                "SELECT t.*, (SELECT COUNT(*) FROM wk_ticket_replies WHERE ticket_id=t.id) AS reply_count,
+                        (SELECT created_at FROM wk_ticket_replies WHERE ticket_id=t.id ORDER BY created_at DESC LIMIT 1) AS last_reply_at
+                 FROM wk_tickets t ORDER BY
+                    CASE t.status WHEN 'open' THEN 1 WHEN 'in_progress' THEN 2 WHEN 'waiting' THEN 3 WHEN 'resolved' THEN 4 WHEN 'closed' THEN 5 END,
+                    t.updated_at DESC LIMIT 50"
+            );
+        }
+
         $counts = [];
-        foreach (['open','in_progress','waiting','resolved','closed'] as $s) {
+        foreach ($allowedStatuses as $s) {
             $counts[$s] = (int)Database::fetchValue("SELECT COUNT(*) FROM wk_tickets WHERE status=?", [$s]);
         }
         View::render('admin/tickets/index', [

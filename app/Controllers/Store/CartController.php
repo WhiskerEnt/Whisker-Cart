@@ -121,13 +121,56 @@ class CartController
         }
 
         $code = strtoupper(trim($request->input('coupon_code') ?? ''));
+        if ($code === '') {
+            Response::json(['success' => false, 'message' => 'Enter a coupon code.'], 400);
+            return;
+        }
+
         $coupon = Database::fetch(
-            "SELECT * FROM wk_coupons WHERE code=? AND is_active=1 AND (expires_at IS NULL OR expires_at>NOW()) AND (usage_limit IS NULL OR used_count<usage_limit)",
+            "SELECT * FROM wk_coupons
+               WHERE code = ?
+                 AND is_active = 1
+                 AND (starts_at IS NULL OR starts_at <= NOW())
+                 AND (expires_at IS NULL OR expires_at > NOW())
+                 AND (usage_limit IS NULL OR used_count < usage_limit)",
             [$code]
         );
-        if (!$coupon) { Response::json(['success'=>false,'message'=>'Invalid or expired coupon'], 400); return; }
+        if (!$coupon) {
+            Response::json(['success' => false, 'message' => 'Invalid or expired coupon'], 400);
+            return;
+        }
+
+        // Enforce minimum order amount at apply time. The final authoritative
+        // check happens in CheckoutController::process — this is a friendly
+        // upfront rejection so the customer sees the rule.
+        $minOrder = (float)($coupon['min_order_amount'] ?? 0);
+        if ($minOrder > 0) {
+            $cart = $this->getCart();
+            $items = $this->getItems($cart['id']);
+            $subtotal = array_reduce(
+                $items,
+                fn($sum, $i) => $sum + ((float)$i['unit_price'] * (int)$i['quantity']),
+                0.0
+            );
+            if ($subtotal + 0.0001 < $minOrder) {
+                $currency = Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='currency_symbol'") ?: '';
+                Response::json([
+                    'success' => false,
+                    'message' => sprintf('This coupon requires a minimum order of %s%s.', $currency, number_format($minOrder, 2)),
+                ], 400);
+                return;
+            }
+        }
+
         Session::set('wk_coupon', $coupon);
-        Response::json(['success'=>true,'coupon'=>['code'=>$coupon['code'],'type'=>$coupon['type'],'value'=>$coupon['value']]]);
+        Response::json([
+            'success' => true,
+            'coupon' => [
+                'code'  => $coupon['code'],
+                'type'  => $coupon['type'],
+                'value' => $coupon['value'],
+            ],
+        ]);
     }
 
     public function clear(Request $request, array $params = []): void

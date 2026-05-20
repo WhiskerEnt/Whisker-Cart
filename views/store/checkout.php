@@ -2,8 +2,10 @@
 $e = fn($v) => \Core\View::e($v);
 $url = fn($p) => \Core\View::url($p);
 $price = fn($v) => \Core\View::price($v, $currency);
-$tax = round($cart['subtotal'] * ($taxRate / 100), 2);
-$total = $cart['subtotal'] + $tax + $shipping;
+// Server is the authority on every line in the summary. The controller
+// computed these in CheckoutController::computeTotals(); we just render them.
+// Tax may be unknown at first paint (address not filled yet) — in that case
+// $totals['tax_known'] is false and we show a placeholder instead of a number.
 $countries = \App\Services\CurrencyService::countries();
 $displayCurrency = $_SESSION['wk_display_currency'] ?? $baseCurrency ?? 'INR';
 $isSameCurrency = ($displayCurrency === ($baseCurrency ?? 'INR'));
@@ -169,16 +171,30 @@ $defAddr = !empty($addrs) ? $addrs[0] : [];
                     </div>
                     <?php endforeach; ?>
 
-                    <div style="margin-top:16px;font-size:14px">
-                        <div style="display:flex;justify-content:space-between;padding:6px 0"><span style="color:var(--wk-muted)">Subtotal</span><span style="font-weight:700"><?= $showPrice($cart['subtotal']) ?></span></div>
-                        <div style="display:flex;justify-content:space-between;padding:6px 0"><span style="color:var(--wk-muted)">Tax (<?= $taxRate ?>%)</span><span style="font-weight:700"><?= $showPrice($tax) ?></span></div>
-                        <div style="display:flex;justify-content:space-between;padding:6px 0"><span style="color:var(--wk-muted)">Shipping</span><span style="font-weight:700"><?= $showPrice($shipping) ?></span></div>
+                    <div style="margin-top:16px;font-size:14px" id="wk-summary">
+                        <div style="display:flex;justify-content:space-between;padding:6px 0">
+                            <span style="color:var(--wk-muted)">Subtotal</span>
+                            <span style="font-weight:700" id="wk-sum-subtotal"><?= $showPrice($totals['subtotal']) ?></span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;padding:6px 0" id="wk-sum-discount-row" <?= $totals['discount'] > 0 ? '' : 'hidden' ?>>
+                            <span style="color:var(--wk-muted)">Discount<?= !empty($totals['discount_code']) ? ' <span style="color:var(--wk-purple);font-weight:700">(' . $e($totals['discount_code']) . ')</span>' : '' ?></span>
+                            <span style="font-weight:700;color:#16a34a" id="wk-sum-discount">− <?= $showPrice($totals['discount']) ?></span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;padding:6px 0">
+                            <span style="color:var(--wk-muted)" id="wk-sum-tax-label"><?= $totals['tax_known'] ? $e($totals['tax_label'] ?: 'Tax') : 'Tax' ?></span>
+                            <span style="font-weight:700" id="wk-sum-tax"><?= $totals['tax_known'] ? $showPrice($totals['tax']) : '<span style="color:var(--wk-muted);font-weight:500;font-size:13px">Calculated at next step</span>' ?></span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;padding:6px 0">
+                            <span style="color:var(--wk-muted)">Shipping</span>
+                            <span style="font-weight:700" id="wk-sum-shipping"><?= $showPrice($totals['shipping']) ?></span>
+                        </div>
                         <div style="display:flex;justify-content:space-between;padding:12px 0 0;margin-top:8px;border-top:2px solid var(--wk-border);font-size:20px">
-                            <span style="font-weight:900">Total</span><span style="font-weight:900;font-family:var(--font-mono)"><?= $showPrice($total) ?></span>
+                            <span style="font-weight:900">Total</span>
+                            <span style="font-weight:900;font-family:var(--font-mono)" id="wk-sum-total"><?= $showPrice($totals['total']) ?></span>
                         </div>
                     </div>
 
-                    <button type="submit" class="wk-checkout-btn" style="margin-top:20px">Pay <?= $price($total) ?> →</button>
+                    <button type="submit" class="wk-checkout-btn" style="margin-top:20px" id="wk-pay-btn">Pay <?= $price($totals['total']) ?> →</button>
                 </div>
             </div>
         </form>
@@ -187,6 +203,9 @@ $defAddr = !empty($addrs) ? $addrs[0] : [];
 </section>
 
 <script>
+const WK_CHECKOUT_URL = <?= json_encode($url('checkout/calculate')) ?>;
+const WK_PAY_PREFIX   = <?= json_encode('Pay ') ?>;
+
 function fillAddress(prefix) {
     const sel = document.getElementById(prefix === 'ship' ? 'savedAddrShip' : 'savedAddrBill');
     if (!sel) return;
@@ -198,15 +217,99 @@ function fillAddress(prefix) {
     f(prefix+'_zip', 'zip');
     const cs = document.getElementById(prefix+'_country');
     if (cs && opt.dataset.country) cs.value = opt.dataset.country;
+    if (prefix === 'ship') wkRecalcTotals();
 }
 
 function toggleBilling() {
     document.getElementById('billingFields').style.display = document.getElementById('sameAsShipping').checked ? 'none' : 'block';
 }
 
+// ── Server-authoritative totals recompute ──────────────────────────
+// Whenever the shipping address changes, ask the server for fresh totals.
+// The server is the single source of truth — this just keeps the display
+// in sync so the customer never sees a different number than they pay.
+let wkRecalcTimer = null;
+let wkRecalcInflight = null;
+function wkRecalcTotals() {
+    if (wkRecalcTimer) clearTimeout(wkRecalcTimer);
+    wkRecalcTimer = setTimeout(wkDoRecalc, 200);
+}
+
+async function wkDoRecalc() {
+    const country = (document.getElementById('ship_country')||{}).value || '';
+    const state   = (document.getElementById('ship_state')||{}).value   || '';
+    if (!country && !state) return; // nothing to compute against yet
+
+    // Coalesce concurrent calls — only the latest result wins.
+    const myCall = wkRecalcInflight = Symbol('recalc');
+    try {
+        const res = await fetch(WK_CHECKOUT_URL, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+            body: JSON.stringify({country: country, state: state}),
+            credentials: 'same-origin',
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (wkRecalcInflight !== myCall) return; // a newer call superseded us
+
+        const f = data.formatted || {};
+        const setText = (id, txt) => { const el = document.getElementById(id); if (el && txt != null) el.textContent = txt; };
+        const setHtml = (id, html) => { const el = document.getElementById(id); if (el && html != null) el.innerHTML = html; };
+        setText('wk-sum-tax-label', data.tax_known ? (data.tax_label || 'Tax') : 'Tax');
+        const taxEl = document.getElementById('wk-sum-tax');
+        if (taxEl) {
+            if (data.tax_known) {
+                taxEl.innerHTML = f.tax || '';
+            } else {
+                taxEl.innerHTML = '<span style="color:var(--wk-muted);font-weight:500;font-size:13px">Calculated at next step</span>';
+            }
+        }
+        setHtml('wk-sum-subtotal', f.subtotal);
+        setHtml('wk-sum-shipping', f.shipping);
+        setHtml('wk-sum-total',    f.total);
+
+        // Discount row — show or hide based on result. We also refresh the
+        // label so the coupon code stays in sync if the server dropped a
+        // since-expired coupon.
+        const discRow = document.getElementById('wk-sum-discount-row');
+        if (discRow) {
+            if ((data.discount || 0) > 0) {
+                discRow.removeAttribute('hidden');
+                setHtml('wk-sum-discount', '\u2212 ' + (f.discount || ''));
+            } else {
+                discRow.setAttribute('hidden', '');
+            }
+        }
+
+        // Pay button uses plain total (no conversion suffix).
+        const payBtn = document.getElementById('wk-pay-btn');
+        if (payBtn && f.total_plain) payBtn.textContent = WK_PAY_PREFIX + f.total_plain + ' \u2192';
+    } catch (_) {
+        // Network/server error — leave the display untouched. The customer
+        // can still submit; process() recomputes server-side and will reject
+        // mismatched/invalid totals.
+    }
+}
+
+// Recompute on address change. We listen to both 'change' (for the country
+// <select>) and 'blur' (for free-text fields) to cover every input type.
+['ship_country','ship_state','ship_zip'].forEach(function(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('change', wkRecalcTotals);
+    el.addEventListener('blur',   wkRecalcTotals);
+});
+
 // Auto-fill default on load
 document.addEventListener('DOMContentLoaded', function() {
     const sel = document.getElementById('savedAddrShip');
-    if (sel && sel.value) fillAddress('ship');
+    if (sel && sel.value) {
+        fillAddress('ship');
+    } else {
+        // No saved address but the country <select> has a default value —
+        // kick off an initial calc so the tax line is filled if possible.
+        wkRecalcTotals();
+    }
 });
 </script>

@@ -78,19 +78,22 @@ class Validator
                 break;
 
             case 'email':
-                if ($value && !filter_var($value, FILTER_VALIDATE_EMAIL)) {
+                // L13: use explicit empty-check rather than truthy-check —
+                // `$value && ...` skips validation for legitimate values like
+                // "0" (PHP-falsy but not empty). Only skip when truly empty.
+                if ($value !== null && $value !== '' && !filter_var($value, FILTER_VALIDATE_EMAIL)) {
                     return "{$label} must be a valid email.";
                 }
                 break;
 
             case 'numeric':
-                if ($value && !is_numeric($value)) {
+                if ($value !== null && $value !== '' && !is_numeric($value)) {
                     return "{$label} must be a number.";
                 }
                 break;
 
             case 'integer':
-                if ($value && !ctype_digit((string)$value)) {
+                if ($value !== null && $value !== '' && !ctype_digit((string)$value)) {
                     return "{$label} must be a whole number.";
                 }
                 break;
@@ -114,13 +117,13 @@ class Validator
                 break;
 
             case 'url':
-                if ($value && !filter_var($value, FILTER_VALIDATE_URL)) {
+                if ($value !== null && $value !== '' && !filter_var($value, FILTER_VALIDATE_URL)) {
                     return "{$label} must be a valid URL.";
                 }
                 break;
 
             case 'slug':
-                if ($value && !preg_match('/^[a-z0-9\-]+$/', $value)) {
+                if ($value !== null && $value !== '' && !preg_match('/^[a-z0-9\-]+$/', $value)) {
                     return "{$label} must contain only lowercase letters, numbers, and hyphens.";
                 }
                 break;
@@ -135,7 +138,7 @@ class Validator
 
             case 'in':
                 $allowed = explode(',', $param);
-                if ($value && !in_array($value, $allowed)) {
+                if ($value !== null && $value !== '' && !in_array($value, $allowed)) {
                     return "{$label} must be one of: {$param}.";
                 }
                 break;

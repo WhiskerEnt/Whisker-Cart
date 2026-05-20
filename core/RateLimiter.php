@@ -15,7 +15,11 @@ class RateLimiter
     {
         if (!self::$dir) {
             self::$dir = WK_ROOT . '/storage/cache/ratelimit';
-            if (!is_dir(self::$dir)) @mkdir(self::$dir, 0755, true);
+            // L12: 0700/0600 — principle of least privilege. The rate-limit
+            // files are just counters but on shared hosting (cPanel), 0755
+            // means other tenants on the same box can list and read the
+            // directory. 0700 restricts to the web server's user.
+            if (!is_dir(self::$dir)) @mkdir(self::$dir, 0700, true);
         }
         return self::$dir;
     }
@@ -33,27 +37,58 @@ class RateLimiter
     {
         $file = self::dir() . '/' . md5($action . ':' . $key) . '.json';
 
-        $data = ['count' => 0, 'first_at' => time()];
-        if (file_exists($file)) {
-            $raw = @file_get_contents($file);
-            $data = $raw ? (json_decode($raw, true) ?: $data) : $data;
-        }
-
-        // Reset if window expired
-        if ((time() - $data['first_at']) >= $windowSeconds) {
-            $data = ['count' => 0, 'first_at' => time()];
-        }
-
-        // Check limit
-        if ($data['count'] >= $maxAttempts) {
+        // Finding 11: the read-modify-write here used to be non-atomic. Two
+        // concurrent attempts could both read count=4, both write count=5,
+        // and the rate limiter would effectively grant 2 attempts for the
+        // cost of 1. Under brute-force pressure this measurably weakens
+        // protection. Now we hold an exclusive flock() across the full
+        // sequence: open ("c+" creates if missing), lock exclusive, read,
+        // decide, write, unlock. Other concurrent attempts block on the
+        // lock rather than racing.
+        $fp = @fopen($file, 'c+');
+        if (!$fp) {
+            // If we can't even open the file (disk full, permissions),
+            // fail CLOSED — refuse the attempt so a broken rate-limit
+            // store doesn't quietly turn into open access.
             return false;
         }
 
-        // Increment
-        $data['count']++;
-        @file_put_contents($file, json_encode($data), LOCK_EX);
+        if (!@flock($fp, LOCK_EX)) {
+            @fclose($fp);
+            return false;
+        }
 
-        return true;
+        try {
+            $raw  = stream_get_contents($fp);
+            $data = ($raw && ($decoded = json_decode($raw, true))) ? $decoded : null;
+            if (!is_array($data) || !isset($data['count'], $data['first_at'])) {
+                $data = ['count' => 0, 'first_at' => time()];
+            }
+
+            // Reset if window expired.
+            if ((time() - (int)$data['first_at']) >= $windowSeconds) {
+                $data = ['count' => 0, 'first_at' => time()];
+            }
+
+            if ((int)$data['count'] >= $maxAttempts) {
+                return false; // limited
+            }
+
+            $data['count'] = (int)$data['count'] + 1;
+
+            // Write the new state atomically while still holding the lock.
+            ftruncate($fp, 0);
+            rewind($fp);
+            fwrite($fp, json_encode($data));
+            fflush($fp);
+            return true;
+        } finally {
+            @flock($fp, LOCK_UN);
+            @fclose($fp);
+            // L12: tighten file mode in case the default umask leaves it
+            // group/world-readable on shared hosting.
+            @chmod($file, 0600);
+        }
     }
 
     /**

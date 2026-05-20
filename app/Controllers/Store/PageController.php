@@ -36,12 +36,19 @@ class PageController
         }
 
         $name = $request->clean('name');
-        $email = $request->clean('email');
+        // Finding 17: store email RAW (validated + lowercased), not HTML-escaped.
+        // The same Finding 8 reasoning applies here — emails are an identifier,
+        // not display text: escaping them at write time breaks downstream
+        // matching (deletion requests, reply-to headers in EmailService::send
+        // which strips its own headers, and anti-spam lookups). HTML-escape
+        // happens on render, not in storage.
+        $rawEmail = trim((string)$request->input('email'));
+        $email = filter_var($rawEmail, FILTER_VALIDATE_EMAIL) ? strtolower($rawEmail) : '';
         $subject = $request->clean('subject');
         $message = $request->input('message');
 
         if (!$name || !$email || !$message) {
-            Session::flash('error','Please fill in all required fields.');
+            Session::flash('error','Please fill in all required fields. Make sure the email is valid.');
             Response::redirect(View::url('contact'));
             return;
         }

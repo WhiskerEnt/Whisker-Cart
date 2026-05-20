@@ -80,12 +80,37 @@ class AbandonedCartController
      */
     public function sendReminder(Request $request, array $params = []): void
     {
+        // CSRF — group middleware enforces but be explicit (consistent with
+        // other destructive/side-effect admin endpoints).
+        if (!Session::verifyCsrf($request->input('wk_csrf') ?? $request->server('HTTP_X_CSRF_TOKEN'))) {
+            Response::json(['success' => false, 'message' => 'Session expired.'], 403);
+            return;
+        }
+
         $cartId = (int)$params['id'];
         $cart = Database::fetch(
             "SELECT c.*, cu.first_name, cu.last_name, cu.email AS customer_email
              FROM wk_carts c LEFT JOIN wk_customers cu ON cu.id=c.customer_id WHERE c.id=?", [$cartId]
         );
         if (!$cart) { Response::json(['success' => false, 'message' => 'Cart not found']); return; }
+
+        // M25: 6-hour cooldown per cart. Without this an admin (or attacker
+        // riding a compromised admin session) can spam reminders to a
+        // customer's email — and the UI's btn.disabled isn't binding. The
+        // wk_carts.reminder_sent_at column already exists and gets bumped
+        // on a successful send below; we just need to enforce the window.
+        if (!empty($cart['reminder_sent_at'])) {
+            $lastSent = strtotime($cart['reminder_sent_at']);
+            $sixHours = 6 * 3600;
+            if ($lastSent !== false && (time() - $lastSent) < $sixHours) {
+                $minsLeft = (int)ceil(($sixHours - (time() - $lastSent)) / 60);
+                Response::json([
+                    'success' => false,
+                    'message' => "A reminder was sent recently for this cart. Try again in {$minsLeft} minute" . ($minsLeft === 1 ? '' : 's') . '.',
+                ]);
+                return;
+            }
+        }
 
         $email = $cart['email'] ?? $cart['customer_email'] ?? null;
         if (!$email) { Response::json(['success' => false, 'message' => 'No email address for this cart']); return; }
@@ -143,8 +168,49 @@ class AbandonedCartController
      */
     public function markAbandoned(Request $request, array $params = []): void
     {
+        if (!Session::verifyCsrf($request->input('wk_csrf'))) {
+            Session::flash('error', 'Session expired.');
+            Response::redirect(View::url('admin/abandoned-carts'));
+            return;
+        }
         Database::query("UPDATE wk_carts SET status='abandoned' WHERE id=?", [$params['id']]);
         Session::flash('success', 'Cart marked as abandoned.');
+        Response::redirect(View::url('admin/abandoned-carts'));
+    }
+
+    /**
+     * M1: Prune old carts to keep the table bounded.
+     *
+     * Deletes carts in terminal states (abandoned, converted, merged) whose
+     * last activity is older than 90 days. Active carts are NEVER pruned —
+     * a customer might still come back to a real cart.
+     *
+     * Triggered manually by the admin from the abandoned-carts page. We
+     * deliberately do not run this on every request: cart pruning is a
+     * housekeeping operation that should be observable, not a silent
+     * background sweep that could surprise an operator.
+     */
+    public function prune(Request $request, array $params = []): void
+    {
+        if (!Session::verifyCsrf($request->input('wk_csrf'))) {
+            Session::flash('error', 'Session expired.');
+            Response::redirect(View::url('admin/abandoned-carts'));
+            return;
+        }
+
+        try {
+            // wk_cart_items has FK ON DELETE CASCADE on wk_carts.id, so the
+            // item rows go with the cart row automatically.
+            $stmt = Database::query(
+                "DELETE FROM wk_carts
+                  WHERE status IN ('abandoned','converted','merged')
+                    AND updated_at < DATE_SUB(NOW(), INTERVAL 90 DAY)"
+            );
+            $deleted = $stmt->rowCount();
+            Session::flash('success', "Pruned {$deleted} old cart" . ($deleted === 1 ? '' : 's') . " (>90 days, terminal state).");
+        } catch (\Exception $e) {
+            Session::flash('error', 'Cart pruning failed: ' . $e->getMessage());
+        }
         Response::redirect(View::url('admin/abandoned-carts'));
     }
 }

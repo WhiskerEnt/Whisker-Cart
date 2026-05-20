@@ -83,42 +83,96 @@ class ChatbotController
         }
 
         // ── Order lookup flow ──
+        // M21: do not reveal whether the order number exists. The previous
+        // implementation returned distinguishable responses ("Found …" vs
+        // "I couldn't find …"), letting an attacker iterate order numbers
+        // and learn which ones existed before any email gate applied. Now
+        // we advance to the email-prompt step unconditionally and only
+        // verify (existence AND email match) in the next step, with a
+        // generic failure reply that's identical for both failure modes.
+        //
+        // Per-IP and per-session rate limiting also protects against
+        // mass enumeration even if the response leak were ever
+        // re-introduced. The order number itself has 48 bits of entropy
+        // after the date prefix, so guessing for a specific date is
+        // already infeasible without rate-limit pressure.
         if ($state['step'] === 'awaiting_order_number') {
-            $orderNum = strtoupper(trim($request->input('message')));
-            $order = Database::fetch("SELECT * FROM wk_orders WHERE order_number=?", [$orderNum]);
-            if (!$order) {
-                Response::json(['reply' => "I couldn't find order **{$orderNum}**. Please check the order number and try again. You can find it in your confirmation email.", 'actions' => [['label'=>'Try Again','value'=>'track order'],['label'=>'Main Menu','value'=>'menu']]]);
+            $orderNum = strtoupper(trim((string)$request->input('message')));
+
+            // Light rate limit on lookup attempts per session — 10 per hour.
+            // Legit customers retry once or twice; brute-forcers hit the wall.
+            if (!\Core\RateLimiter::attempt('chatbot_order_lookup', Session::cartId(), 10, 3600)) {
+                $_SESSION[$sessionKey] = ['step' => 'idle'];
+                Response::json(['reply' => "You've made too many order lookup attempts. Please try again later or [contact support](contact).",
+                    'actions' => [['label'=>'Main Menu','value'=>'menu']]]);
                 return;
             }
-            $_SESSION[$sessionKey] = ['step' => 'awaiting_otp_email', 'order' => $order];
-            Response::json(['reply' => "Found order **{$orderNum}**! For security, please enter the email address associated with this order.", 'input_type' => 'email']);
+
+            // Stash only the order number (not whether it resolved). The
+            // existence check happens in the email-match step so we can
+            // give the same response for missing-order and wrong-email.
+            $_SESSION[$sessionKey] = ['step' => 'awaiting_otp_email', 'order_number' => $orderNum];
+            Response::json(['reply' => "Thanks! For security, please enter the email address associated with this order.", 'input_type' => 'email']);
             return;
         }
 
         if ($state['step'] === 'awaiting_otp_email') {
-            $email = strtolower(trim($request->input('message')));
-            $order = $state['order'];
-            if ($email === strtolower($order['customer_email'])) {
-                $_SESSION[$sessionKey] = ['step' => 'idle'];
-                $statusEmoji = ['pending'=>'⏳','processing'=>'🔄','paid'=>'✅','shipped'=>'📦','delivered'=>'🎉','cancelled'=>'❌','refunded'=>'↩️'];
-                $emoji = $statusEmoji[$order['status']] ?? '📋';
+            $email = strtolower(trim((string)$request->input('message')));
+            $_SESSION[$sessionKey] = ['step' => 'idle'];
 
-                $notes = json_decode($order['notes'] ?? '{}', true) ?: [];
-                $tracking = '';
-                if (!empty($notes['tracking_number'])) {
-                    $tracking = "\n📦 **Carrier:** {$notes['shipping_carrier']}\n🔢 **Tracking:** {$notes['tracking_number']}";
-                    if (!empty($notes['tracking_url'])) $tracking .= "\n[Track Package →]({$notes['tracking_url']})";
-                }
+            // Resolve the order at match-time. This collapses the
+            // "no such order" and "wrong email" branches into one
+            // identical response, so the only signal the attacker
+            // gets back is success vs failure (gated by email knowledge).
+            $orderNum = (string)($state['order_number'] ?? '');
+            $order = $orderNum !== ''
+                ? Database::fetch("SELECT * FROM wk_orders WHERE order_number=?", [$orderNum])
+                : null;
 
-                $currency = Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='currency_symbol'") ?: '₹';
+            $emailMatches = $order
+                && hash_equals(
+                    strtolower((string)$order['customer_email']),
+                    $email
+                );
 
-                $reply = "{$emoji} **Order {$order['order_number']}**\n\n**Status:** " . ucfirst($order['status']) . "\n**Total:** {$currency}" . number_format($order['total'], 2) . "\n**Date:** " . date('M j, Y', strtotime($order['created_at'])) . $tracking;
-
-                Response::json(['reply' => $reply, 'actions' => [['label'=>'Track Another','value'=>'track order'],['label'=>'Refund Policy','value'=>'refund'],['label'=>'Main Menu','value'=>'menu']]]);
-            } else {
-                Response::json(['reply' => "The email doesn't match our records for this order. Please try again with the correct email.", 'actions' => [['label'=>'Try Again','value'=>'track order'],['label'=>'Main Menu','value'=>'menu']]]);
-                $_SESSION[$sessionKey] = ['step' => 'idle'];
+            if (!$emailMatches) {
+                Response::json(['reply' => "I couldn't find an order matching that number and email. Please double-check your details and try again.",
+                    'actions' => [['label'=>'Try Again','value'=>'track order'],['label'=>'Contact Support','value'=>'contact'],['label'=>'Main Menu','value'=>'menu']]]);
+                return;
             }
+
+            $statusEmoji = ['pending'=>'⏳','processing'=>'🔄','paid'=>'✅','shipped'=>'📦','delivered'=>'🎉','cancelled'=>'❌','refunded'=>'↩️'];
+            $emoji = $statusEmoji[$order['status']] ?? '📋';
+
+            $notes = json_decode($order['notes'] ?? '{}', true) ?: [];
+            $tracking = '';
+            if (!empty($notes['tracking_number'])) {
+                $carrier  = (string)($notes['shipping_carrier'] ?? '');
+                $trackNum = (string)$notes['tracking_number'];
+                $tracking = "\n📦 **Carrier:** {$carrier}\n🔢 **Tracking:** {$trackNum}";
+                // Tracking URL: scheme-validate server-side before letting
+                // it become a clickable markdown link. Anything other than
+                // http/https (eg. "javascript:") is dropped silently — the
+                // customer still sees the number, just no link. The client
+                // chatbot renderer also re-validates, but doing it here
+                // keeps the link payload tidy at the boundary.
+                $rawUrl = (string)($notes['tracking_url'] ?? '');
+                if ($rawUrl !== '') {
+                    $scheme = strtolower((string)parse_url($rawUrl, PHP_URL_SCHEME));
+                    if ($scheme === 'http' || $scheme === 'https') {
+                        $tracking .= "\n[Track Package →]({$rawUrl})";
+                    }
+                }
+            }
+
+            $currency = Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='currency_symbol'") ?: '₹';
+
+            // Note: the client chatbot renderer HTML-escapes every value
+            // before applying its tiny markdown subset, so raw DB strings
+            // here cannot inject HTML on the page.
+            $reply = "{$emoji} **Order {$order['order_number']}**\n\n**Status:** " . ucfirst((string)$order['status']) . "\n**Total:** {$currency}" . number_format((float)$order['total'], 2) . "\n**Date:** " . date('M j, Y', strtotime($order['created_at'])) . $tracking;
+
+            Response::json(['reply' => $reply, 'actions' => [['label'=>'Track Another','value'=>'track order'],['label'=>'Refund Policy','value'=>'refund'],['label'=>'Main Menu','value'=>'menu']]]);
             return;
         }
 

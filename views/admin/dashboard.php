@@ -45,7 +45,7 @@ if ($showUpdate && $dismissedData) {
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <?php if (!empty($updateAvailable['download_url'])): ?>
-        <form method="POST" action="<?= $url('admin/update/apply') ?>" onsubmit="return confirm('This will backup your store and update to v<?= $e($updateAvailable['version']) ?>. Continue?')" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <form method="POST" action="<?= $url('admin/update/apply') ?>" id="wk-update-form" data-version="<?= $e($updateAvailable['version'] ?? '') ?>" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
             <?= \Core\Session::csrfField() ?>
             <input type="hidden" name="download_url" value="<?= $e($updateAvailable['download_url']) ?>">
             <input type="hidden" name="sha256" value="<?= $e($updateAvailable['sha256'] ?? '') ?>">
@@ -57,17 +57,41 @@ if ($showUpdate && $dismissedData) {
             <button type="submit" style="padding:10px 20px;background:linear-gradient(135deg,#8b5cf6,#ec4899);color:#fff;border:none;border-radius:10px;font-weight:800;font-size:13px;cursor:pointer">Update Now →</button>
         </form>
         <?php endif; ?>
-        <button onclick="dismissUpdate('<?= $e($updateAvailable['version'] ?? '') ?>', 24)" style="padding:10px 16px;background:rgba(255,255,255,.1);color:rgba(255,255,255,.6);border:none;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer">Remind Tomorrow</button>
-        <button onclick="dismissUpdate('<?= $e($updateAvailable['version'] ?? '') ?>', 168)" style="padding:10px 16px;background:rgba(255,255,255,.06);color:rgba(255,255,255,.4);border:none;border-radius:10px;font-weight:700;font-size:12px;cursor:pointer">Dismiss 7 days</button>
+        <button type="button" class="wk-dismiss-update" data-version="<?= $e($updateAvailable['version'] ?? '') ?>" data-hours="24" style="padding:10px 16px;background:rgba(255,255,255,.1);color:rgba(255,255,255,.6);border:none;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer">Remind Tomorrow</button>
+        <button type="button" class="wk-dismiss-update" data-version="<?= $e($updateAvailable['version'] ?? '') ?>" data-hours="168" style="padding:10px 16px;background:rgba(255,255,255,.06);color:rgba(255,255,255,.4);border:none;border-radius:10px;font-weight:700;font-size:12px;cursor:pointer">Dismiss 7 days</button>
     </div>
 </div>
 <script>
+const WK_DISMISS_URL = <?= json_encode($url('admin/update/dismiss')) ?>;
+const WK_CSRF_TOKEN  = <?= json_encode(\Core\Session::csrfToken()) ?>;
+
 function dismissUpdate(version, hours) {
-    fetch('<?= $url('admin/update/dismiss') ?>', {
+    fetch(WK_DISMISS_URL, {
         method:'POST',
-        headers:{'Content-Type':'application/x-www-form-urlencoded','X-CSRF-Token':'<?= \Core\Session::csrfToken() ?>'},
-        body:'version='+encodeURIComponent(version)+'&hours='+hours
+        headers:{'Content-Type':'application/x-www-form-urlencoded','X-CSRF-Token':WK_CSRF_TOKEN},
+        body:'version='+encodeURIComponent(version)+'&hours='+encodeURIComponent(hours)
     }).then(()=>document.getElementById('updateBanner').style.display='none');
+}
+
+// Bind dismiss buttons from data attributes — keeps the version string out of
+// the onclick attribute, which is a JS-execution context.
+document.querySelectorAll('.wk-dismiss-update').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        dismissUpdate(btn.dataset.version || '', parseInt(btn.dataset.hours, 10) || 24);
+    });
+});
+
+// Update form: the version goes into a confirm() prompt, which is harmless
+// when set via JS (textContent / string assignment), but was unsafe when
+// interpolated into an inline onsubmit attribute.
+const updateForm = document.getElementById('wk-update-form');
+if (updateForm) {
+    updateForm.addEventListener('submit', function(e) {
+        const v = updateForm.dataset.version || '';
+        if (!confirm('This will backup your store and update to v' + v + '. Continue?')) {
+            e.preventDefault();
+        }
+    });
 }
 </script>
 <?php endif; ?>

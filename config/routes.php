@@ -19,17 +19,20 @@ $router->get('/product/{slug}',      [ProductController::class, 'show']);
 $router->get('/category/{slug}',     [ProductController::class, 'category']);
 $router->get('/search',              [ProductController::class, 'search']);
 
-// Cart (AJAX)
+// Cart (AJAX) — L1: CSRF-gated on all state-changing endpoints.
+// 'show' stays GET (no middleware needed). Storefront JS sends the token
+// either as 'wk_csrf' in FormData (default path) or as X-CSRF-Token header.
 $router->get('/cart',                [CartController::class, 'show']);
-$router->post('/cart/add',           [CartController::class, 'add']);
-$router->post('/cart/update',        [CartController::class, 'update']);
-$router->post('/cart/remove',        [CartController::class, 'remove']);
-$router->post('/cart/coupon',        [CartController::class, 'applyCoupon']);
-$router->post('/cart/clear',         [CartController::class, 'clear']);
+$router->post('/cart/add',           [CartController::class, 'add'],          ['csrf']);
+$router->post('/cart/update',        [CartController::class, 'update'],       ['csrf']);
+$router->post('/cart/remove',        [CartController::class, 'remove'],       ['csrf']);
+$router->post('/cart/coupon',        [CartController::class, 'applyCoupon'],  ['csrf']);
+$router->post('/cart/clear',         [CartController::class, 'clear'],        ['csrf']);
 
 // Checkout
 $router->get('/checkout',            [CheckoutController::class, 'index']);
 $router->post('/checkout/process',   [CheckoutController::class, 'process'], ['csrf']);
+$router->post('/checkout/calculate', [CheckoutController::class, 'calculate']);
 $router->post('/checkout/verify-payment', [CheckoutController::class, 'verifyPayment']);
 $router->get('/order-success',       [CheckoutController::class, 'success']);
 
@@ -51,7 +54,7 @@ $router->get('/account/register',          [AccountController::class, 'showRegis
 $router->post('/account/register',         [AccountController::class, 'register'], ['csrf']);
 $router->get('/account/login',             [AccountController::class, 'showLogin']);
 $router->post('/account/login',            [AccountController::class, 'login'], ['csrf']);
-$router->get('/account/logout',            [AccountController::class, 'logout']);
+$router->post('/account/logout',           [AccountController::class, 'logout'], ['csrf']);
 $router->get('/account',                   [AccountController::class, 'dashboard']);
 $router->get('/account/profile',           [AccountController::class, 'profile']);
 $router->post('/account/profile',          [AccountController::class, 'updateProfile'], ['csrf']);
@@ -70,7 +73,7 @@ $router->post('/account/reset-password',   [AccountController::class, 'resetPass
 // ── Admin Auth ───────────────────────────────────
 $router->get('/admin/login',         [AuthController::class, 'showLogin']);
 $router->post('/admin/login',        [AuthController::class, 'login'], ['csrf']);
-$router->get('/admin/logout',        [AuthController::class, 'logout']);
+$router->post('/admin/logout',       [AuthController::class, 'logout'], ['csrf']);
 $router->get('/admin/forgot-password',  [AuthController::class, 'showForgotPassword']);
 $router->post('/admin/forgot-password', [AuthController::class, 'forgotPassword'], ['csrf']);
 $router->get('/admin/reset-password',   [AuthController::class, 'showResetPassword']);
@@ -118,6 +121,7 @@ $router->group(['prefix' => '/admin', 'middleware' => ['auth', 'csrf']], functio
     // Customers
     $r->get('/customers',                [CustomerController::class, 'index']);
     $r->get('/customers/{id}',          [CustomerController::class, 'show']);
+    $r->post('/customers/{id}/pseudonymize', [CustomerController::class, 'pseudonymize']);
 
     // Categories
     $r->get('/categories',               [CategoryController::class, 'index']);
@@ -173,6 +177,7 @@ $router->group(['prefix' => '/admin', 'middleware' => ['auth', 'csrf']], functio
     $r->get('/abandoned-carts/{id}',               [\App\Controllers\Admin\AbandonedCartController::class, 'show']);
     $r->post('/abandoned-carts/send-reminder/{id}', [\App\Controllers\Admin\AbandonedCartController::class, 'sendReminder']);
     $r->post('/abandoned-carts/mark-abandoned/{id}',[\App\Controllers\Admin\AbandonedCartController::class, 'markAbandoned']);
+    $r->post('/abandoned-carts/prune',              [\App\Controllers\Admin\AbandonedCartController::class, 'prune']);
 
     // Shipping Carriers
     $r->get('/shipping',                 [\App\Controllers\Admin\ShippingController::class, 'index']);

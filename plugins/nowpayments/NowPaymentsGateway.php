@@ -36,25 +36,38 @@ class NowPaymentsGateway extends \Core\BaseGateway
 
     public function webhook(\Core\Request $request): void
     {
+        // L6: rate-limit by source IP. See RazorpayGateway::webhook comment.
+        if (!\Core\RateLimiter::attempt('webhook_nowpayments', $request->ip(), 300, 300)) {
+            \Core\Response::json(['error' => 'Rate limited'], 429);
+            return;
+        }
+
         $rawBody = file_get_contents('php://input');
         $ipnSecret = $this->cfg('ipn_secret');
 
-        // Verify IPN signature if secret is configured
-        if (!empty($ipnSecret)) {
-            $receivedSig = $_SERVER['HTTP_X_NOWPAYMENTS_SIG'] ?? '';
-            if (!empty($receivedSig)) {
-                // NOWPayments signs sorted JSON
-                $payload = json_decode($rawBody, true) ?? [];
-                ksort($payload);
-                $expectedSig = hash_hmac('sha512', json_encode($payload, JSON_UNESCAPED_UNICODE), $ipnSecret);
-                if (!hash_equals($expectedSig, $receivedSig)) {
-                    \Core\Response::json(['error' => 'Invalid signature'], 403);
-                    return;
-                }
-            }
+        // Webhook signature verification is mandatory. Refuse to process if the
+        // secret is not configured — an unsigned endpoint would let any caller
+        // mark orders as paid.
+        if (empty($ipnSecret)) {
+            \Core\Response::json(['error' => 'Webhook not configured'], 503);
+            return;
         }
 
+        $receivedSig = $_SERVER['HTTP_X_NOWPAYMENTS_SIG'] ?? '';
+        if (empty($receivedSig)) {
+            \Core\Response::json(['error' => 'Missing signature'], 403);
+            return;
+        }
+
+        // NOWPayments signs the sorted JSON payload with HMAC-SHA512.
         $payload = json_decode($rawBody, true) ?? [];
+        ksort($payload);
+        $expectedSig = hash_hmac('sha512', json_encode($payload, JSON_UNESCAPED_UNICODE), $ipnSecret);
+        if (!hash_equals($expectedSig, $receivedSig)) {
+            \Core\Response::json(['error' => 'Invalid signature'], 403);
+            return;
+        }
+
         $result = $this->verifyPayment($payload);
         if ($result['success']) {
             $order = \Core\Database::fetch("SELECT id, total FROM wk_orders WHERE order_number=?", [$payload['order_id'] ?? '']);

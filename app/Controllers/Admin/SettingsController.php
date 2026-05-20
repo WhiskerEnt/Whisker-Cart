@@ -38,6 +38,11 @@ class SettingsController
                 }
             }
         }
+        // M10/M14: drop the request-scoped settings cache so any later call
+        // to Database::setting() in this request sees the new values. Without
+        // this, code that read a setting earlier in the request (e.g. via a
+        // shared service) would still see the pre-update value.
+        Database::clearSettingsCache();
 
         Session::flash('success','Settings saved!');
         Response::redirect(View::url('admin/settings'));
@@ -53,6 +58,24 @@ class SettingsController
 
         if (!$host) {
             Response::json(['success' => false, 'message' => 'SMTP host is required']);
+            return;
+        }
+
+        // Finding 19: even though this endpoint is admin-only, the parameters
+        // (host, port) are admin-controlled — and an SSRF here lets a
+        // compromised admin session probe internal services on the same
+        // network (RDS, Redis, internal admin panels, cloud metadata at
+        // 169.254.169.254, etc.) and read SMTP banners for fingerprinting.
+        // Restrict to (a) standard SMTP ports and (b) hosts that are not
+        // private/loopback/link-local. Public SMTP providers all sit on the
+        // standard ports so this doesn't break legitimate use.
+        $allowedPorts = [25, 465, 587, 2525];
+        if (!in_array($port, $allowedPorts, true)) {
+            Response::json(['success' => false, 'message' => 'Only standard SMTP ports allowed: ' . implode(', ', $allowedPorts)]);
+            return;
+        }
+        if (!self::isPublicSmtpHost($host)) {
+            Response::json(['success' => false, 'message' => 'Host is not a valid public SMTP endpoint. Loopback, private, link-local, and cloud-metadata addresses are blocked.']);
             return;
         }
 
@@ -114,14 +137,17 @@ class SettingsController
                 return;
             }
 
-            // Temporarily save SMTP settings for this test
-            foreach (['smtp_host' => $host, 'smtp_port' => $port, 'smtp_user' => $user, 'smtp_pass' => $pass] as $k => $v) {
-                Database::query("INSERT INTO wk_settings (setting_group,setting_key,setting_value) VALUES('email',?,?) ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value)", [$k, $v]);
-            }
-
+            // IMPORTANT: do NOT write the submitted SMTP credentials to
+            // wk_settings here. If the test fails (e.g. wrong password), the
+            // bad credentials would replace the working ones and break all
+            // outgoing email. The test runs against the credentials the admin
+            // typed; only the explicit "Save" form action persists them.
             $storeName = Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='site_name'") ?: 'Whisker Store';
-            $sent = \App\Services\EmailService::send($to, "Test Email from {$storeName}",
-                '<div style="text-align:center;padding:20px"><div style="font-size:48px;margin-bottom:12px">✅</div><h1 style="font-size:24px;font-weight:900;margin-bottom:8px">SMTP Works!</h1><p style="color:#6b7280;font-size:15px">This test email was sent from <strong>' . htmlspecialchars($storeName) . '</strong> using your SMTP settings.</p><div style="background:#faf8f6;border-radius:8px;padding:16px;margin-top:20px;font-size:13px;text-align:left"><strong>Host:</strong> ' . htmlspecialchars($host) . '<br><strong>Port:</strong> ' . $port . '<br><strong>User:</strong> ' . htmlspecialchars($user) . '<br><strong>Time:</strong> ' . date('M j, Y g:i:s A') . '</div></div>'
+            $sent = \App\Services\EmailService::sendWithSmtp(
+                $to,
+                "Test Email from {$storeName}",
+                '<div style="text-align:center;padding:20px"><div style="font-size:48px;margin-bottom:12px">✅</div><h1 style="font-size:24px;font-weight:900;margin-bottom:8px">SMTP Works!</h1><p style="color:#6b7280;font-size:15px">This test email was sent from <strong>' . htmlspecialchars($storeName) . '</strong> using your SMTP settings.</p><div style="background:#faf8f6;border-radius:8px;padding:16px;margin-top:20px;font-size:13px;text-align:left"><strong>Host:</strong> ' . htmlspecialchars($host) . '<br><strong>Port:</strong> ' . $port . '<br><strong>User:</strong> ' . htmlspecialchars($user) . '<br><strong>Time:</strong> ' . date('M j, Y g:i:s A') . '</div></div>',
+                ['host' => $host, 'port' => $port, 'user' => $user, 'pass' => $pass]
             );
 
             Response::json([
@@ -170,6 +196,21 @@ class SettingsController
 
         // Verify current password
         $adminId = Session::adminId();
+
+        // Finding 20: rate-limit current-password attempts. A stolen admin
+        // session cookie is the realistic attack here — if the attacker has
+        // the cookie, /admin/settings opens for them and they can try to
+        // change the password (which would lock the real admin out). Without
+        // a limit they can grind current_password offline-fast. 5 wrong
+        // attempts per admin per 15 minutes is the same window as login.
+        $rlKey = 'admin_pwchange_' . $adminId;
+        if (!\Core\RateLimiter::attempt($rlKey, (string)$adminId, 5, 900)) {
+            $wait = (int)ceil(\Core\RateLimiter::remainingSeconds($rlKey, (string)$adminId, 900) / 60);
+            Session::flash('error', "Too many password change attempts. Try again in {$wait} minute" . ($wait === 1 ? '' : 's') . '.');
+            Response::redirect(View::url('admin/settings'));
+            return;
+        }
+
         $admin = Database::fetch("SELECT password_hash FROM wk_admins WHERE id=?", [$adminId]);
         if (!$admin || !password_verify($currentPassword, $admin['password_hash'])) {
             Session::flash('error', 'Current password is incorrect.');
@@ -177,11 +218,62 @@ class SettingsController
             return;
         }
 
+        // Successful verify — reset the limiter so legitimate retries after
+        // a typo don't accumulate against future attempts.
+        \Core\RateLimiter::reset($rlKey, (string)$adminId);
+
         // Update password
         $newHash = password_hash($newPassword, PASSWORD_BCRYPT, ['cost' => 12]);
         Database::update('wk_admins', ['password_hash' => $newHash], 'id = ?', [$adminId]);
 
         Session::flash('success', 'Password changed successfully.');
         Response::redirect(View::url('admin/settings'));
+    }
+
+    /**
+     * Finding 19: returns true if $host is a public, non-special-use SMTP
+     * endpoint. Rejects loopback, RFC1918 private, link-local (including
+     * 169.254.169.254 cloud metadata), broadcast, and IPv6 equivalents.
+     * Hostnames are resolved to their IPv4 record and the IP checked too —
+     * a clever admin can't bypass with a public DNS name that resolves to
+     * 127.0.0.1.
+     */
+    private static function isPublicSmtpHost(string $host): bool
+    {
+        $host = strtolower(trim($host));
+        if ($host === '' || strlen($host) > 253) return false;
+
+        // Explicit rejects for hostname-form references to localhost.
+        $denyNames = ['localhost', 'localhost.localdomain', 'ip6-localhost', 'ip6-loopback'];
+        if (in_array($host, $denyNames, true)) return false;
+
+        // Resolve hostname → IPs. If it's already an IP, gethostbynamel returns it.
+        // We check ALL A records so an attacker can't pad with a public IP and a
+        // private one.
+        $ips = @gethostbynamel($host);
+        if (!$ips) {
+            // Could be IPv6-only; try DNS lookup for both.
+            $records = @dns_get_record($host, DNS_A | DNS_AAAA);
+            $ips = [];
+            foreach ($records ?: [] as $r) {
+                if (!empty($r['ip']))   $ips[] = $r['ip'];
+                if (!empty($r['ipv6'])) $ips[] = $r['ipv6'];
+            }
+        }
+        if (!$ips) return false; // unresolvable → reject
+
+        foreach ($ips as $ip) {
+            if (!filter_var(
+                $ip,
+                FILTER_VALIDATE_IP,
+                FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE
+            )) {
+                // The flags reject: private (10/8, 172.16/12, 192.168/16, fc00::/7),
+                // reserved (loopback, link-local, multicast, unspecified, broadcast,
+                // documentation, 169.254/16 incl. cloud metadata).
+                return false;
+            }
+        }
+        return true;
     }
 }

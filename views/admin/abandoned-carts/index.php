@@ -4,6 +4,13 @@ $price=fn($v)=>$currency.number_format((float)$v,2);
 ?>
 
 <!-- Stats -->
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:12px;flex-wrap:wrap">
+    <h1 style="font-size:24px;font-weight:900;margin:0">Abandoned Carts</h1>
+    <form method="POST" action="<?= $url('admin/abandoned-carts/prune') ?>" onsubmit="return confirm('Permanently delete carts that have been abandoned, converted, or merged for more than 90 days? This cannot be undone.')" style="margin:0">
+        <?= \Core\Session::csrfField() ?>
+        <button type="submit" class="wk-btn wk-btn-secondary wk-btn-sm" style="font-size:12px">🧹 Prune Old Carts (90d+)</button>
+    </form>
+</div>
 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px">
     <div class="wk-card" style="padding:20px;text-align:center">
         <div style="font-size:11px;font-weight:800;text-transform:uppercase;color:var(--wk-text-muted)">Abandoned Carts</div>

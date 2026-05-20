@@ -114,9 +114,19 @@ class UpdateService
      */
     public static function applyUpdate(string $downloadUrl, ?string $expectedHash = null, string $dbBackupMode = 'schema'): array
     {
-        // SECURITY: Only allow downloads from lohit.me
+        // Finding 26: enforce a dot boundary on the host suffix check.
+        // The old test `str_ends_with($host, 'lohit.me')` would happily
+        // accept an attacker-registered host like `evillohit.me` because
+        // it literally ends in the string `lohit.me`. The correct test
+        // is equality with `lohit.me` (the apex) OR a suffix preceded by
+        // a literal dot (a real subdomain). This is the same pattern
+        // browsers use for the eTLD+1 cookie scope check.
         $host = parse_url($downloadUrl, PHP_URL_HOST);
-        if (!$host || !str_ends_with($host, 'lohit.me')) {
+        $host = is_string($host) ? strtolower($host) : '';
+        $allowedApex = 'lohit.me';
+        $hostOk = $host !== ''
+            && ($host === $allowedApex || str_ends_with($host, '.' . $allowedApex));
+        if (!$hostOk) {
             return ['success' => false, 'message' => 'Updates can only be downloaded from lohit.me.'];
         }
 
@@ -147,15 +157,20 @@ class UpdateService
                 return ['success' => false, 'message' => 'Cannot create temp directory. Check storage/cache/ permissions.'];
             }
 
-            // Download ZIP
-            $ctx = stream_context_create([
-                'http' => ['timeout' => 60],
-                'ssl' => ['verify_peer' => true, 'verify_peer_name' => true],
-            ]);
-            $zipData = @file_get_contents($downloadUrl, false, $ctx);
-            if (!$zipData || strlen($zipData) < 100) {
+            // Download ZIP — M19/L5: cap downloaded bytes at 50MB and reject
+            // up-front if the server advertises a larger Content-Length. The
+            // previous file_get_contents path had no size guard at all, so
+            // a misconfigured (or hostile) update endpoint serving GBs of
+            // garbage would exhaust memory.
+            $maxBytes = 50 * 1024 * 1024;
+            $zipData = self::downloadWithCap($downloadUrl, $maxBytes);
+            if ($zipData === null) {
                 self::deleteDirectory($tempDir);
-                return ['success' => false, 'message' => 'Failed to download update. Check your server can reach api.lohit.me.'];
+                return ['success' => false, 'message' => 'Failed to download update. The server may be unreachable, timed out, or returning a file larger than 50MB.'];
+            }
+            if (strlen($zipData) < 100) {
+                self::deleteDirectory($tempDir);
+                return ['success' => false, 'message' => 'Downloaded update is too small to be valid.'];
             }
 
             // SECURITY: Verify SHA256 hash if provided
@@ -202,35 +217,25 @@ class UpdateService
                 $sourceDir = $tempDir . '/whisker';
             }
 
-            // Protected files — never overwritten during update
+            // Protected files — never overwritten during update.
+            //
+            // Note: app/version.php is INTENTIONALLY NOT in this list — it
+            // ships with each release as a single-line `<?php return 'X.Y.Z';`
+            // file and gets overwritten like any other code file. The
+            // previous design tried to maintain the version inside config.php
+            // and surgically rewrite it with preg_replace — fragile because
+            // any operator hand-edit (different quoting, added comment) would
+            // break the regex and pin the version forever. Industry standard
+            // is "build identity is a code fact"; config is for operator
+            // decisions.
             $protectedFiles = [
                 'config/config.php',
                 'config/database.php',
                 'storage/.installed',
             ];
 
-            // Copy files recursively, skipping protected files
+            // Copy files recursively, skipping protected files.
             self::copyDirectory($sourceDir, WK_ROOT, $protectedFiles);
-
-            // Update version string in config.php (the only change we make to protected config)
-            $configPath = WK_ROOT . '/config/config.php';
-            if (file_exists($configPath)) {
-                $configContent = file_get_contents($configPath);
-                // Read new version from the sample config
-                $sampleConfig = $sourceDir . '/config/config.sample.php';
-                if (file_exists($sampleConfig)) {
-                    $sampleContent = file_get_contents($sampleConfig);
-                    if (preg_match("/'version'\s*=>\s*'([^']+)'/", $sampleContent, $m)) {
-                        $newVersion = $m[1];
-                        $configContent = preg_replace(
-                            "/'version'\s*=>\s*'[^']+'/",
-                            "'version'     => '{$newVersion}'",
-                            $configContent
-                        );
-                        file_put_contents($configPath, $configContent, LOCK_EX);
-                    }
-                }
-            }
 
             // Cleanup
             @unlink($zipPath);
@@ -246,7 +251,30 @@ class UpdateService
                 );
             } catch (\Exception $e) {}
 
-            return ['success' => true, 'message' => 'Update applied successfully! A backup of v' . WK_VERSION . ' was saved. Refresh the page.'];
+            // M16: run pending migrations as PART of the update step. The
+            // previous flow deferred them to the next dashboard load, which
+            // meant the new code ran against the old schema in the gap —
+            // any new SQL touching an unmigrated column raised an exception
+            // that the controllers masked with try/catch and the operator
+            // never saw. Running here closes that gap; if migrations fail
+            // we still return success on the file copy (the operator can
+            // see the migration error in the dashboard banner) but at least
+            // we attempt them eagerly.
+            $migrationResult = ['ran' => 0, 'errors' => []];
+            try {
+                $migrationResult = \App\Services\MigrationService::runPending();
+            } catch (\Throwable $e) {
+                $migrationResult['errors'][] = 'Migration runner threw: ' . $e->getMessage();
+            }
+
+            $message = 'Update applied successfully! A backup of v' . WK_VERSION . ' was saved.';
+            if (!empty($migrationResult['errors'])) {
+                $message .= ' Migration warnings: ' . implode('; ', $migrationResult['errors']) . '. Reload the dashboard and they will retry.';
+            } elseif ($migrationResult['ran'] > 0) {
+                $message .= ' ' . $migrationResult['ran'] . ' migration(s) applied.';
+            }
+            $message .= ' Refresh the page.';
+            return ['success' => true, 'message' => $message];
         } catch (\Exception $e) {
             @unlink($zipPath);
             if (is_dir($tempDir)) self::deleteDirectory($tempDir);
@@ -280,7 +308,14 @@ class UpdateService
         }
 
         $version = defined('WK_VERSION') ? WK_VERSION : 'unknown';
-        $filename = 'backup_v' . $version . '_' . date('Ymd_His') . '.zip';
+        // L14: defense-in-depth — append a short random suffix so an
+        // attacker who somehow lists the backup directory can't trivially
+        // read the version from the filename and target known-version
+        // exploits. storage/cache is blocked at the web layer in the
+        // shipped .htaccess; this is a second line of defense if that
+        // config goes missing during deploy.
+        $rand = bin2hex(random_bytes(4));
+        $filename = 'backup_v' . $version . '_' . date('Ymd_His') . '_' . $rand . '.zip';
         $backupPath = $backupDir . '/' . $filename;
 
         $zip = new \ZipArchive();
@@ -626,5 +661,78 @@ class UpdateService
             }
         }
         @rmdir($dir);
+    }
+
+    /**
+     * Download a URL with a maximum byte cap, returning the bytes or null on
+     * any failure (network, timeout, oversized payload, non-2xx response).
+     *
+     * Prefers cURL because it gives us a hard `progressfunction` abort knob;
+     * falls back to a chunked stream read on hosts without curl.
+     * Used by applyUpdate for M19 (size guard) and L5 (better failure
+     * surface than file_get_contents's silent 60s timeout).
+     */
+    private static function downloadWithCap(string $url, int $maxBytes): ?string
+    {
+        if (function_exists('curl_init')) {
+            $ch = curl_init($url);
+            if (!$ch) return null;
+            $buffer = '';
+            $aborted = false;
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_MAXREDIRS      => 3,
+                CURLOPT_CONNECTTIMEOUT => 15,
+                CURLOPT_TIMEOUT        => 180,
+                CURLOPT_SSL_VERIFYPEER => true,
+                CURLOPT_SSL_VERIFYHOST => 2,
+                CURLOPT_NOPROGRESS     => false,
+                CURLOPT_PROGRESSFUNCTION => function ($ch, $expectedDl, $dl) use ($maxBytes, &$aborted) {
+                    // Reject up-front if the server advertises an oversized payload.
+                    if ($expectedDl > 0 && $expectedDl > $maxBytes) { $aborted = true; return 1; }
+                    if ($dl > $maxBytes) { $aborted = true; return 1; }
+                    return 0;
+                },
+                CURLOPT_WRITEFUNCTION => function ($ch, $chunk) use (&$buffer, $maxBytes, &$aborted) {
+                    $buffer .= $chunk;
+                    if (strlen($buffer) > $maxBytes) {
+                        $aborted = true;
+                        return 0; // signal cURL to stop
+                    }
+                    return strlen($chunk);
+                },
+            ]);
+            curl_exec($ch);
+            $status  = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $errno   = curl_errno($ch);
+            curl_close($ch);
+            if ($aborted) return null;
+            // Surface any cURL-level failure (timeout, DNS, SSL, etc.) as
+            // null so the caller can present a clean error message rather
+            // than treating a partial response as the full payload.
+            if ($errno !== 0) return null;
+            if ($status < 200 || $status >= 300) return null;
+            return $buffer !== '' ? $buffer : null;
+        }
+
+        // Fallback: chunked stream read. file_get_contents loads the entire
+        // response before returning, but fopen+fread lets us bail mid-stream
+        // once $maxBytes is exceeded.
+        $ctx = stream_context_create([
+            'http' => ['timeout' => 60, 'follow_location' => 1, 'max_redirects' => 3],
+            'ssl'  => ['verify_peer' => true, 'verify_peer_name' => true],
+        ]);
+        $fp = @fopen($url, 'rb', false, $ctx);
+        if (!$fp) return null;
+        $buffer = '';
+        while (!feof($fp)) {
+            $chunk = @fread($fp, 65536);
+            if ($chunk === false) { fclose($fp); return null; }
+            $buffer .= $chunk;
+            if (strlen($buffer) > $maxBytes) { fclose($fp); return null; }
+        }
+        fclose($fp);
+        return $buffer !== '' ? $buffer : null;
     }
 }

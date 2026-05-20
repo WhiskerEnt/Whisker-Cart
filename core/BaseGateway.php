@@ -48,56 +48,80 @@ abstract class BaseGateway implements PaymentGatewayInterface
     }
 
     /**
-     * Mark order as paid — with idempotency and status guard.
-     * Skips if order is already paid/shipped/delivered (prevents double-crediting).
-     * Optionally verifies the paid amount matches the order total.
+     * Mark order as paid — with idempotency and amount verification.
+     *
+     * Stock is reserved at order creation (CheckoutController::process) and
+     * released on cancellation/expiry. This method only transitions payment
+     * status and updates the transaction log — it does NOT touch stock.
+     *
+     * Safe to call multiple times; subsequent calls are no-ops once the order
+     * reaches a paid/shipped/delivered state.
      */
     public function markOrderPaid(int $orderId, string $paymentId, ?float $paidAmount = null): void
     {
-        // Idempotency: skip if already paid/processed
-        $order = Database::fetch("SELECT id, status, payment_status, total FROM wk_orders WHERE id=?", [$orderId]);
+        $order = Database::fetch(
+            "SELECT id, status, payment_status, total FROM wk_orders WHERE id=?",
+            [$orderId]
+        );
         if (!$order) return;
 
-        // Don't re-process orders that are already paid, shipped, or delivered
-        if (in_array($order['payment_status'], ['captured']) || in_array($order['status'], ['paid', 'shipped', 'delivered'])) {
-            return; // Already processed — idempotent skip
+        // Idempotency guard: skip if already paid/processed.
+        if ($order['payment_status'] === 'captured'
+            || in_array($order['status'], ['paid', 'shipped', 'delivered'], true)) {
+            return;
         }
 
-        // Amount verification: if gateway provides paid amount, verify it matches order total
+        // Amount verification: if the gateway provides the paid amount, it must
+        // match the order total within a 1-unit rounding tolerance.
         if ($paidAmount !== null) {
             $expectedAmount = (float)$order['total'];
-            // Allow 1 unit tolerance for rounding (e.g. ₹999.99 vs ₹1000.00)
             if (abs($paidAmount - $expectedAmount) > 1.00) {
-                // Amount mismatch — log but don't mark as paid
                 Database::query(
-                    "UPDATE wk_payment_transactions SET status='failed', gateway_response=JSON_SET(COALESCE(gateway_response,'{}'), '$.amount_mismatch', ?) WHERE order_id=? AND gateway_code=? ORDER BY id DESC LIMIT 1",
-                    [json_encode(['expected' => $expectedAmount, 'received' => $paidAmount]), $orderId, $this->code]
+                    "UPDATE wk_payment_transactions
+                        SET status='failed',
+                            gateway_response=JSON_SET(COALESCE(gateway_response,'{}'), '$.amount_mismatch', ?)
+                      WHERE order_id=? AND gateway_code=?
+                      ORDER BY id DESC LIMIT 1",
+                    [
+                        json_encode(['expected' => $expectedAmount, 'received' => $paidAmount]),
+                        $orderId,
+                        $this->code,
+                    ]
                 );
                 return;
             }
         }
 
-        Database::update('wk_orders', [
-            'payment_status' => 'captured', 'payment_id' => $paymentId,
-            'payment_gateway' => $this->code, 'status' => 'paid',
-        ], 'id=?', [$orderId]);
+        // Finding 5: previously this was a plain UPDATE that left a race
+        // window between the SELECT-based idempotency check and the write.
+        // Concurrent webhook + verify-callback could both reach this point
+        // and both run the UPDATE. End-state was the same (idempotent
+        // values), but the conditional UPDATE makes "only one writer wins"
+        // a property of the schema, not of timing luck.
+        $affected = Database::query(
+            "UPDATE wk_orders
+                SET payment_status  = 'captured',
+                    payment_id      = ?,
+                    payment_gateway = ?,
+                    status          = 'paid'
+              WHERE id = ?
+                AND payment_status != 'captured'
+                AND status NOT IN ('paid','shipped','delivered')",
+            [$paymentId, $this->code, $orderId]
+        )->rowCount();
 
-        // Update transaction record
+        if ($affected === 0) {
+            // Another writer already captured this order. Don't bump the
+            // transaction record either — the first winner did it.
+            return;
+        }
+
         Database::query(
-            "UPDATE wk_payment_transactions SET status='success', transaction_id=? WHERE order_id=? AND gateway_code=? AND status!='success' ORDER BY id DESC LIMIT 1",
+            "UPDATE wk_payment_transactions
+                SET status='success', transaction_id=?
+              WHERE order_id=? AND gateway_code=? AND status!='success'
+              ORDER BY id DESC LIMIT 1",
             [$paymentId, $orderId, $this->code]
         );
-
-        // Reduce stock atomically (only once due to idempotency guard above)
-        $items = Database::fetchAll("SELECT product_id, quantity FROM wk_order_items WHERE order_id=?", [$orderId]);
-        foreach ($items as $item) {
-            $affected = Database::query(
-                "UPDATE wk_products SET stock_quantity = stock_quantity - ? WHERE id = ? AND stock_quantity >= ?",
-                [$item['quantity'], $item['product_id'], $item['quantity']]
-            )->rowCount();
-            if ($affected === 0) {
-                Database::query("UPDATE wk_products SET stock_quantity = 0 WHERE id = ?", [$item['product_id']]);
-            }
-        }
     }
 }

@@ -5,7 +5,10 @@
             <h1 style="font-size:24px;font-weight:900">Hi, <?= $e($c['first_name']) ?>! 👋</h1>
             <p style="color:var(--wk-muted);font-size:14px"><?= $e($c['email']) ?></p>
         </div>
-        <a href="<?= $url('account/logout') ?>" style="font-size:13px;font-weight:700;color:var(--wk-muted)">Sign Out</a>
+        <form method="POST" action="<?= $url('account/logout') ?>" style="margin:0">
+            <?= \Core\Session::csrfField() ?>
+            <button type="submit" style="font-size:13px;font-weight:700;color:var(--wk-muted);background:none;border:none;cursor:pointer;font-family:inherit;padding:0">Sign Out</button>
+        </form>
     </div>
 
     <?php if (!empty($needsPassword) && $needsPassword): ?>

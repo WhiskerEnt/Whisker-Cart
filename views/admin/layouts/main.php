@@ -184,7 +184,10 @@ $currentPath = (new \Core\Request())->path();
                             <div style="font-size:11px;color:var(--wk-text-muted)"><?= htmlspecialchars($admin['email'] ?? '') ?></div>
                         </div>
                         <a href="<?= \Core\View::url('admin/settings') ?>" style="display:block;padding:10px 16px;font-size:13px;font-weight:700;color:var(--wk-text);text-decoration:none;border-bottom:1px solid var(--wk-border)">⚙️ Settings</a>
-                        <a href="<?= \Core\View::url('admin/logout') ?>" style="display:block;padding:10px 16px;font-size:13px;font-weight:700;color:var(--wk-red);text-decoration:none">Sign Out</a>
+                        <form method="POST" action="<?= \Core\View::url('admin/logout') ?>" style="margin:0">
+                            <?= \Core\Session::csrfField() ?>
+                            <button type="submit" style="display:block;width:100%;padding:10px 16px;font-size:13px;font-weight:700;color:var(--wk-red);text-decoration:none;background:none;border:none;text-align:left;cursor:pointer;font-family:inherit">Sign Out</button>
+                        </form>
                     </div>
                 </div>
                 <script>document.addEventListener('click',function(e){if(!document.getElementById('adminMenu').contains(e.target))document.getElementById('adminDrop').style.display='none'});</script>

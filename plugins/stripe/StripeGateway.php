@@ -36,47 +36,58 @@ class StripeGateway extends \Core\BaseGateway
 
     public function webhook(\Core\Request $request): void
     {
+        // L6: rate-limit by source IP. See RazorpayGateway::webhook comment.
+        if (!\Core\RateLimiter::attempt('webhook_stripe', $request->ip(), 300, 300)) {
+            \Core\Response::json(['error' => 'Rate limited'], 429);
+            return;
+        }
+
         $rawBody = file_get_contents('php://input');
         $webhookSecret = $this->cfg('webhook_secret');
 
-        // Verify Stripe webhook signature if secret is configured
-        if (!empty($webhookSecret)) {
-            $sigHeader = $_SERVER['HTTP_STRIPE_SIGNATURE'] ?? '';
-            $timestamp = '';
-            $signatures = [];
+        // Webhook signature verification is mandatory. Refuse to process if the
+        // secret is not configured — an unsigned endpoint would let any caller
+        // mark orders as paid.
+        if (empty($webhookSecret)) {
+            \Core\Response::json(['error' => 'Webhook not configured'], 503);
+            return;
+        }
 
-            // Parse Stripe signature header: t=timestamp,v1=signature
-            foreach (explode(',', $sigHeader) as $part) {
-                $pair = explode('=', trim($part), 2);
-                if (count($pair) === 2) {
-                    if ($pair[0] === 't') $timestamp = $pair[1];
-                    if ($pair[0] === 'v1') $signatures[] = $pair[1];
-                }
+        $sigHeader = $_SERVER['HTTP_STRIPE_SIGNATURE'] ?? '';
+        $timestamp = '';
+        $signatures = [];
+
+        // Parse Stripe signature header: t=timestamp,v1=signature
+        foreach (explode(',', $sigHeader) as $part) {
+            $pair = explode('=', trim($part), 2);
+            if (count($pair) === 2) {
+                if ($pair[0] === 't') $timestamp = $pair[1];
+                if ($pair[0] === 'v1') $signatures[] = $pair[1];
             }
+        }
 
-            if (empty($timestamp) || empty($signatures)) {
-                \Core\Response::json(['error' => 'Missing signature'], 403);
-                return;
-            }
+        if (empty($timestamp) || empty($signatures)) {
+            \Core\Response::json(['error' => 'Missing signature'], 403);
+            return;
+        }
 
-            // Reject if timestamp is older than 5 minutes (replay attack prevention)
-            if (abs(time() - (int)$timestamp) > 300) {
-                \Core\Response::json(['error' => 'Timestamp too old'], 403);
-                return;
-            }
+        // Reject if timestamp is older than 5 minutes (replay attack prevention)
+        if (abs(time() - (int)$timestamp) > 300) {
+            \Core\Response::json(['error' => 'Timestamp too old'], 403);
+            return;
+        }
 
-            $signedPayload = $timestamp . '.' . $rawBody;
-            $expectedSig = hash_hmac('sha256', $signedPayload, $webhookSecret);
+        $signedPayload = $timestamp . '.' . $rawBody;
+        $expectedSig = hash_hmac('sha256', $signedPayload, $webhookSecret);
 
-            $verified = false;
-            foreach ($signatures as $sig) {
-                if (hash_equals($expectedSig, $sig)) { $verified = true; break; }
-            }
+        $verified = false;
+        foreach ($signatures as $sig) {
+            if (hash_equals($expectedSig, $sig)) { $verified = true; break; }
+        }
 
-            if (!$verified) {
-                \Core\Response::json(['error' => 'Invalid signature'], 403);
-                return;
-            }
+        if (!$verified) {
+            \Core\Response::json(['error' => 'Invalid signature'], 403);
+            return;
         }
 
         $payload = json_decode($rawBody, true) ?? [];

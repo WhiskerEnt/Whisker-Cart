@@ -166,7 +166,7 @@
                     <div class="alert alert-success" style="margin-bottom:12px">✓ .htaccess was created automatically!</div>
                     <?php unset($_SESSION['wk_htaccess_created']); ?>
                 <?php endif; ?>
-                <form method="POST" action="?step=1"><button type="submit" class="btn btn-primary btn-block">Everything looks great — Continue →</button></form>
+                <form method="POST" action="?step=1"><input type="hidden" name="_install_csrf" value="<?= htmlspecialchars($csrfToken) ?>"><button type="submit" class="btn btn-primary btn-block">Everything looks great — Continue →</button></form>
             <?php else: ?>
                 <div class="alert alert-error">Some requirements aren't met. Fix them and refresh.</div>
             <?php endif; ?>
@@ -177,6 +177,7 @@
             <div class="step-desc">Enter your MySQL credentials. We'll create the tables automatically.</div>
             <div id="dbTestResult"></div>
             <form method="POST" action="?step=2" id="dbForm">
+                <input type="hidden" name="_install_csrf" id="install_csrf" value="<?= htmlspecialchars($csrfToken) ?>">
                 <div class="field-row">
                     <div class="field"><label>Host</label><input type="text" name="db_host" id="db_host" value="<?= htmlspecialchars($_POST['db_host'] ?? 'localhost') ?>"></div>
                     <div class="field"><label>Port</label><input type="number" name="db_port" id="db_port" value="<?= htmlspecialchars($_POST['db_port'] ?? '3306') ?>"></div>
@@ -198,6 +199,7 @@
             <div class="step-title">Your Store</div>
             <div class="step-desc">Give your store a name and tell us where it's installed.</div>
             <form method="POST" action="?step=3">
+                <input type="hidden" name="_install_csrf" value="<?= htmlspecialchars($csrfToken) ?>">
                 <div class="field"><label>Store Name</label><input type="text" name="store_name" required placeholder="My Awesome Store" autofocus value="<?= htmlspecialchars($_POST['store_name'] ?? '') ?>"></div>
                 <div class="field"><label>Tagline <span style="font-weight:500;text-transform:none;letter-spacing:0">(optional)</span></label><input type="text" name="store_tagline" placeholder="Shop the things you love" value="<?= htmlspecialchars($_POST['store_tagline'] ?? '') ?>"></div>
                 <div class="field">
@@ -227,6 +229,7 @@
             <div class="step-title">Create Admin Account</div>
             <div class="step-desc">This will be your login to manage everything.</div>
             <form method="POST" action="?step=4" id="adminForm">
+                <input type="hidden" name="_install_csrf" value="<?= htmlspecialchars($csrfToken) ?>">
                 <div class="field"><label>Username</label><input type="text" name="admin_user" required placeholder="admin" autofocus></div>
                 <div class="field"><label>Email</label><input type="email" name="admin_email" required placeholder="you@example.com"></div>
                 <div class="field">
@@ -254,6 +257,7 @@
             <div class="step-title">Payment Gateway</div>
             <div class="step-desc">Set up a payment gateway now, or skip and do it later from admin.</div>
             <form method="POST" action="?step=5">
+                <input type="hidden" name="_install_csrf" value="<?= htmlspecialchars($csrfToken) ?>">
                 <label class="gw-option" onclick="selectGw(this, '')" id="gw-skip">
                     <input type="radio" name="gateway" value="" checked>
                     <div><div style="font-weight:800">⏭ Skip for now</div><div style="font-size:12px;color:var(--muted)">Set up later in Admin → Payment Gateways</div></div>
@@ -330,6 +334,7 @@ async function testDB() {
 
     const form = new FormData();
     form.append('_ajax_action', 'test_db');
+    form.append('_install_csrf', document.getElementById('install_csrf').value);
     form.append('db_host', document.getElementById('db_host').value);
     form.append('db_port', document.getElementById('db_port').value);
     form.append('db_name', document.getElementById('db_name').value);

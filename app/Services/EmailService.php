@@ -26,6 +26,42 @@ class EmailService
     }
 
     /**
+     * Send an email using explicit SMTP credentials, without reading from or
+     * writing to the wk_settings table. Used by the admin SMTP test flow so
+     * that a failed test (e.g. wrong password typed) does NOT poison the live
+     * email configuration.
+     *
+     * @param array $smtpConfig Required keys: host, port, user, pass.
+     *                          Optional: from_email, from_name (defaults to
+     *                          the values in wk_settings).
+     */
+    public static function sendWithSmtp(string $to, string $subject, string $htmlBody, array $smtpConfig): bool
+    {
+        $host = (string)($smtpConfig['host'] ?? '');
+        if ($host === '') return false;
+        $port = (int)($smtpConfig['port'] ?? 587);
+        $user = (string)($smtpConfig['user'] ?? '');
+        $pass = (string)($smtpConfig['pass'] ?? '');
+
+        $fromEmail = isset($smtpConfig['from_email']) && $smtpConfig['from_email'] !== ''
+            ? (string)$smtpConfig['from_email']
+            : (Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='email' AND setting_key='from_email'") ?: 'noreply@example.com');
+        $fromName  = isset($smtpConfig['from_name']) && $smtpConfig['from_name'] !== ''
+            ? (string)$smtpConfig['from_name']
+            : (Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='email' AND setting_key='from_name'") ?: 'Whisker Store');
+
+        // Header-injection guard — same rules as send()
+        $strip = static fn($s) => str_replace(["\r", "\n", "%0a", "%0d"], '', (string)$s);
+        $fromEmail = $strip($fromEmail);
+        $fromName  = $strip($fromName);
+        $to        = $strip($to);
+        $subject   = $strip($subject);
+
+        $html = self::wrapTemplate($htmlBody);
+        return self::sendSmtpRaw($to, $subject, $html, $fromEmail, $fromName, $host, $port, $user, $pass);
+    }
+
+    /**
      * Send raw email
      */
     public static function send(string $to, string $subject, string $htmlBody, ?string $replyTo = null): bool
@@ -173,8 +209,14 @@ class EmailService
         $storeName = self::storeName();
         $logoUrl = Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='logo_url'");
 
-        $logoHtml = $logoUrl
-            ? '<img src="' . htmlspecialchars($logoUrl) . '" style="max-height:48px;max-width:200px" alt="' . htmlspecialchars($storeName) . '">'
+        // Validate the logo URL scheme. javascript: in <img src> won't
+        // execute in modern browsers but webmail clients vary; safer to
+        // reject anything that isn't http/https or a relative path.
+        $safeLogoUrl = $logoUrl && \App\Services\HtmlSanitizer::isSafeUrl((string)$logoUrl, true)
+            ? (string)$logoUrl
+            : '';
+        $logoHtml = $safeLogoUrl
+            ? '<img src="' . htmlspecialchars($safeLogoUrl) . '" style="max-height:48px;max-width:200px" alt="' . htmlspecialchars($storeName) . '">'
             : '<span style="font-size:22px;font-weight:900;background:linear-gradient(135deg,#8b5cf6,#ec4899);-webkit-background-clip:text;-webkit-text-fill-color:transparent">🐱 ' . htmlspecialchars($storeName) . '</span>';
 
         return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -191,7 +233,35 @@ class EmailService
 
     private static function replaceVars(string $text, array $vars): string
     {
-        return str_replace(array_keys($vars), array_values($vars), $text);
+        // Email templates are HTML. Variable values from DB (customer name,
+        // ticket subject, order number, etc.) are plain text that could
+        // contain "<" or "&" — these MUST be HTML-escaped before being
+        // interpolated into the body, or a name like
+        //   Bob <script>alert(1)</script>
+        // becomes executable when the recipient opens the email in a webmail
+        // client that renders HTML.
+        //
+        // A small set of variables legitimately carry pre-built HTML and must
+        // remain unescaped: logo (an <img> tag), order_items_html, the
+        // address blocks, and reply_message (already escaped + nl2br'd by the
+        // caller). Variables ending in "_html" follow the same convention for
+        // future additions.
+        $rawHtmlNames = [
+            '{{logo}}',
+            '{{order_items_html}}',
+            '{{shipping_address}}',
+            '{{billing_address}}',
+            '{{reply_message}}',
+        ];
+        $escaped = [];
+        foreach ($vars as $key => $value) {
+            $isRawHtml = in_array($key, $rawHtmlNames, true)
+                || (is_string($key) && str_ends_with($key, '_html}}'));
+            $escaped[$key] = $isRawHtml
+                ? (string)$value
+                : htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
+        }
+        return str_replace(array_keys($escaped), array_values($escaped), $text);
     }
 
     private static function storeName(): string
@@ -217,6 +287,25 @@ class EmailService
         $user = Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='email' AND setting_key='smtp_user'");
         $pass = Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='email' AND setting_key='smtp_pass'");
         if (!$host || !$user) return false;
+        return self::sendSmtpRaw($to, $subject, $html, $fromEmail, $fromName, (string)$host, $port, (string)$user, (string)$pass);
+    }
+
+    /**
+     * Low-level SMTP send with explicit credentials. Used by both the live
+     * sender (sendSmtp() reads from DB) and the test flow (sendWithSmtp()
+     * receives credentials directly without touching DB).
+     */
+    private static function sendSmtpRaw(
+        string $to,
+        string $subject,
+        string $html,
+        string $fromEmail,
+        string $fromName,
+        string $host,
+        int    $port,
+        string $user,
+        string $pass
+    ): bool {
         try {
             $ctx = stream_context_create(['ssl' => ['verify_peer' => false, 'verify_peer_name' => false]]);
             $conn = stream_socket_client("tcp://{$host}:{$port}", $errno, $errstr, 10, STREAM_CLIENT_CONNECT, $ctx);

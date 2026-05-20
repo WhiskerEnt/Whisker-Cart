@@ -37,7 +37,12 @@
                     <td><span class="wk-badge <?= $c['is_active']?'wk-badge-success':'wk-badge-danger' ?>"><?= $c['is_active']?'Active':'Inactive' ?></span></td>
                     <td>
                         <div style="display:flex;gap:6px">
-                            <button type="button" class="wk-btn wk-btn-secondary wk-btn-sm" onclick="editCarrier(<?= $c['id'] ?>,'<?= $e($c['name']) ?>','<?= $e($c['code']??'') ?>','<?= $e($c['tracking_url_template']??'') ?>',<?= $c['is_active'] ?>)">Edit</button>
+                            <button type="button" class="wk-btn wk-btn-secondary wk-btn-sm wk-edit-carrier"
+                                    data-id="<?= (int)$c['id'] ?>"
+                                    data-name="<?= $e($c['name']) ?>"
+                                    data-code="<?= $e($c['code'] ?? '') ?>"
+                                    data-tracking-url="<?= $e($c['tracking_url_template'] ?? '') ?>"
+                                    data-active="<?= $c['is_active'] ? '1' : '0' ?>">Edit</button>
                             <form method="POST" action="<?= $url('admin/shipping/delete/'.$c['id']) ?>" onsubmit="return confirm('Delete this carrier?')">
                                 <?= \Core\Session::csrfField() ?>
                                 <button type="submit" class="wk-btn wk-btn-danger wk-btn-sm">Delete</button>
@@ -73,14 +78,31 @@
 </div>
 
 <script>
-function editCarrier(id, name, code, url, active) {
-    document.getElementById('editForm').action = '<?= $url('admin/shipping/update/') ?>'+id;
+const WK_UPDATE_URL = <?= json_encode($url('admin/shipping/update/')) ?>;
+function editCarrier(id, name, code, trackingUrl, active) {
+    document.getElementById('editForm').action = WK_UPDATE_URL + id;
     document.getElementById('editName').value = name;
     document.getElementById('editCode').value = code;
-    document.getElementById('editUrl').value = url;
+    document.getElementById('editUrl').value = trackingUrl;
     document.getElementById('editActive').checked = !!active;
     document.getElementById('editModal').style.display = 'flex';
 }
 function closeEdit() { document.getElementById('editModal').style.display = 'none'; }
+
+// Bind edit buttons from data-* attributes. HTML attributes are HTML-context,
+// not JS-context, so a malicious carrier name cannot break out the way an
+// inline onclick="editCarrier('NAME',...)" would.
+document.querySelectorAll('.wk-edit-carrier').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        editCarrier(
+            parseInt(btn.dataset.id, 10),
+            btn.dataset.name || '',
+            btn.dataset.code || '',
+            btn.dataset.trackingUrl || '',
+            btn.dataset.active === '1'
+        );
+    });
+});
+
 document.getElementById('editModal').addEventListener('click', function(e) { if (e.target === this) closeEdit(); });
 </script>

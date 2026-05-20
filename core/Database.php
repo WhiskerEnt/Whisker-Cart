@@ -103,6 +103,53 @@ class Database
         self::connect()->exec($sql);
     }
 
+    // ── Transactions ────────────────────────────
+    // Thin wrappers over PDO. begin() returns false if a transaction is
+    // already active (PDO doesn't support nested transactions on MySQL
+    // without savepoints), so callers can decide whether to bail or join.
+
+    public static function beginTransaction(): bool
+    {
+        $pdo = self::connect();
+        if ($pdo->inTransaction()) return false;
+        return $pdo->beginTransaction();
+    }
+
+    public static function commit(): bool
+    {
+        $pdo = self::connect();
+        if (!$pdo->inTransaction()) return false;
+        return $pdo->commit();
+    }
+
+    public static function rollBack(): bool
+    {
+        $pdo = self::connect();
+        if (!$pdo->inTransaction()) return false;
+        return $pdo->rollBack();
+    }
+
+    /**
+     * Run a callable inside a transaction. Commits on success, rolls back on
+     * any exception (which is re-thrown). Returns the callable's return value.
+     *
+     * Safe to use even if a transaction is already active — in that case the
+     * callable just runs without an extra BEGIN/COMMIT pair (the outermost
+     * caller owns the transaction).
+     */
+    public static function transaction(callable $fn)
+    {
+        $owned = self::beginTransaction();
+        try {
+            $result = $fn();
+            if ($owned) self::commit();
+            return $result;
+        } catch (\Throwable $e) {
+            if ($owned) self::rollBack();
+            throw $e;
+        }
+    }
+
     // ── Settings Cache ──────────────────────────
     // Loads all settings once per request, avoids 10+ DB queries per page
 

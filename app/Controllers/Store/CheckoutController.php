@@ -26,8 +26,12 @@ class CheckoutController
         $cart = $this->getCartData();
         $gateways = Database::fetchAll("SELECT gateway_code,display_name,description FROM wk_payment_gateways WHERE is_active=1 ORDER BY sort_order");
         $currency = Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='currency_symbol'") ?: '₹';
-        $taxRate = (float)(Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='checkout' AND setting_key='tax_rate'") ?: 18);
-        $shipping = self::calculateShipping($cart);
+
+        // Tax depends on the customer's address — at this point we don't know
+        // it yet. Compute the rest of the totals with tax=0 and tax_known=false;
+        // the view shows "Calculated at checkout" until the customer fills in
+        // their country/state and the JS recomputes via /checkout/calculate.
+        $totals = self::computeTotals($cart, null, Session::get('wk_coupon'));
 
         // Get saved addresses and customer info for logged-in users
         $customer = null;
@@ -40,10 +44,12 @@ class CheckoutController
         }
 
         View::render('store/checkout', [
-            'cart'=>$cart, 'gateways'=>$gateways, 'currency'=>$currency,
-            'taxRate'=>$taxRate, 'shipping'=>$shipping,
-            'baseCurrency' => Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='currency'") ?: 'INR',
-            'customer' => $customer,
+            'cart'           => $cart,
+            'gateways'       => $gateways,
+            'currency'       => $currency,
+            'totals'         => $totals,
+            'baseCurrency'   => Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='currency'") ?: 'INR',
+            'customer'       => $customer,
             'savedAddresses' => $savedAddresses,
         ], 'store/layouts/main');
     }
@@ -62,42 +68,59 @@ class CheckoutController
             return;
         }
 
-        // Capture email on cart for abandoned cart tracking
-        $email = $request->input('email');
-        if ($email) {
+        // Capture email on cart for abandoned cart tracking. Finding 8:
+        // previously the email was written raw to wk_carts here, but
+        // htmlspecialchars'd into wk_customers below and Request::clean'd
+        // into wk_orders later — three different representations of the
+        // same address across tables. Validate once and use the validated
+        // form everywhere.
+        $emailRaw = trim((string)$request->input('email'));
+        $email = ($emailRaw !== '' && filter_var($emailRaw, FILTER_VALIDATE_EMAIL))
+            ? strtolower($emailRaw)
+            : '';
+        if ($email !== '') {
             try {
                 $sid = Session::cartId();
                 Database::query("UPDATE wk_carts SET email=? WHERE session_id=? AND status='active'", [$email, $sid]);
             } catch (\Exception $e) {}
         }
 
-        $taxRate = (float)(Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='checkout' AND setting_key='tax_rate'") ?: 18);
-        $shipping = self::calculateShipping($cart);
-
-        // Use TaxService for smart tax calculation based on customer address
         $custAddress = [
             'country' => $request->clean('country') ?? '',
             'state'   => $request->clean('state') ?? '',
         ];
-        $taxResult = \App\Services\TaxService::calculate($cart['subtotal'], $custAddress);
-        $tax = $taxResult['amount'];
-        $total = $cart['subtotal'] + $tax + $shipping;
+        // Authoritative totals computed server-side. The session coupon is
+        // re-validated against the DB inside computeTotals(), so a stale
+        // session cannot grant a discount on an expired coupon.
+        $totals = self::computeTotals($cart, $custAddress, Session::get('wk_coupon'));
+        $tax        = $totals['tax'];
+        $shipping   = $totals['shipping'];
+        $discount   = $totals['discount'];
+        $total      = $totals['total'];
 
         // Auto-create or find customer by email
         $customerId = Session::customerId();
-        $email = trim($request->input('email') ?? '');
-        if (!$customerId && $email) {
+        if (!$customerId && $email !== '') {
             $existing = Database::fetch("SELECT id FROM wk_customers WHERE email=?", [$email]);
             if ($existing) {
                 $customerId = $existing['id'];
                 // Do NOT call Session::setCustomer() — guest cannot hijack existing account
             } else {
+                // M9: a guest-checkout customer should not have a real
+                // password they don't know about. Storing a random bcrypt
+                // hash made the column "valid" but unreachable; the customer
+                // had no way to learn they even had an account. Instead we
+                // store the shadow-file sentinel '*', which password_verify
+                // always rejects (deterministic, no entropy waste). When the
+                // customer later wants to log in, they go through the normal
+                // "forgot password" flow which overwrites the sentinel with
+                // a real bcrypt hash. The DB column stays NOT NULL.
                 $customerId = Database::insert('wk_customers', [
                     'first_name'    => $request->clean('first_name') ?? '',
                     'last_name'     => $request->clean('last_name') ?? '',
-                    'email'         => htmlspecialchars($email, ENT_QUOTES, 'UTF-8'),
+                    'email'         => $email, // Finding 8: validated lowercase, raw — escape at output, not at storage
                     'phone'         => $request->clean('phone') ?? '',
-                    'password_hash' => password_hash(bin2hex(random_bytes(16)), PASSWORD_BCRYPT),
+                    'password_hash' => '*',
                     'is_active'     => 1,
                 ]);
                 // Only auto-login newly created guest accounts
@@ -106,65 +129,116 @@ class CheckoutController
         }
 
         $orderNumber = 'WK-' . strtoupper(date('ymd')) . '-' . strtoupper(bin2hex(random_bytes(6)));
-        $orderId = Database::insert('wk_orders', [
-            'order_number'=>$orderNumber, 'customer_id'=>$customerId,
-            'status'=>'pending', 'subtotal'=>$cart['subtotal'],
-            'tax_amount'=>$tax, 'shipping_amount'=>$shipping, 'total'=>$total,
-            'currency'=>Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='currency'") ?: 'INR',
-            'payment_gateway'=>$request->clean('payment_gateway'),
-            'customer_email'=>$request->clean('email'),
-            'customer_phone'=>$request->clean('phone'),
-            'tax_details'=>json_encode($taxResult['breakdown'] ?? []),
-            'shipping_address'=>json_encode([
-                'name'=>$request->clean('first_name').' '.$request->clean('last_name'),
-                'line1'=>$request->clean('address1'), 'city'=>$request->clean('city'),
-                'state'=>$request->clean('state'), 'zip'=>$request->clean('zip'),
-                'country'=>$request->clean('country'),
-            ]),
-            'billing_address'=>json_encode(
-                $request->input('billing_address1')
-                ? [
-                    'name'=>$request->clean('first_name').' '.$request->clean('last_name'),
-                    'line1'=>$request->clean('billing_address1'), 'city'=>$request->clean('billing_city'),
-                    'state'=>$request->clean('billing_state'), 'zip'=>$request->clean('billing_zip'),
-                    'country'=>$request->clean('billing_country'),
-                ]
-                : [
-                    'name'=>$request->clean('first_name').' '.$request->clean('last_name'),
-                    'line1'=>$request->clean('address1'), 'city'=>$request->clean('city'),
-                    'state'=>$request->clean('state'), 'zip'=>$request->clean('zip'),
-                    'country'=>$request->clean('country'),
-                ]
-            ),
-            'ip_address'=>$request->ip(),
-        ]);
 
-        foreach ($cart['items'] as $item) {
-            $orderItemData = [
-                'order_id'=>$orderId, 'product_id'=>$item['product_id'],
-                'product_name'=>$item['name'], 'product_sku'=>'',
-                'quantity'=>$item['quantity'], 'unit_price'=>$item['unit_price'],
-                'total_price'=>$item['unit_price'] * $item['quantity'],
-            ];
+        // ── Atomic order-creation + stock reservation ──
+        // Wrapping order/items insert AND stock deduction in one transaction
+        // closes the M5 race: if two customers race for the last unit, the
+        // first writer wins the conditional UPDATE (row affected) and the
+        // second sees 0 rows affected → we throw → rollback → no order at
+        // all, no stock left in an inconsistent state.
+        //
+        // Gateway init is deliberately kept OUTSIDE the transaction so we
+        // never hold InnoDB row locks across a network call (which can take
+        // seconds and would block every other checkout).
+        $orderId = null;
+        $stockError = null;
+        try {
+            Database::transaction(function () use (
+                $cart, $orderNumber, $customerId, $tax, $shipping, $discount, $total,
+                $totals, $request, &$orderId
+            ) {
+                $orderId = Database::insert('wk_orders', [
+                    'order_number'=>$orderNumber, 'customer_id'=>$customerId,
+                    'status'=>'pending', 'subtotal'=>$cart['subtotal'],
+                    'tax_amount'=>$tax, 'shipping_amount'=>$shipping,
+                    'discount_amount'=>$discount, 'total'=>$total,
+                    'currency'=>Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='currency'") ?: 'INR',
+                    'payment_gateway'=>$request->clean('payment_gateway'),
+                    'customer_email'=>$email, // Finding 8: validated lowercase form
+                    'customer_phone'=>$request->clean('phone'),
+                    'tax_details'=>json_encode($totals['tax_breakdown'] ?? []),
+                    'shipping_address'=>json_encode([
+                        'name'=>$request->clean('first_name').' '.$request->clean('last_name'),
+                        'line1'=>$request->clean('address1'), 'city'=>$request->clean('city'),
+                        'state'=>$request->clean('state'), 'zip'=>$request->clean('zip'),
+                        'country'=>$request->clean('country'),
+                    ]),
+                    'billing_address'=>json_encode(
+                        $request->input('billing_address1')
+                        ? [
+                            'name'=>$request->clean('first_name').' '.$request->clean('last_name'),
+                            'line1'=>$request->clean('billing_address1'), 'city'=>$request->clean('billing_city'),
+                            'state'=>$request->clean('billing_state'), 'zip'=>$request->clean('billing_zip'),
+                            'country'=>$request->clean('billing_country'),
+                        ]
+                        : [
+                            'name'=>$request->clean('first_name').' '.$request->clean('last_name'),
+                            'line1'=>$request->clean('address1'), 'city'=>$request->clean('city'),
+                            'state'=>$request->clean('state'), 'zip'=>$request->clean('zip'),
+                            'country'=>$request->clean('country'),
+                        ]
+                    ),
+                    'ip_address'=>$request->ip(),
+                ]);
 
-            // Add variant info if present
-            $comboId = $item['variant_combo_id'] ?? null;
-            try {
-                if ($comboId) {
-                    $orderItemData['variant_combo_id'] = $comboId;
-                    $orderItemData['variant_label'] = $item['variant_label'] ?? '';
+                foreach ($cart['items'] as $item) {
+                    $orderItemData = [
+                        'order_id'=>$orderId, 'product_id'=>$item['product_id'],
+                        'product_name'=>$item['name'], 'product_sku'=>'',
+                        'quantity'=>$item['quantity'], 'unit_price'=>$item['unit_price'],
+                        'total_price'=>$item['unit_price'] * $item['quantity'],
+                    ];
+                    $comboId = $item['variant_combo_id'] ?? null;
+                    try {
+                        if ($comboId) {
+                            $orderItemData['variant_combo_id'] = $comboId;
+                            $orderItemData['variant_label'] = $item['variant_label'] ?? '';
+                        }
+                    } catch (\Exception $e) {}
+                    Database::insert('wk_order_items', $orderItemData);
+
+                    // Atomic stock deduction. The conditional WHERE guarantees
+                    // that only one of two concurrent orders can reserve the
+                    // last units; the loser gets rowCount() === 0 and we
+                    // abort by throwing, which rolls back the whole order.
+                    if ($comboId) {
+                        $affected = Database::query(
+                            "UPDATE wk_variant_combos SET stock_quantity = stock_quantity - ? WHERE id = ? AND stock_quantity >= ?",
+                            [$item['quantity'], $comboId, $item['quantity']]
+                        )->rowCount();
+                        if ($affected === 0) {
+                            throw new \RuntimeException('Out of stock: ' . ($item['name'] ?? 'item') . ' (variant)');
+                        }
+                    }
+                    $affected = Database::query(
+                        "UPDATE wk_products SET stock_quantity = stock_quantity - ? WHERE id = ? AND stock_quantity >= ?",
+                        [$item['quantity'], $item['product_id'], $item['quantity']]
+                    )->rowCount();
+                    if ($affected === 0) {
+                        throw new \RuntimeException('Out of stock: ' . ($item['name'] ?? 'item'));
+                    }
                 }
-            } catch (\Exception $e) {}
+            });
+        } catch (\RuntimeException $e) {
+            $stockError = $e->getMessage();
+        } catch (\Throwable $e) {
+            // Unexpected DB failure — log and treat as generic checkout failure.
+            $stockError = 'Could not place order. Please try again.';
+        }
 
-            Database::insert('wk_order_items', $orderItemData);
+        if ($stockError) {
+            Session::flash('error', $stockError);
+            Response::redirect(View::url('checkout'));
+            return;
         }
 
         $orderData = Database::fetch("SELECT * FROM wk_orders WHERE id=?", [$orderId]);
         $orderItems = Database::fetchAll("SELECT * FROM wk_order_items WHERE order_id=?", [$orderId]);
 
         // ── Initiate Payment Gateway ──
-        // Must happen BEFORE stock deduction and cart conversion.
-        // If gateway fails, we delete the order and send customer back.
+        // Order and stock are already reserved. If gateway init fails, the
+        // order is marked payment_failed and the 15-minute expiry job in
+        // index() will restore the stock.
         $gatewayCode = $request->clean('payment_gateway');
         $payResult = null;
 
@@ -184,6 +258,12 @@ class CheckoutController
                     if (!$hasRedirect || !empty($payResult['error'])) {
                         throw new \Exception('Gateway returned no payment URL');
                     }
+                    // Note: each gateway plugin already calls logTransaction()
+                    // during createOrder(), writing the gateway_order_id to
+                    // wk_payment_transactions. That table is the source of
+                    // truth verifyPayment() consults to confirm a client-
+                    // submitted gateway_order_id genuinely belongs to the
+                    // order (M11 — no extra column on wk_orders needed).
                 } else {
                     throw new \Exception('Gateway not found: ' . $gatewayCode);
                 }
@@ -200,33 +280,46 @@ class CheckoutController
             }
         }
 
-        // ── Stock deduction (only after gateway is confirmed) ──
-        foreach ($cart['items'] as $item) {
-            $comboId = $item['variant_combo_id'] ?? null;
-            if ($comboId) {
+        // Increment coupon usage — atomic. Finding 4: previously this was a
+        // plain `UPDATE ... SET used_count = used_count + 1` that could push
+        // used_count past usage_limit under concurrent checkouts. Now the
+        // conditional WHERE refuses to bump past the limit. If 0 rows are
+        // affected, the limit was already reached by a concurrent order;
+        // record a system warning so ops can review (the discount this
+        // order got was technically "the last one within budget", but the
+        // race may have over-applied by one).
+        $coupon = Session::get('wk_coupon');
+        if ($discount > 0 && $coupon && !empty($coupon['id'])) {
+            $bumped = Database::query(
+                "UPDATE wk_coupons SET used_count = used_count + 1
+                  WHERE id = ?
+                    AND (usage_limit IS NULL OR used_count < usage_limit)",
+                [(int)$coupon['id']]
+            )->rowCount();
+            if ($bumped === 0) {
+                // Race detected: another concurrent checkout hit the limit
+                // first. The order has already been created with the
+                // discount applied. Log for ops; do NOT fail the order.
                 try {
-                    $affected = Database::query(
-                        "UPDATE wk_variant_combos SET stock_quantity = stock_quantity - ? WHERE id = ? AND stock_quantity >= ?",
-                        [$item['quantity'], $comboId, $item['quantity']]
-                    )->rowCount();
-                    if ($affected === 0) {
-                        Database::query("UPDATE wk_variant_combos SET stock_quantity = 0 WHERE id = ?", [$comboId]);
-                    }
+                    Database::query(
+                        "INSERT INTO wk_settings (setting_group, setting_key, setting_value)
+                         VALUES ('system', ?, ?)
+                         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)",
+                        [
+                            'coupon_race_' . $orderNumber,
+                            json_encode([
+                                'coupon_id' => (int)$coupon['id'],
+                                'order_id'  => $orderId,
+                                'when'      => date('c'),
+                            ]),
+                        ]
+                    );
                 } catch (\Exception $e) {}
             }
-            $affected = Database::query(
-                "UPDATE wk_products SET stock_quantity = stock_quantity - ? WHERE id = ? AND stock_quantity >= ?",
-                [$item['quantity'], $item['product_id'], $item['quantity']]
-            )->rowCount();
-            if ($affected === 0) {
-                Database::query("UPDATE wk_products SET stock_quantity = 0 WHERE id = ?", [$item['product_id']]);
-            }
         }
-
-        // Increment coupon usage
-        $coupon = Session::get('wk_coupon');
-        if ($coupon && !empty($coupon['id'])) {
-            Database::query("UPDATE wk_coupons SET used_count = used_count + 1 WHERE id=?", [$coupon['id']]);
+        // Clear the session coupon regardless — the order has been placed,
+        // a stale coupon must not carry to the next order.
+        if ($coupon) {
             Session::remove('wk_coupon');
         }
 
@@ -299,6 +392,76 @@ class CheckoutController
         Response::redirect(View::url('order-success?order='.$orderNumber));
     }
 
+    /**
+     * AJAX: Recompute checkout totals based on submitted address.
+     *
+     * Called by the checkout view's JS whenever country/state/zip changes.
+     * Pure computation — no side effects, no DB writes. The browser's display
+     * is updated from this response; the actual order is created by process()
+     * which calls the same computeTotals() helper, so the two cannot diverge.
+     */
+    public function calculate(Request $request, array $params = []): void
+    {
+        $input = json_decode(file_get_contents('php://input'), true);
+        if (!is_array($input)) $input = [];
+
+        $cart = $this->getCartData();
+        if (empty($cart['items'])) {
+            Response::json([
+                'subtotal'      => 0,
+                'tax'           => 0,
+                'tax_label'     => '',
+                'tax_known'     => false,
+                'shipping'      => 0,
+                'discount'      => 0,
+                'discount_code' => '',
+                'total'         => 0,
+            ]);
+            return;
+        }
+
+        $country = isset($input['country']) ? trim((string)$input['country']) : '';
+        $state   = isset($input['state'])   ? trim((string)$input['state'])   : '';
+        $address = null;
+        if ($country !== '' || $state !== '') {
+            $address = ['country' => $country, 'state' => $state];
+        }
+
+        $totals = self::computeTotals($cart, $address, Session::get('wk_coupon'));
+
+        // Strip internal-only field before sending to the client.
+        unset($totals['tax_breakdown']);
+
+        // Pre-format display strings on the server so the JS can update the
+        // DOM byte-for-byte the way it would have rendered on a fresh page
+        // load — same currency symbol, same number_format, same optional
+        // display-currency suffix as the view's $showPrice helper.
+        $symbol         = Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='currency_symbol'") ?: '₹';
+        $baseCurrency   = Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='currency'") ?: 'INR';
+        $displayCurr    = (string)(Session::get('wk_display_currency') ?? $baseCurrency);
+        $sameCurrency   = ($displayCurr === $baseCurrency);
+
+        $fmt = static function (float $n) use ($symbol, $sameCurrency, $baseCurrency, $displayCurr): string {
+            $base = $symbol . number_format($n, 2);
+            if ($sameCurrency) return $base;
+            $converted = \App\Services\CurrencyService::convert($n, $baseCurrency, $displayCurr);
+            $tail = \App\Services\CurrencyService::format($converted, $displayCurr);
+            return $base . ' <span style="font-size:12px;color:var(--wk-muted);font-weight:500">≈ ' . htmlspecialchars($tail, ENT_QUOTES, 'UTF-8') . '</span>';
+        };
+
+        $totals['formatted'] = [
+            'subtotal' => $fmt($totals['subtotal']),
+            'tax'      => $fmt($totals['tax']),
+            'shipping' => $fmt($totals['shipping']),
+            'discount' => $fmt($totals['discount']),
+            'total'    => $fmt($totals['total']),
+            // Plain (no conversion suffix) total for the pay button.
+            'total_plain' => $symbol . number_format($totals['total'], 2),
+        ];
+
+        Response::json($totals);
+    }
+
     public function success(Request $request, array $params = []): void
     {
         $orderNumber = $request->query('order') ?? Session::get('wk_last_order');
@@ -332,9 +495,24 @@ class CheckoutController
         }
 
         // Get the gateway for this order
-        $order = Database::fetch("SELECT payment_gateway FROM wk_orders WHERE id=?", [$orderId]);
+        $order = Database::fetch("SELECT payment_gateway, total, currency FROM wk_orders WHERE id=?", [$orderId]);
         if (!$order || !$order['payment_gateway']) {
             Response::json(['success' => false, 'message' => 'Order not found']);
+            return;
+        }
+
+        // ── M11: ownership check ──
+        // The client passes a razorpay_order_id (or equivalent) in the verify
+        // payload. Confirm it matches the gateway_order_id we recorded when
+        // creating the order, so a logged-in customer can't paste another
+        // customer's payment ID into their own order to mark it paid.
+        $clientGatewayOrderId = (string)(
+            $input['razorpay_order_id']
+            ?? $input['gateway_order_id']
+            ?? ''
+        );
+        if (!self::gatewayOrderIdMatches($orderId, (string)$order['payment_gateway'], $clientGatewayOrderId)) {
+            Response::json(['success' => false, 'message' => 'Order/payment mismatch']);
             return;
         }
 
@@ -347,7 +525,15 @@ class CheckoutController
 
             $result = $gateway->verifyPayment($input);
             if ($result['success']) {
-                $gateway->markOrderPaid($orderId, $result['payment_id'] ?? '');
+                // Pass paidAmount through so BaseGateway::markOrderPaid can run
+                // its amount-mismatch guard. If the gateway didn't surface an
+                // amount in the verify result we fall back to the order total
+                // — which is fine for signature-verified flows (the signature
+                // itself proves Razorpay processed this exact order).
+                $paidAmount = isset($result['amount'])
+                    ? (float)$result['amount']
+                    : (float)$order['total'];
+                $gateway->markOrderPaid($orderId, $result['payment_id'] ?? '', $paidAmount);
                 Response::json(['success' => true]);
             } else {
                 Response::json(['success' => false, 'message' => 'Verification failed']);
@@ -386,6 +572,103 @@ class CheckoutController
         }
         $subtotal = array_reduce($items, fn($s,$i) => $s + ($i['unit_price'] * $i['quantity']), 0);
         return ['items'=>$items, 'subtotal'=>$subtotal, 'count'=>array_sum(array_column($items,'quantity'))];
+    }
+
+    /**
+     * Compute order totals authoritatively.
+     *
+     * Single source of truth used by index(), process(), and calculate(). The
+     * server is always the authority — any client-side preview must round-trip
+     * through this method before the order is created.
+     *
+     * @param array       $cart    Cart array from getCartData()
+     * @param array|null  $address Customer address ['country' => 'IN', 'state' => 'KA', ...]
+     *                             When null, tax is reported as 0 with no label
+     *                             (front-end should show "Calculated at checkout").
+     * @param array|null  $coupon  Session coupon row (or null). Re-validated here:
+     *                             a coupon that has since expired or hit its usage
+     *                             cap is silently ignored, so a stale session
+     *                             cannot grant a discount.
+     * @return array {
+     *     subtotal:   float,
+     *     tax:        float,
+     *     tax_label:  string,
+     *     tax_known:  bool,       // false until address is supplied
+     *     tax_breakdown: array,
+     *     shipping:   float,
+     *     discount:   float,
+     *     discount_code: string,  // empty if no valid coupon
+     *     total:      float
+     * }
+     */
+    private static function computeTotals(array $cart, ?array $address, ?array $coupon): array
+    {
+        $subtotal = (float)($cart['subtotal'] ?? 0);
+        $shipping = self::calculateShipping($cart);
+
+        // Tax — only computed once we know the customer's country/state.
+        $tax = 0.0;
+        $taxLabel = '';
+        $taxBreakdown = [];
+        $taxKnown = false;
+        if ($address !== null
+            && (!empty($address['country']) || !empty($address['state']))) {
+            $taxResult = \App\Services\TaxService::calculate($subtotal, $address);
+            $tax = (float)($taxResult['amount'] ?? 0);
+            $taxLabel = (string)($taxResult['label'] ?? 'Tax');
+            $taxBreakdown = (array)($taxResult['breakdown'] ?? []);
+            $taxKnown = true;
+        }
+
+        // Coupon — re-validate against DB so a session payload cannot grant a
+        // discount on an expired/disabled/exhausted coupon.
+        $discount = 0.0;
+        $discountCode = '';
+        if (is_array($coupon) && !empty($coupon['id'])) {
+            $fresh = Database::fetch(
+                "SELECT id, code, type, value, min_order_amount, max_discount,
+                        usage_limit, used_count, starts_at, expires_at, is_active
+                   FROM wk_coupons
+                  WHERE id = ?
+                    AND is_active = 1
+                    AND (starts_at  IS NULL OR starts_at  <= NOW())
+                    AND (expires_at IS NULL OR expires_at >  NOW())
+                    AND (usage_limit IS NULL OR used_count < usage_limit)",
+                [(int)$coupon['id']]
+            );
+            if ($fresh) {
+                $minOrder = (float)($fresh['min_order_amount'] ?? 0);
+                if ($subtotal + 0.0001 >= $minOrder) {
+                    if ($fresh['type'] === 'percentage') {
+                        $discount = round($subtotal * ((float)$fresh['value'] / 100), 2);
+                    } else { // 'fixed'
+                        $discount = round((float)$fresh['value'], 2);
+                    }
+                    // Cap by max_discount if set, and never exceed subtotal.
+                    if (!empty($fresh['max_discount'])) {
+                        $discount = min($discount, (float)$fresh['max_discount']);
+                    }
+                    $discount = min($discount, $subtotal);
+                    $discount = max($discount, 0.0);
+                    $discountCode = (string)$fresh['code'];
+                }
+            }
+        }
+
+        $total = $subtotal + $tax + $shipping - $discount;
+        if ($total < 0) $total = 0.0;
+
+        return [
+            'subtotal'      => round($subtotal, 2),
+            'tax'           => round($tax, 2),
+            'tax_label'     => $taxLabel,
+            'tax_known'     => $taxKnown,
+            'tax_breakdown' => $taxBreakdown,
+            'shipping'      => round($shipping, 2),
+            'discount'      => round($discount, 2),
+            'discount_code' => $discountCode,
+            'total'         => round($total, 2),
+        ];
     }
 
     private static function calculateShipping(array $cart): float
@@ -457,5 +740,43 @@ class CheckoutController
         };
 
         return $overrideTotal + $storeShipping;
+    }
+
+    /**
+     * M11 — ownership check for gateway verify-callbacks.
+     *
+     * Returns true iff:
+     *   - The client supplied no gateway_order_id (legacy clients / gateways
+     *     that don't surface one — the gateway's own HMAC is then the sole
+     *     defense, which is correct for Stripe-style flows). We accept and
+     *     let the gateway's verifyPayment() do its signature check.
+     *   - The client supplied one AND it equals the value we recorded when
+     *     the order was created. Compared with hash_equals to avoid any
+     *     timing-side-channel during enumeration.
+     *
+     * Returns false iff a value was supplied that does NOT match the
+     * stored gateway_order_id — the verify endpoint must reject.
+     *
+     * Why this method exists (vs. inline): isolating the SQL+compare into
+     * a pure function lets the test suite seed wk_payment_transactions and
+     * exercise the contract directly without going through php://input.
+     */
+    public static function gatewayOrderIdMatches(int $orderId, string $gatewayCode, string $clientGatewayOrderId): bool
+    {
+        if ($clientGatewayOrderId === '') return true; // nothing to compare
+        $expected = Database::fetchValue(
+            "SELECT gateway_order_id FROM wk_payment_transactions
+             WHERE order_id=? AND gateway_code=? AND gateway_order_id IS NOT NULL
+             ORDER BY id DESC LIMIT 1",
+            [$orderId, $gatewayCode]
+        );
+        if ($expected === null || $expected === false) {
+            // No stored value (pre-B8 row, or fetchValue miss). Pass-through
+            // to the gateway HMAC — that's the only line of defense for
+            // legacy rows, but blanket-rejecting them would brick all
+            // in-flight orders at deploy time.
+            return true;
+        }
+        return hash_equals((string)$expected, $clientGatewayOrderId);
     }
 }

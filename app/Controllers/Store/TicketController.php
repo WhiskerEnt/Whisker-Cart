@@ -20,11 +20,23 @@ class TicketController
     /** Customer: View ticket + replies */
     public function show(Request $request, array $params = []): void
     {
+        // Finding 6: previously this method failed open for anonymous users.
+        // `if ($custId && $ticket['customer_id'] != $custId)` short-circuited
+        // to allow when $custId was null — so any anonymous visitor iterating
+        // /account/tickets/{id} could read another customer's PII (name,
+        // email, phone, message). Now: customer login is REQUIRED, and the
+        // SELECT is constrained to the customer's own tickets at the SQL
+        // level — defense in depth so a future controller change can't
+        // re-open the hole.
         $custId = Session::customerId();
-        $ticket = Database::fetch("SELECT * FROM wk_tickets WHERE id=?", [$params['id']]);
+        if (!$custId) { Response::redirect(View::url('account/login')); return; }
+
+        $ticket = Database::fetch(
+            "SELECT * FROM wk_tickets WHERE id=? AND customer_id=?",
+            [(int)$params['id'], $custId]
+        );
         if (!$ticket) { Response::notFound(); return; }
-        // Allow access if logged in customer owns it, or email matches session
-        if ($custId && $ticket['customer_id'] != $custId) { Response::notFound(); return; }
+
         $replies = Database::fetchAll("SELECT * FROM wk_ticket_replies WHERE ticket_id=? ORDER BY created_at", [$ticket['id']]);
         View::render('store/account/ticket-detail', ['pageTitle'=>'Ticket #'.$ticket['ticket_number'],'ticket'=>$ticket,'replies'=>$replies], 'store/layouts/main');
     }
@@ -107,18 +119,21 @@ class TicketController
     /** Customer: Reply to ticket */
     public function reply(Request $request, array $params = []): void
     {
+        // Finding 7: same fail-open IDOR as show(). Without auth, anyone
+        // could post a reply impersonating the legit customer (sender_name
+        // pulled from the ticket row itself, so the spoofed reply looked
+        // genuine to admin). Customer login is now REQUIRED and ownership
+        // is enforced at SQL level — no row, no reply.
+        $custId = Session::customerId();
+        if (!$custId) { Response::redirect(View::url('account/login')); return; }
+
         $ticketId = (int)$params['id'];
-        $ticket = Database::fetch("SELECT * FROM wk_tickets WHERE id=?", [$ticketId]);
+        $ticket = Database::fetch(
+            "SELECT * FROM wk_tickets WHERE id=? AND customer_id=?",
+            [$ticketId, $custId]
+        );
         if (!$ticket || $ticket['status'] === 'closed') {
             Session::flash('error','Cannot reply to this ticket.');
-            Response::redirect(View::url('account/tickets'));
-            return;
-        }
-
-        // Ownership check — customer can only reply to their own tickets
-        $custId = Session::customerId();
-        if ($custId && $ticket['customer_id'] && (int)$ticket['customer_id'] !== $custId) {
-            Session::flash('error', 'Unauthorized.');
             Response::redirect(View::url('account/tickets'));
             return;
         }
@@ -154,46 +169,5 @@ class TicketController
 
         Session::flash('success','Reply sent!');
         Response::redirect(View::url('account/tickets/'.$ticketId));
-    }
-
-    /** Chatbot: Create ticket via AJAX */
-    public function chatbotCreate(Request $request, array $params = []): void
-    {
-        $name = $request->clean('name');
-        $email = $request->clean('email');
-        $phone = $request->clean('phone');
-        $subject = $request->clean('subject') ?: 'Support Request via Chat';
-        $message = trim($request->input('message') ?? '');
-
-        if (!$name || !$email || !$message) {
-            Response::json(['success'=>false,'message'=>'Name, email and message are required.']);
-            return;
-        }
-
-        $ticketNumber = 'TK-' . strtoupper(date('ymd')) . '-' . strtoupper(bin2hex(random_bytes(3)));
-        $custId = Session::customerId();
-
-        $ticketId = Database::insert('wk_tickets', [
-            'ticket_number'=>$ticketNumber, 'customer_id'=>$custId,
-            'name'=>$name, 'email'=>$email, 'phone'=>$phone,
-            'subject'=>$subject, 'status'=>'open', 'priority'=>'medium',
-        ]);
-
-        Database::insert('wk_ticket_replies', [
-            'ticket_id'=>$ticketId, 'sender_type'=>'customer', 'sender_name'=>$name, 'message'=>$message,
-        ]);
-
-        // Notify admin
-        $adminEmail = Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='contact_email'")
-            ?: Database::fetchValue("SELECT email FROM wk_admins WHERE role='superadmin' LIMIT 1");
-        if ($adminEmail) {
-            \App\Services\EmailService::send($adminEmail, "New Chat Ticket: {$subject} [{$ticketNumber}]",
-                '<h2>New Support Ticket (via Chatbot)</h2><p><strong>'.htmlspecialchars($name).'</strong> ('.htmlspecialchars($email).')</p>
-                <div style="padding:16px;border-left:3px solid #8b5cf6;margin:16px 0;font-size:14px;white-space:pre-line">'.htmlspecialchars($message).'</div>
-                <a href="'.View::url('admin/tickets/'.$ticketId).'" style="display:inline-block;background:#8b5cf6;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:700">View Ticket →</a>'
-            );
-        }
-
-        Response::json(['success'=>true,'ticket_number'=>$ticketNumber]);
     }
 }

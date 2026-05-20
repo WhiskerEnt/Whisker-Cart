@@ -75,7 +75,7 @@ $s=$sm[$o['status']]??['info','?'];
                         <div style="font-size:14px"><strong>Carrier:</strong> <?= $e($notes['shipping_carrier']??'') ?></div>
                         <div style="font-size:14px;font-family:var(--font-mono);font-weight:700;margin-top:4px"><?= $e($notes['tracking_number']) ?></div>
                         <?php if (!empty($notes['tracking_url'])): ?>
-                            <a href="<?= $e($notes['tracking_url']) ?>" target="_blank" style="color:var(--wk-purple);font-weight:700;font-size:13px;margin-top:8px;display:inline-block">Track Package ↗</a>
+                            <a href="<?= \Core\View::safeUrl($notes['tracking_url']) ?>" target="_blank" rel="noopener noreferrer" style="color:var(--wk-purple);font-weight:700;font-size:13px;margin-top:8px;display:inline-block">Track Package ↗</a>
                         <?php endif; ?>
                     </div>
                 <?php endif; ?>

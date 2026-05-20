@@ -1,7 +1,7 @@
 <?php
 namespace App\Controllers\Admin;
 
-use Core\{Request, View, Database, Response, Session};
+use Core\{Request, View, Database, Response, Session, Validator};
 
 class PageController
 {
@@ -40,8 +40,21 @@ class PageController
         if (!Session::verifyCsrf($request->input('wk_csrf'))) {
             Session::flash('error','Session expired.'); Response::redirect(View::url('admin/pages/edit/'.$params['id'])); return;
         }
+        // L16: input validation. Empty title would write garbage to nav.
+        $v = new Validator($request->all(), [
+            'title' => 'required|min:2|max:200',
+        ]);
+        if ($v->fails()) {
+            Session::flash('error', $v->firstError());
+            Response::redirect(View::url('admin/pages/edit/'.$params['id'])); return;
+        }
+        // Sanitize on save so the stored HTML is already safe — display path
+        // can render it verbatim without per-request purification, and a
+        // compromised admin can only insert markup that the allowlist
+        // permits. Strips <script>, <iframe>, on* handlers, javascript: URIs.
+        $content = \App\Services\HtmlSanitizer::purify((string)$request->input('content'));
         Database::update('wk_pages', [
-            'title'=>$request->clean('title'), 'content'=>$request->input('content'),
+            'title'=>$request->clean('title'), 'content'=>$content,
             'is_active'=>$request->input('is_active')?1:0,
         ], 'id=?', [$params['id']]);
         Session::flash('success','Page saved!');
@@ -58,8 +71,25 @@ class PageController
         if (!Session::verifyCsrf($request->input('wk_csrf'))) {
             Session::flash('error','Session expired.'); Response::redirect(View::url('admin/pages/create')); return;
         }
+        // L16: validate title before slugify. If title is all non-alphanumeric,
+        // slug ends up '' and the row would fail the UNIQUE constraint on the
+        // first save (since seed defaults already include an empty-slug clash
+        // risk on edge cases).
+        $v = new Validator($request->all(), [
+            'title' => 'required|min:2|max:200',
+        ]);
+        if ($v->fails()) {
+            Session::flash('error', $v->firstError());
+            Response::redirect(View::url('admin/pages/create')); return;
+        }
         $slug = trim(strtolower(preg_replace('/[^a-z0-9]+/','-',$request->clean('title'))),'-');
-        Database::insert('wk_pages', ['slug'=>$slug,'title'=>$request->clean('title'),'content'=>$request->input('content'),'is_active'=>1]);
+        if ($slug === '') {
+            Session::flash('error', 'Page title must contain at least 2 alphanumeric characters.');
+            Response::redirect(View::url('admin/pages/create')); return;
+        }
+        // Sanitize on save — see comment in update().
+        $content = \App\Services\HtmlSanitizer::purify((string)$request->input('content'));
+        Database::insert('wk_pages', ['slug'=>$slug,'title'=>$request->clean('title'),'content'=>$content,'is_active'=>1]);
         Session::flash('success','Page created!');
         Response::redirect(View::url('admin/pages'));
     }

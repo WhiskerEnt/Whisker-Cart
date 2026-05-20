@@ -33,6 +33,16 @@ class RazorpayGateway extends \Core\BaseGateway
 
     public function webhook(\Core\Request $request): void
     {
+        // L6: rate-limit webhook hits by source IP. Legitimate gateway
+        // callbacks come from a small set of Razorpay IPs at modest rate; an
+        // attacker with a leaked webhook secret (or just probing) gets
+        // throttled to 100 requests per 5 minutes. The HMAC check below is
+        // still the primary defense — this just caps the blast radius.
+        if (!\Core\RateLimiter::attempt('webhook_razorpay', $request->ip(), 300, 300)) {
+            \Core\Response::json(['error' => 'Rate limited'], 429);
+            return;
+        }
+
         $rawBody = file_get_contents('php://input');
         if (empty($rawBody)) {
             \Core\Response::json(['error' => 'Empty body'], 400);
@@ -41,14 +51,24 @@ class RazorpayGateway extends \Core\BaseGateway
 
         $webhookSecret = $this->cfg('webhook_secret');
 
-        // Verify webhook signature if secret is configured
-        if (!empty($webhookSecret)) {
-            $expectedSig = hash_hmac('sha256', $rawBody, $webhookSecret);
-            $receivedSig = $_SERVER['HTTP_X_RAZORPAY_SIGNATURE'] ?? '';
-            if (!hash_equals($expectedSig, $receivedSig)) {
-                \Core\Response::json(['error' => 'Invalid signature'], 403);
-                return;
-            }
+        // Webhook signature verification is mandatory. Refuse to process if the
+        // secret is not configured — an unsigned endpoint would let any caller
+        // mark orders as paid.
+        if (empty($webhookSecret)) {
+            \Core\Response::json(['error' => 'Webhook not configured'], 503);
+            return;
+        }
+
+        $receivedSig = $_SERVER['HTTP_X_RAZORPAY_SIGNATURE'] ?? '';
+        if (empty($receivedSig)) {
+            \Core\Response::json(['error' => 'Missing signature'], 403);
+            return;
+        }
+
+        $expectedSig = hash_hmac('sha256', $rawBody, $webhookSecret);
+        if (!hash_equals($expectedSig, $receivedSig)) {
+            \Core\Response::json(['error' => 'Invalid signature'], 403);
+            return;
         }
 
         $payload = json_decode($rawBody, true) ?? [];

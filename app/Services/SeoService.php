@@ -183,7 +183,17 @@ class SeoService
             $schema['image'] = rtrim($baseUrl, '/') . '/storage/uploads/products/' . ltrim($product['primary_image'], '/');
         }
 
-        return '<script type="application/ld+json">' . json_encode($schema, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) . '</script>';
+        // JSON_HEX_TAG/AMP/APOS/QUOT prevent the JSON-LD payload from being
+        // able to break out of the <script> block via "</script>", inline
+        // event handlers, or attribute-context injection — relevant because
+        // product names and descriptions are admin-controlled but free-text.
+        return '<script type="application/ld+json">'
+            . json_encode(
+                $schema,
+                JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT
+                    | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
+            )
+            . '</script>';
     }
 
     // ── Sitemap Generator ─────────────────────────
