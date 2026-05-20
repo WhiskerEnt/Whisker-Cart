@@ -10,7 +10,7 @@ Beautiful storefront. Powerful admin panel. Built-in AI chatbot. Zero monthly fe
 
 🌐 **[Live Demo](https://whisker.lohit.me)** · 📖 **[Documentation](https://github.com/WhiskerEnt/Whisker-Cart/wiki)** · 📧 **[mail@lohit.me](mailto:mail@lohit.me)**
 
-> **v1.3.0 is a security update.** Recommended for all installs — patches multiple vulnerabilities found in a full file-by-file audit. See [CHANGELOG](CHANGELOG.md).
+> **v1.3.0 is a security update.** Recommended for all installs.
 
 ---
 
