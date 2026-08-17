@@ -27,6 +27,11 @@ class CheckoutController
         $gateways = Database::fetchAll("SELECT gateway_code,display_name,description FROM wk_payment_gateways WHERE is_active=1 ORDER BY sort_order");
         $currency = Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='currency_symbol'") ?: '₹';
 
+        // Pickup / locker delivery availability for the delivery-method chooser
+        $pickupLocations = self::activePickupLocations();
+        $pickupEnabled = !empty($pickupLocations)
+            && (Database::setting('shipping', 'pickup_enabled') === '1');
+
         // Tax depends on the customer's address — at this point we don't know
         // it yet. Compute the rest of the totals with tax=0 and tax_known=false;
         // the view shows "Calculated at checkout" until the customer fills in
@@ -44,13 +49,15 @@ class CheckoutController
         }
 
         View::render('store/checkout', [
-            'cart'           => $cart,
-            'gateways'       => $gateways,
-            'currency'       => $currency,
-            'totals'         => $totals,
-            'baseCurrency'   => Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='currency'") ?: 'INR',
-            'customer'       => $customer,
-            'savedAddresses' => $savedAddresses,
+            'cart'            => $cart,
+            'gateways'        => $gateways,
+            'currency'        => $currency,
+            'totals'          => $totals,
+            'baseCurrency'    => Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='currency'") ?: 'INR',
+            'customer'        => $customer,
+            'savedAddresses'  => $savedAddresses,
+            'pickupEnabled'   => $pickupEnabled,
+            'pickupLocations' => $pickupLocations,
         ], 'store/layouts/main');
     }
 
@@ -65,6 +72,22 @@ class CheckoutController
         if (empty($cart['items'])) {
             Session::flash('error','Your cart is empty.');
             Response::redirect(View::url(''));
+            return;
+        }
+
+        // Enforce the store's minimum order amount (Settings → Checkout).
+        $minOrder = (float)(Database::setting('checkout', 'min_order') ?: 0);
+        if ($minOrder > 0 && (float)$cart['subtotal'] < $minOrder) {
+            Session::flash('error', 'Minimum order amount is ' . View::price($minOrder) . '. Add a few more items to check out.');
+            Response::redirect(View::url('checkout'));
+            return;
+        }
+
+        // Enforce guest-checkout setting. The admin toggle existed but was
+        // never consulted — "Disabled" happily created guest accounts anyway.
+        if (!Session::customerId() && Database::setting('checkout', 'guest_checkout') === '0') {
+            Session::flash('error', 'Please sign in or create an account to check out.');
+            Response::redirect(View::url('account/login'));
             return;
         }
 
@@ -85,14 +108,28 @@ class CheckoutController
             } catch (\Exception $e) {}
         }
 
+        // Delivery method: home shipping (default) or pickup point / locker.
+        $deliveryMethod = $request->input('delivery_method') === 'pickup' ? 'pickup' : 'shipping';
+        $pickupLocation = null;
+        if ($deliveryMethod === 'pickup') {
+            $pickupLocation = self::pickupLocationIfAllowed((int)$request->input('pickup_location_id'));
+            if (!$pickupLocation) {
+                Session::flash('error', 'Please choose a valid pickup point.');
+                Response::redirect(View::url('checkout'));
+                return;
+            }
+        }
+
         $custAddress = [
             'country' => $request->clean('country') ?? '',
             'state'   => $request->clean('state') ?? '',
         ];
         // Authoritative totals computed server-side. The session coupon is
         // re-validated against the DB inside computeTotals(), so a stale
-        // session cannot grant a discount on an expired coupon.
-        $totals = self::computeTotals($cart, $custAddress, Session::get('wk_coupon'));
+        // session cannot grant a discount on an expired coupon. For pickup
+        // delivery, computeTotals uses the pickup point as the destination
+        // (fee + destination-based tax).
+        $totals = self::computeTotals($cart, $custAddress, Session::get('wk_coupon'), $pickupLocation);
         $tax        = $totals['tax'];
         $shipping   = $totals['shipping'];
         $discount   = $totals['discount'];
@@ -145,8 +182,33 @@ class CheckoutController
         try {
             Database::transaction(function () use (
                 $cart, $orderNumber, $customerId, $tax, $shipping, $discount, $total,
-                $totals, $request, &$orderId
+                $totals, $request, $email, $deliveryMethod, $pickupLocation, &$orderId
             ) {
+                $customerName = $request->clean('first_name').' '.$request->clean('last_name');
+
+                // For pickup delivery the "shipping address" is a snapshot of
+                // the chosen pickup point — order history must survive the
+                // location being edited or deleted later.
+                $shippingAddress = $deliveryMethod === 'pickup' && $pickupLocation
+                    ? [
+                        'name'    => $customerName,
+                        'line1'   => $pickupLocation['name'] . ($pickupLocation['carrier'] ? ' (' . $pickupLocation['carrier'] . ')' : ''),
+                        'line2'   => $pickupLocation['address_line1'],
+                        'city'    => $pickupLocation['city'],
+                        'state'   => $pickupLocation['state'],
+                        'zip'     => $pickupLocation['zip'],
+                        'country' => $pickupLocation['country'],
+                        'pickup'  => true,
+                        'pickup_location_id' => (int)$pickupLocation['id'],
+                        'opening_hours' => $pickupLocation['opening_hours'],
+                    ]
+                    : [
+                        'name'=>$customerName,
+                        'line1'=>$request->clean('address1'), 'city'=>$request->clean('city'),
+                        'state'=>$request->clean('state'), 'zip'=>$request->clean('zip'),
+                        'country'=>$request->clean('country'),
+                    ];
+
                 $orderId = Database::insert('wk_orders', [
                     'order_number'=>$orderNumber, 'customer_id'=>$customerId,
                     'status'=>'pending', 'subtotal'=>$cart['subtotal'],
@@ -157,29 +219,28 @@ class CheckoutController
                     'customer_email'=>$email, // Finding 8: validated lowercase form
                     'customer_phone'=>$request->clean('phone'),
                     'tax_details'=>json_encode($totals['tax_breakdown'] ?? []),
-                    'shipping_address'=>json_encode([
-                        'name'=>$request->clean('first_name').' '.$request->clean('last_name'),
-                        'line1'=>$request->clean('address1'), 'city'=>$request->clean('city'),
-                        'state'=>$request->clean('state'), 'zip'=>$request->clean('zip'),
-                        'country'=>$request->clean('country'),
-                    ]),
+                    'shipping_address'=>json_encode($shippingAddress),
                     'billing_address'=>json_encode(
                         $request->input('billing_address1')
                         ? [
-                            'name'=>$request->clean('first_name').' '.$request->clean('last_name'),
+                            'name'=>$customerName,
                             'line1'=>$request->clean('billing_address1'), 'city'=>$request->clean('billing_city'),
                             'state'=>$request->clean('billing_state'), 'zip'=>$request->clean('billing_zip'),
                             'country'=>$request->clean('billing_country'),
                         ]
-                        : [
-                            'name'=>$request->clean('first_name').' '.$request->clean('last_name'),
-                            'line1'=>$request->clean('address1'), 'city'=>$request->clean('city'),
-                            'state'=>$request->clean('state'), 'zip'=>$request->clean('zip'),
-                            'country'=>$request->clean('country'),
-                        ]
+                        : $shippingAddress
                     ),
                     'ip_address'=>$request->ip(),
                 ]);
+
+                // Delivery columns are added by the v1.3.2 migration; keep the
+                // order insert working on not-yet-migrated databases.
+                try {
+                    Database::update('wk_orders', [
+                        'delivery_method'    => $deliveryMethod,
+                        'pickup_location_id' => $pickupLocation['id'] ?? null,
+                    ], 'id=?', [$orderId]);
+                } catch (\Exception $e) {}
 
                 foreach ($cart['items'] as $item) {
                     $orderItemData = [
@@ -367,6 +428,8 @@ class CheckoutController
                     'gateway_order_id' => $payResult['gateway_order_id'],
                     'key_id'           => $payResult['key_id'] ?? '',
                     'amount'           => $payResult['amount'] ?? 0,
+                    'currency'         => $payResult['currency']
+                        ?? (Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='currency'") ?: 'INR'),
                     'order_number'     => $orderNumber,
                     'order_id'         => $orderId,
                     'email'            => $request->clean('email') ?? '',
@@ -427,7 +490,14 @@ class CheckoutController
             $address = ['country' => $country, 'state' => $state];
         }
 
-        $totals = self::computeTotals($cart, $address, Session::get('wk_coupon'));
+        // Pickup delivery preview: fee + destination tax come from the
+        // chosen pickup point, exactly as process() will compute them.
+        $pickupLocation = null;
+        if (($input['delivery_method'] ?? '') === 'pickup') {
+            $pickupLocation = self::pickupLocationIfAllowed((int)($input['pickup_location_id'] ?? 0));
+        }
+
+        $totals = self::computeTotals($cart, $address, Session::get('wk_coupon'), $pickupLocation);
 
         // Strip internal-only field before sending to the client.
         unset($totals['tax_breakdown']);
@@ -589,6 +659,13 @@ class CheckoutController
      *                             a coupon that has since expired or hit its usage
      *                             cap is silently ignored, so a stale session
      *                             cannot grant a discount.
+     * @param array|null  $pickupLocation Active wk_pickup_locations row when the
+     *                             customer chose locker/collection-point delivery.
+     *                             Overrides the shipping fee (location fee, else
+     *                             shipping.pickup_fee setting) and the tax
+     *                             destination (the pickup point's country/state —
+     *                             VAT is destination-based, and the goods are
+     *                             delivered to the locker).
      * @return array {
      *     subtotal:   float,
      *     tax:        float,
@@ -601,10 +678,20 @@ class CheckoutController
      *     total:      float
      * }
      */
-    private static function computeTotals(array $cart, ?array $address, ?array $coupon): array
+    private static function computeTotals(array $cart, ?array $address, ?array $coupon, ?array $pickupLocation = null): array
     {
         $subtotal = (float)($cart['subtotal'] ?? 0);
-        $shipping = self::calculateShipping($cart);
+        if ($pickupLocation !== null) {
+            $shipping = ($pickupLocation['fee'] !== null && $pickupLocation['fee'] !== '')
+                ? (float)$pickupLocation['fee']
+                : (float)(Database::setting('shipping', 'pickup_fee') ?: 0);
+            $address = [
+                'country' => (string)$pickupLocation['country'],
+                'state'   => (string)$pickupLocation['state'],
+            ];
+        } else {
+            $shipping = self::calculateShipping($cart);
+        }
 
         // Tax — only computed once we know the customer's country/state.
         $tax = 0.0;
@@ -669,6 +756,35 @@ class CheckoutController
             'discount_code' => $discountCode,
             'total'         => round($total, 2),
         ];
+    }
+
+    /**
+     * All active pickup locations, empty when the table doesn't exist yet
+     * (pre-v1.3.2 database).
+     */
+    private static function activePickupLocations(): array
+    {
+        try {
+            return Database::fetchAll("SELECT * FROM wk_pickup_locations WHERE is_active=1 ORDER BY sort_order, name");
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
+    /**
+     * The requested pickup location, but only if pickup delivery is enabled
+     * and the location exists and is active — the client's location id is
+     * never trusted beyond this lookup.
+     */
+    private static function pickupLocationIfAllowed(int $id): ?array
+    {
+        if ($id <= 0) return null;
+        if (Database::setting('shipping', 'pickup_enabled') !== '1') return null;
+        try {
+            return Database::fetch("SELECT * FROM wk_pickup_locations WHERE id=? AND is_active=1", [$id]);
+        } catch (\Exception $e) {
+            return null;
+        }
     }
 
     private static function calculateShipping(array $cart): float

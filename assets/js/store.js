@@ -154,7 +154,9 @@ const WhiskerStore = {
             if (data.success) {
                 this.renderItems(data.items);
                 this.updateCount(data.count);
-                this.updateTotal(data.subtotal);
+                // Prefer the server-formatted subtotal — it carries the store's
+                // configured currency symbol (and display-currency conversion).
+                this.updateTotal(data.subtotal_formatted != null ? data.subtotal_formatted : this.price(data.subtotal));
             }
         } catch (err) { console.error('Cart load:', err); }
     },
@@ -174,7 +176,7 @@ const WhiskerStore = {
                 <div class="wk-cart-item-info">
                     <div class="wk-cart-item-name">${this.esc(i.name)}</div>
                     ${variantLabel}
-                    <div class="wk-cart-item-price">${this.price(i.unit_price * i.quantity)}</div>
+                    <div class="wk-cart-item-price">${i.line_total_formatted || this.price(i.unit_price * i.quantity)}</div>
                     <div class="wk-qty-ctrl">
                         <button class="wk-qty-btn" onclick="WhiskerStore.updateQty(${i.id},${i.quantity - 1})">−</button>
                         <input class="wk-qty-val" value="${i.quantity}" readonly>
@@ -190,7 +192,10 @@ const WhiskerStore = {
         document.querySelectorAll('.wk-cart-count').forEach(b => { b.textContent = n || 0; b.style.display = n > 0 ? 'flex' : 'none'; });
     },
     updateTotal(s) {
-        const el = document.querySelector('.wk-cart-total-value'); if (el) el.textContent = this.price(s);
+        // Accepts an already-formatted string (from the cart API) or falls
+        // back to numeric formatting for old callers.
+        const el = document.querySelector('.wk-cart-total-value');
+        if (el) el.textContent = (typeof s === 'string') ? s : this.price(s);
     },
 
     async updateQty(id, qty) {
@@ -277,7 +282,15 @@ const WhiskerStore = {
         })();
     },
 
-    price(a, s = '₹') { return s + parseFloat(a || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); },
+    price(a, s = null) {
+        // Symbol comes from <meta name="wk-symbol"> (set by the layout from
+        // store settings) — never hardcode a currency here.
+        if (s == null) {
+            const m = document.querySelector('meta[name="wk-symbol"]');
+            s = m && m.content ? m.content : '₹';
+        }
+        return s + parseFloat(a || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    },
     esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; },
 };
 

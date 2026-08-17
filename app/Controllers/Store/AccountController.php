@@ -42,6 +42,14 @@ class AccountController
             Response::redirect(View::url('account/register')); return;
         }
 
+        // The form posts password_confirm; enforcing the match only in JS let
+        // a direct POST (or JS-off submit) register with a typo'd password.
+        // Every other password flow in the app verifies this server-side.
+        if ($pass !== $request->input('password_confirm')) {
+            Session::flash('error', 'Passwords do not match.');
+            Response::redirect(View::url('account/register')); return;
+        }
+
         if (Database::fetchValue("SELECT COUNT(*) FROM wk_customers WHERE email=?", [$request->clean('email')])) {
             Session::flash('error', 'An account with this email already exists.');
             Response::redirect(View::url('account/register')); return;

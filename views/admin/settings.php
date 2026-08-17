@@ -19,10 +19,22 @@
                 <div class="wk-card-body">
                     <div class="wk-form-group"><label>Store Name</label><input type="text" name="general_site_name" class="wk-input" value="<?= $v('general','site_name') ?>"></div>
                     <div class="wk-form-group"><label>Tagline</label><input type="text" name="general_site_tagline" class="wk-input" value="<?= $v('general','site_tagline') ?>"></div>
-                    <div class="wk-form-group"><label>Store URL</label><input type="url" name="general_site_url" class="wk-input" value="<?= $v('general','site_url') ?>"></div>
+                    <div class="wk-form-group"><label>Shop Logo URL</label><input type="text" name="general_logo_url" class="wk-input" value="<?= $v('general','logo_url') ?>" placeholder="/storage/uploads/logo.png or https://yourstore.com/logo.png"><div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">Shown in the storefront header and emails. Use a full URL or a relative path. Tip: on an https:// shop, an http:// logo URL is blocked by browsers — use a relative path or https. Leave empty to show the store name.</div></div>
+                    <div class="wk-form-group"><label>Store URL</label><input type="url" name="general_base_url" class="wk-input" value="<?= $v('general','base_url') ?>"><div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">Used in sitemaps and SEO tags. The primary URL lives in config/config.php.</div></div>
+                    <?php $wkCurrencies = \App\Services\CurrencyService::currencies();
+                          $curCurrency = $s['general']['currency'] ?? 'INR'; ?>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-                        <div class="wk-form-group"><label>Currency Code</label><input type="text" name="general_currency" class="wk-input" value="<?= $v('general','currency') ?>" placeholder="INR"></div>
-                        <div class="wk-form-group"><label>Currency Symbol</label><input type="text" name="general_currency_symbol" class="wk-input" value="<?= $v('general','currency_symbol') ?>" placeholder="₹"></div>
+                        <div class="wk-form-group"><label>Currency</label>
+                            <select name="general_currency" id="wkCurrencySelect" class="wk-select" onchange="wkSyncSymbol()">
+                                <?php foreach ($wkCurrencies as $code => $cur): ?>
+                                <option value="<?= $code ?>" <?= $curCurrency === $code ? 'selected' : '' ?>><?= $code ?> — <?= htmlspecialchars($cur['name']) ?> (<?= $cur['symbol'] ?>)</option>
+                                <?php endforeach; ?>
+                                <?php if (!isset($wkCurrencies[$curCurrency]) && $curCurrency !== ''): ?>
+                                <option value="<?= htmlspecialchars($curCurrency) ?>" selected><?= htmlspecialchars($curCurrency) ?></option>
+                                <?php endif; ?>
+                            </select>
+                        </div>
+                        <div class="wk-form-group"><label>Currency Symbol</label><input type="text" name="general_currency_symbol" id="wkCurrencySymbol" class="wk-input" value="<?= $v('general','currency_symbol') ?>" placeholder="₹"><div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">Auto-fills when you change the currency</div></div>
                     </div>
                     <div class="wk-form-group"><label>Timezone</label><input type="text" name="general_timezone" class="wk-input" value="<?= $v('general','timezone') ?>"></div>
                     <div class="wk-form-group"><label>Contact Form Email</label><input type="email" name="general_contact_email" class="wk-input" value="<?= $v('general','contact_email') ?>" placeholder="support@yourstore.com"></div>
@@ -74,6 +86,16 @@
                     </label>
                     <?php endforeach; ?>
                 </div>
+            </div>
+        </div>
+
+        <div class="wk-card" style="margin-bottom:20px">
+            <div class="wk-card-header"><h2>🦸 Homepage Hero</h2></div>
+            <div class="wk-card-body">
+                <p style="font-size:12px;color:var(--wk-text-muted);margin-bottom:14px">The big headline block on your homepage. Leave empty to use your store name and tagline.</p>
+                <div class="wk-form-group"><label>Hero Title</label><input type="text" name="general_hero_title" class="wk-input" value="<?= $v('general','hero_title') ?>" placeholder="Defaults to store name"></div>
+                <div class="wk-form-group"><label>Hero Subtitle</label><input type="text" name="general_hero_subtitle" class="wk-input" value="<?= $v('general','hero_subtitle') ?>" placeholder="Defaults to tagline"></div>
+                <div class="wk-form-group"><label>Hero Button Text</label><input type="text" name="general_hero_cta" class="wk-input" value="<?= $v('general','hero_cta') ?>" placeholder="Shop Now"></div>
             </div>
         </div>
 
@@ -201,6 +223,14 @@
                         </div>
                         <button type="button" id="checkUpdateBtn" onclick="checkForUpdate()" class="wk-btn wk-btn-secondary wk-btn-sm">🔍 Check for Updates</button>
                     </div>
+                    <div class="wk-form-group" style="margin-top:14px">
+                        <label>Automatic Update Check</label>
+                        <select name="general_disable_update_check" class="wk-select">
+                            <option value="" <?= ($s['general']['disable_update_check'] ?? '')!=='1'?'selected':'' ?>>Enabled (recommended)</option>
+                            <option value="1" <?= ($s['general']['disable_update_check'] ?? '')==='1'?'selected':'' ?>>Disabled</option>
+                        </select>
+                        <div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">Daily check against the Whisker update server for new releases and security updates</div>
+                    </div>
                     <div id="updateResult" style="margin-top:12px"></div>
                 </div>
             </div>
@@ -233,6 +263,15 @@
 </form>
 
 <script>
+// Currency symbol autofill — keeps the symbol in sync with the chosen
+// currency so admins don't have to know that € goes with EUR.
+const WK_CURRENCY_SYMBOLS = <?= json_encode(array_map(fn($c) => $c['symbol'], \App\Services\CurrencyService::currencies())) ?>;
+function wkSyncSymbol() {
+    const sel = document.getElementById('wkCurrencySelect');
+    const sym = document.getElementById('wkCurrencySymbol');
+    if (sel && sym && WK_CURRENCY_SYMBOLS[sel.value]) sym.value = WK_CURRENCY_SYMBOLS[sel.value];
+}
+
 // Tab switching
 function switchTab(tab) {
     document.querySelectorAll('.settings-tab').forEach(t => t.style.display = 'none');

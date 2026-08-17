@@ -9,10 +9,30 @@ class CartController
         $cart = $this->getCart();
         $items = $this->getItems($cart['id']);
         $subtotal = array_reduce($items, fn($s,$i) => $s + ($i['unit_price'] * $i['quantity']), 0);
+
+        // Pre-format prices server-side, honoring the storefront currency
+        // switcher the same way product/shop pages do. The drawer JS used to
+        // render amounts with a hardcoded ₹ regardless of the configured
+        // currency — formatting here keeps symbols out of the JS entirely.
+        $baseCurrency    = \App\Services\CurrencyService::baseCurrency();
+        $displayCurrency = Session::get('wk_display_currency') ?: $baseCurrency;
+        $fmt = function (float $amount) use ($baseCurrency, $displayCurrency): string {
+            if ($displayCurrency !== $baseCurrency) {
+                $converted = \App\Services\CurrencyService::convert($amount, $baseCurrency, $displayCurrency);
+                return \App\Services\CurrencyService::format($converted, $displayCurrency);
+            }
+            return \App\Services\CurrencyService::baseSymbol() . number_format($amount, 2);
+        };
+        foreach ($items as &$item) {
+            $item['line_total_formatted'] = $fmt((float)$item['unit_price'] * (int)$item['quantity']);
+        }
+        unset($item);
+
         Response::json([
             'success'=>true, 'items'=>$items,
             'count'=>array_sum(array_column($items,'quantity')),
             'subtotal'=>$subtotal,
+            'subtotal_formatted'=>$fmt((float)$subtotal),
         ]);
     }
 

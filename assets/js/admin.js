@@ -121,13 +121,12 @@ const Whisker = {
     },
 
     // ── Confirm dialog ────────────────────────────
+    // NOTE: no JS price formatter here on purpose — admin prices are rendered
+    // server-side via \Core\View::price(), which uses the store's configured
+    // currency symbol. (A dead price() helper with a hardcoded ₹ default was
+    // removed in 1.3.2.)
     confirm(message) {
         return window.confirm(message);
-    },
-
-    // ── Format helpers ────────────────────────────
-    price(amount, symbol = '₹') {
-        return symbol + parseFloat(amount).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
     }
 };
 

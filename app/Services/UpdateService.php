@@ -464,9 +464,12 @@ class UpdateService
      */
     public static function rollback(string $filename): array
     {
-        // Sanitize filename
+        // Sanitize filename. The optional 8-hex suffix matches the random
+        // component createBackup() appends (L14) — the old pattern without it
+        // rejected every backup created since that change, making the Restore
+        // button always fail with "Invalid backup filename".
         $filename = basename($filename);
-        if (!preg_match('/^backup_v[\d.]+_\d{8}_\d{6}\.zip$/', $filename)) {
+        if (!preg_match('/^backup_v[\d.]+_\d{8}_\d{6}(?:_[0-9a-f]{8})?\.zip$/', $filename)) {
             return ['success' => false, 'message' => 'Invalid backup filename.'];
         }
 
@@ -500,6 +503,11 @@ class UpdateService
         $zip->extractTo($tempDir);
         $zip->close();
 
+        // The DB dump inside the backup is for manual recovery only — never
+        // copy it into the webroot (.htaccess blocks *.sql from the web, but
+        // a customer-data dump has no business sitting next to index.php).
+        @unlink($tempDir . '/_db_backup.sql');
+
         $protectedFiles = [
             'config/config.php',
             'config/database.php',
@@ -529,7 +537,10 @@ class UpdateService
         $backups = [];
         foreach (glob($backupDir . '/backup_v*.zip') as $file) {
             $name = basename($file);
-            preg_match('/^backup_v([\d.]+)_(\d{8})_(\d{6})\.zip$/', $name, $m);
+            // Optional 8-hex random suffix — see rollback()/createBackup().
+            // Without it in the pattern, suffixed backups listed as version
+            // "unknown" with an empty date in the dashboard.
+            preg_match('/^backup_v([\d.]+)_(\d{8})_(\d{6})(?:_[0-9a-f]{8})?\.zip$/', $name, $m);
 
             // Check if ZIP contains _db_backup.sql
             $hasDb = false;

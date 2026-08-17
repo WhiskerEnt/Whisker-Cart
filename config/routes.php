@@ -187,6 +187,11 @@ $router->group(['prefix' => '/admin', 'middleware' => ['auth', 'csrf']], functio
     $r->get('/shipping/settings',        [\App\Controllers\Admin\ShippingController::class, 'settings']);
     $r->post('/shipping/settings/update',[\App\Controllers\Admin\ShippingController::class, 'updateSettings']);
 
+    // Pickup points (lockers / collection points)
+    $r->post('/shipping/pickup/store',       [\App\Controllers\Admin\ShippingController::class, 'pickupStore']);
+    $r->post('/shipping/pickup/update/{id}', [\App\Controllers\Admin\ShippingController::class, 'pickupUpdate']);
+    $r->post('/shipping/pickup/delete/{id}', [\App\Controllers\Admin\ShippingController::class, 'pickupDelete']);
+
     // SEO
     $r->get('/seo',                      [SeoController::class, 'index']);
     $r->post('/seo/update',              [SeoController::class, 'update']);

@@ -14,5 +14,7 @@ CREATE TABLE IF NOT EXISTS wk_tax_rates (
     INDEX idx_class (tax_class)
 ) ENGINE=InnoDB;
 
--- Add tax breakdown column to orders
-ALTER TABLE wk_orders ADD COLUMN IF NOT EXISTS tax_details JSON DEFAULT NULL AFTER tax_amount;
+-- Add tax breakdown column to orders.
+-- Plain ADD COLUMN (portable to real MySQL); the runner treats
+-- "Duplicate column" as already-applied.
+ALTER TABLE wk_orders ADD COLUMN tax_details JSON DEFAULT NULL AFTER tax_amount;

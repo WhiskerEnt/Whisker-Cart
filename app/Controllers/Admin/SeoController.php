@@ -47,7 +47,17 @@ class SeoController
         $checkboxes = ['robots_index','robots_follow','auto_generate_meta','sitemap_enabled','schema_org_enabled'];
 
         foreach ($fields as $f) {
-            $val = in_array($f, $checkboxes) ? ($request->input($f) ? '1' : '0') : trim($request->input($f) ?? '');
+            if (in_array($f, $checkboxes)) {
+                // Checkboxes are absent from the POST when unchecked — absence
+                // IS the value, so always write.
+                $val = $request->input($f) ? '1' : '0';
+            } else {
+                // Text fields: only write what the form actually posted. A
+                // whitelisted key with no form input (canonical_url) used to
+                // be blanked to '' on every save.
+                if ($request->input($f) === null) continue;
+                $val = trim($request->input($f));
+            }
             Database::query("INSERT INTO wk_settings (setting_group, setting_key, setting_value) VALUES ('seo', ?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)", [$f, $val]);
         }
         // M10/M14: invalidate the request-scoped settings cache.

@@ -20,6 +20,29 @@ class ShippingController
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             ) ENGINE=InnoDB");
         }
+        // Pickup locations (lockers / collection points) — same on-demand
+        // bootstrap pattern, so the admin UI works even before the v1.3.2
+        // migration has run.
+        try {
+            Database::query("SELECT 1 FROM wk_pickup_locations LIMIT 1");
+        } catch (\Exception $e) {
+            Database::connect()->exec("CREATE TABLE IF NOT EXISTS wk_pickup_locations (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(150) NOT NULL,
+                carrier VARCHAR(100) DEFAULT '',
+                address_line1 VARCHAR(255) NOT NULL,
+                city VARCHAR(100) NOT NULL,
+                state VARCHAR(100) DEFAULT '',
+                zip VARCHAR(20) DEFAULT '',
+                country CHAR(2) NOT NULL DEFAULT 'IN',
+                opening_hours VARCHAR(255) DEFAULT '',
+                fee DECIMAL(12,2) DEFAULT NULL,
+                is_active TINYINT(1) DEFAULT 1,
+                sort_order INT DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_active (is_active)
+            ) ENGINE=InnoDB");
+        }
     }
 
     public function index(Request $request, array $params = []): void
@@ -122,9 +145,14 @@ class ShippingController
         foreach ($rows as $row) {
             $settings[$row['setting_group']][$row['setting_key']] = $row['setting_value'];
         }
+        $pickupLocations = [];
+        try {
+            $pickupLocations = Database::fetchAll("SELECT * FROM wk_pickup_locations ORDER BY sort_order, name");
+        } catch (\Exception $e) {}
         View::render('admin/shipping/settings', [
-            'pageTitle' => 'Shipping Settings',
-            'settings'  => $settings,
+            'pageTitle'       => 'Shipping Settings',
+            'settings'        => $settings,
+            'pickupLocations' => $pickupLocations,
         ], 'admin/layouts/main');
     }
 
@@ -136,7 +164,7 @@ class ShippingController
             return;
         }
 
-        $fields = ['method','flat_rate','flat_rate_below','free_threshold','per_item','per_item_cap','weight_base','weight_per_kg'];
+        $fields = ['method','flat_rate','flat_rate_below','free_threshold','per_item','per_item_cap','weight_base','weight_per_kg','pickup_enabled','pickup_fee'];
         foreach ($fields as $key) {
             $val = $request->input('shipping_' . $key);
             if ($val !== null) {
@@ -171,6 +199,91 @@ class ShippingController
         Database::clearSettingsCache();
 
         Session::flash('success', 'Shipping settings saved!');
+        Response::redirect(View::url('admin/shipping/settings'));
+    }
+
+    // ── Pickup points (lockers / collection points) ──────────────────
+
+    public function pickupStore(Request $request, array $params = []): void
+    {
+        if (!Session::verifyCsrf($request->input('wk_csrf'))) {
+            Session::flash('error', 'Session expired.');
+            Response::redirect(View::url('admin/shipping/settings'));
+            return;
+        }
+
+        $v = new Validator($request->all(), [
+            'name'          => 'required|min:2|max:150',
+            'address_line1' => 'required|min:3|max:255',
+            'city'          => 'required|min:1|max:100',
+        ]);
+        if ($v->fails()) {
+            Session::flash('error', $v->firstError());
+            Response::redirect(View::url('admin/shipping/settings'));
+            return;
+        }
+
+        $fee = trim((string)($request->input('fee') ?? ''));
+        Database::insert('wk_pickup_locations', [
+            'name'          => $request->clean('name'),
+            'carrier'       => $request->clean('carrier') ?? '',
+            'address_line1' => $request->clean('address_line1'),
+            'city'          => $request->clean('city'),
+            'state'         => $request->clean('state') ?? '',
+            'zip'           => $request->clean('zip') ?? '',
+            'country'       => strtoupper(substr(trim((string)($request->input('country') ?? 'IN')), 0, 2)),
+            'opening_hours' => $request->clean('opening_hours') ?? '',
+            'fee'           => $fee === '' ? null : round((float)$fee, 2),
+            'is_active'     => 1,
+            'sort_order'    => (int)($request->input('sort_order') ?? 0),
+        ]);
+
+        Session::flash('success', 'Pickup point added!');
+        Response::redirect(View::url('admin/shipping/settings'));
+    }
+
+    public function pickupUpdate(Request $request, array $params = []): void
+    {
+        if (!Session::verifyCsrf($request->input('wk_csrf'))) {
+            Session::flash('error', 'Session expired.');
+            Response::redirect(View::url('admin/shipping/settings'));
+            return;
+        }
+
+        $v = new Validator($request->all(), [
+            'name'          => 'required|min:2|max:150',
+            'address_line1' => 'required|min:3|max:255',
+            'city'          => 'required|min:1|max:100',
+        ]);
+        if ($v->fails()) {
+            Session::flash('error', $v->firstError());
+            Response::redirect(View::url('admin/shipping/settings'));
+            return;
+        }
+
+        $fee = trim((string)($request->input('fee') ?? ''));
+        Database::update('wk_pickup_locations', [
+            'name'          => $request->clean('name'),
+            'carrier'       => $request->clean('carrier') ?? '',
+            'address_line1' => $request->clean('address_line1'),
+            'city'          => $request->clean('city'),
+            'state'         => $request->clean('state') ?? '',
+            'zip'           => $request->clean('zip') ?? '',
+            'country'       => strtoupper(substr(trim((string)($request->input('country') ?? 'IN')), 0, 2)),
+            'opening_hours' => $request->clean('opening_hours') ?? '',
+            'fee'           => $fee === '' ? null : round((float)$fee, 2),
+            'is_active'     => $request->input('is_active') ? 1 : 0,
+            'sort_order'    => (int)($request->input('sort_order') ?? 0),
+        ], 'id=?', [$params['id']]);
+
+        Session::flash('success', 'Pickup point updated!');
+        Response::redirect(View::url('admin/shipping/settings'));
+    }
+
+    public function pickupDelete(Request $request, array $params = []): void
+    {
+        Database::delete('wk_pickup_locations', 'id=?', [$params['id']]);
+        Session::flash('success', 'Pickup point deleted.');
         Response::redirect(View::url('admin/shipping/settings'));
     }
 }

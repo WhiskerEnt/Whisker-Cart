@@ -18,6 +18,16 @@ foreach ($allCats as $cat) {
 
 $isLoggedIn = \Core\Session::customerId() !== null;
 $customer = $isLoggedIn ? \Core\Database::fetch("SELECT first_name FROM wk_customers WHERE id=?", [\Core\Session::customerId()]) : null;
+
+// Active display currency + symbol, used by the head meta (for store.js),
+// the header currency switcher and the cart drawer.
+$baseCurrency = \App\Services\CurrencyService::baseCurrency();
+$currentCurrency = $_SESSION['wk_display_currency'] ?? $baseCurrency;
+// For the base currency, honor the symbol the merchant configured;
+// for switched display currencies use the standard map.
+$currentSymbol = $currentCurrency === $baseCurrency
+    ? \App\Services\CurrencyService::baseSymbol()
+    : \App\Services\CurrencyService::symbol($currentCurrency);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -26,6 +36,7 @@ $customer = $isLoggedIn ? \Core\Database::fetch("SELECT first_name FROM wk_custo
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="wk-base" content="<?= \Core\View::url('') ?>">
     <meta name="wk-csrf" content="<?= \Core\Session::csrfToken() ?>">
+    <meta name="wk-symbol" content="<?= $e($currentSymbol) ?>">
     <?php if (!empty($seoMeta)): ?>
     <?= $seoMeta ?>
     <?php else: ?>
@@ -93,11 +104,10 @@ $customer = $isLoggedIn ? \Core\Database::fetch("SELECT first_name FROM wk_custo
             <a href="<?= $url('search') ?>">Search</a>
         </nav>
 
-        <div style="display:flex;align-items:center;gap:12px">
+        <div style="display:flex;align-items:center;gap:12px;flex-shrink:0">
             <?php
-            $activeCurrencies = ['INR','USD','EUR','GBP','AUD','CAD','JPY','SGD','AED'];
-            $currentCurrency = $_SESSION['wk_display_currency'] ?? (\App\Services\CurrencyService::baseCurrency());
-            $currentSymbol = \App\Services\CurrencyService::symbol($currentCurrency);
+            // Always offer the store's own currency in the switcher, first.
+            $activeCurrencies = array_values(array_unique(array_merge([$baseCurrency], ['INR','USD','EUR','GBP','AUD','CAD','JPY','SGD','AED'])));
             ?>
             <select onchange="window.location='<?= $url('') ?>?currency='+this.value" style="padding:6px 10px;border:2px solid var(--wk-border);border-radius:6px;font-family:var(--font);font-size:12px;font-weight:700;background:var(--wk-surface);cursor:pointer;color:var(--wk-text)">
                 <?php foreach ($activeCurrencies as $cc): ?>
@@ -123,7 +133,7 @@ $customer = $isLoggedIn ? \Core\Database::fetch("SELECT first_name FROM wk_custo
                 </div>
                 <script>document.addEventListener('click',function(e){if(!document.getElementById('accountMenu').contains(e.target))document.getElementById('accountDrop').style.display='none'});</script>
             <?php else: ?>
-                <a href="<?= $url('account/login') ?>" style="font-size:13px;font-weight:700;color:var(--wk-muted)">Sign In</a>
+                <a href="<?= $url('account/login') ?>" style="font-size:13px;font-weight:700;color:var(--wk-muted);white-space:nowrap">Sign In</a>
             <?php endif; ?>
 
             <button class="wk-cart-btn" data-cart-open>
@@ -158,7 +168,7 @@ $customer = $isLoggedIn ? \Core\Database::fetch("SELECT first_name FROM wk_custo
     <div class="wk-cart-footer">
         <div class="wk-cart-total">
             <span class="wk-cart-total-label">Subtotal</span>
-            <span class="wk-cart-total-value">₹0.00</span>
+            <span class="wk-cart-total-value"><?= $e($currentSymbol) ?>0.00</span>
         </div>
         <a href="<?= $url('checkout') ?>" class="wk-checkout-btn">Proceed to Checkout →</a>
     </div>

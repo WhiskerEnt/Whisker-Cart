@@ -126,15 +126,23 @@ class EmailService
             </tr>';
         }
 
-        // Address blocks
-        $addrBlock = fn($a, $label) => '<div style="flex:1">
+        // Address blocks. Pickup orders snapshot the locker into the shipping
+        // address (line1 = locker name, line2 = street) with a 'pickup' flag —
+        // relabel the block and include line2/opening hours so the customer
+        // knows where to collect.
+        $addrBlock = function ($a, $label) {
+            if (!empty($a['pickup'])) $label = '📦 Pickup Point';
+            return '<div style="flex:1">
             <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#6b7280;margin-bottom:6px">' . $label . '</div>
             <div style="font-size:14px;line-height:1.7">
                 <strong>' . htmlspecialchars($a['name'] ?? '') . '</strong><br>
                 ' . htmlspecialchars($a['line1'] ?? '') . '<br>
+                ' . (!empty($a['line2']) ? htmlspecialchars($a['line2']) . '<br>' : '') . '
                 ' . htmlspecialchars(($a['city'] ?? '') . ', ' . ($a['state'] ?? '') . ' ' . ($a['zip'] ?? '')) . '
+                ' . (!empty($a['pickup']) && !empty($a['opening_hours']) ? '<br><span style="color:#6b7280;font-size:13px">🕐 ' . htmlspecialchars($a['opening_hours']) . '</span>' : '') . '
             </div>
         </div>';
+        };
 
         $body = '
         <div style="text-align:center;margin-bottom:28px">

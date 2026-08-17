@@ -15,6 +15,11 @@ storage/uploads/products/*
 sitemap.xml
 robots.txt
 
+# Dev tooling (never ships in release zips)
+/vendor/
+composer.lock
+.phpunit.result.cache
+
 # OS
 .DS_Store
 Thumbs.db

@@ -33,7 +33,19 @@ define('WK_VERSION', is_file($versionFile)
     ? (string) require $versionFile
     : (string) ($config['version'] ?? '1.3.0'));
 
-date_default_timezone_set($config['timezone'] ?? 'UTC');
+// Timezone: the admin-editable DB setting wins; config.php holds the
+// install-time value as fallback. Before this, Settings → Timezone saved
+// happily and changed nothing (every date() kept the install-time zone).
+$wkTimezone = $config['timezone'] ?? 'UTC';
+try {
+    $wkDbTimezone = \Core\Database::setting('general', 'timezone');
+    if ($wkDbTimezone && in_array($wkDbTimezone, timezone_identifiers_list(), true)) {
+        $wkTimezone = $wkDbTimezone;
+    }
+} catch (\Throwable $e) {
+    // DB not reachable yet (e.g. mid-install) — config value stands.
+}
+date_default_timezone_set($wkTimezone);
 
 if (WK_DEBUG) {
     error_reporting(E_ALL);

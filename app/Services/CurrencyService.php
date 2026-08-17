@@ -38,6 +38,14 @@ class CurrencyService
             'SEK' => ['name' => 'Swedish Krona',      'symbol' => 'kr'],
             'NZD' => ['name' => 'New Zealand Dollar', 'symbol' => 'NZ$'],
             'CHF' => ['name' => 'Swiss Franc',        'symbol' => 'CHF'],
+            'PLN' => ['name' => 'Polish Złoty',       'symbol' => 'zł'],
+            'NOK' => ['name' => 'Norwegian Krone',    'symbol' => 'kr'],
+            'DKK' => ['name' => 'Danish Krone',       'symbol' => 'kr'],
+            'CZK' => ['name' => 'Czech Koruna',       'symbol' => 'Kč'],
+            'HUF' => ['name' => 'Hungarian Forint',   'symbol' => 'Ft'],
+            'RON' => ['name' => 'Romanian Leu',       'symbol' => 'lei'],
+            'MXN' => ['name' => 'Mexican Peso',       'symbol' => 'MX$'],
+            'HKD' => ['name' => 'Hong Kong Dollar',   'symbol' => 'HK$'],
         ];
     }
 
@@ -149,24 +157,69 @@ class CurrencyService
     }
 
     /**
-     * Fetch live rate from frankfurter.app (free, no API key)
+     * Exchange-rate API (Frankfurter, free, no key, ECB rates).
+     *
+     * NOTE: the old host api.frankfurter.app now 301-redirects to
+     * api.frankfurter.dev/v1. The redirect only worked because
+     * file_get_contents follows redirects — on hosts with allow_url_fopen
+     * OFF (common on shared hosting) the whole thing failed silently and the
+     * storefront showed the base amount under the switched symbol (e.g. a
+     * ₹2799 product read "€2799" instead of "€25"). Point straight at the
+     * current endpoint and fetch via cURL so redirects and allow_url_fopen
+     * are no longer load-bearing.
+     */
+    private const RATES_API = 'https://api.frankfurter.dev/v1/latest';
+
+    /**
+     * Fetch live rate from the exchange-rate API.
      */
     private static function fetchRate(string $from, string $to): ?float
     {
-        $url = "https://api.frankfurter.app/latest?from={$from}&to={$to}";
-
-        $ctx = stream_context_create([
-            'http' => ['timeout' => 5, 'ignore_errors' => true],
-            'ssl'  => ['verify_peer' => true, 'verify_peer_name' => true],
-        ]);
-
-        $body = @file_get_contents($url, false, $ctx);
-        if (!$body) return null;
+        $body = self::httpGet(self::RATES_API . "?base={$from}&symbols={$to}");
+        if ($body === null) return null;
 
         $data = json_decode($body, true);
         if (!$data || empty($data['rates'][$to])) return null;
 
         return (float)$data['rates'][$to];
+    }
+
+    /**
+     * HTTP GET a small JSON body. cURL first (works even when
+     * allow_url_fopen is off, and follows redirects), then a stream-wrapper
+     * fallback. Returns the body string, or null on any failure.
+     */
+    private static function httpGet(string $url): ?string
+    {
+        if (function_exists('curl_init')) {
+            $ch = curl_init($url);
+            if ($ch !== false) {
+                curl_setopt_array($ch, [
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_FOLLOWLOCATION => true,
+                    CURLOPT_MAXREDIRS      => 3,
+                    CURLOPT_CONNECTTIMEOUT => 5,
+                    CURLOPT_TIMEOUT        => 8,
+                    CURLOPT_SSL_VERIFYPEER => true,
+                    CURLOPT_SSL_VERIFYHOST => 2,
+                ]);
+                $body = curl_exec($ch);
+                $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                $err  = curl_errno($ch);
+                curl_close($ch);
+                if ($err === 0 && $code >= 200 && $code < 300 && is_string($body) && $body !== '') {
+                    return $body;
+                }
+                // else fall through to the stream fallback
+            }
+        }
+
+        $ctx = stream_context_create([
+            'http' => ['timeout' => 8, 'ignore_errors' => true, 'follow_location' => 1, 'max_redirects' => 3],
+            'ssl'  => ['verify_peer' => true, 'verify_peer_name' => true],
+        ]);
+        $body = @file_get_contents($url, false, $ctx);
+        return (is_string($body) && $body !== '') ? $body : null;
     }
 
     /**
@@ -193,11 +246,8 @@ class CurrencyService
         } catch (\Exception $e) {}
 
         // Fetch all rates
-        $url = "https://api.frankfurter.app/latest?from={$from}";
-        $ctx = stream_context_create(['http' => ['timeout' => 5], 'ssl' => ['verify_peer' => true, 'verify_peer_name' => true]]);
-        $body = @file_get_contents($url, false, $ctx);
-
-        if (!$body) return [];
+        $body = self::httpGet(self::RATES_API . "?base={$from}");
+        if ($body === null) return [];
 
         $data = json_decode($body, true);
         $rates = $data['rates'] ?? [];
@@ -253,6 +303,21 @@ class CurrencyService
             'NO' => ['name' => 'Norway',            'currency' => 'NOK'],
             'DK' => ['name' => 'Denmark',           'currency' => 'DKK'],
             'FI' => ['name' => 'Finland',           'currency' => 'EUR'],
+            'PL' => ['name' => 'Poland',            'currency' => 'PLN'],
+            'CZ' => ['name' => 'Czech Republic',    'currency' => 'CZK'],
+            'RO' => ['name' => 'Romania',           'currency' => 'RON'],
+            'HU' => ['name' => 'Hungary',           'currency' => 'HUF'],
+            'GR' => ['name' => 'Greece',            'currency' => 'EUR'],
+            'HR' => ['name' => 'Croatia',           'currency' => 'EUR'],
+            'SK' => ['name' => 'Slovakia',          'currency' => 'EUR'],
+            'SI' => ['name' => 'Slovenia',          'currency' => 'EUR'],
+            'LT' => ['name' => 'Lithuania',         'currency' => 'EUR'],
+            'LV' => ['name' => 'Latvia',            'currency' => 'EUR'],
+            'EE' => ['name' => 'Estonia',           'currency' => 'EUR'],
+            'BG' => ['name' => 'Bulgaria',          'currency' => 'EUR'],
+            'CY' => ['name' => 'Cyprus',            'currency' => 'EUR'],
+            'LU' => ['name' => 'Luxembourg',        'currency' => 'EUR'],
+            'MT' => ['name' => 'Malta',             'currency' => 'EUR'],
             'HK' => ['name' => 'Hong Kong',         'currency' => 'HKD'],
             'CN' => ['name' => 'China',             'currency' => 'CNY'],
             'MX' => ['name' => 'Mexico',            'currency' => 'MXN'],

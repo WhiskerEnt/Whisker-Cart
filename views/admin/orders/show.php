@@ -55,12 +55,18 @@ $s=$sm[$o['status']]??['info','?'];
                     <?= $e($billing['country']??'') ?>
                 </div>
             </div>
+            <?php $isPickup = !empty($shipping_addr['pickup']); ?>
             <div class="wk-card">
-                <div class="wk-card-header"><h2>🚚 Shipping Address</h2></div>
+                <div class="wk-card-header"><h2><?= $isPickup ? '📦 Pickup Point' : '🚚 Shipping Address' ?></h2></div>
                 <div class="wk-card-body" style="font-size:14px;line-height:1.8">
+                    <?php if ($isPickup): ?><span class="wk-badge wk-badge-purple" style="margin-bottom:6px;display:inline-block">Locker / collection point</span><br><?php endif; ?>
                     <strong><?= $e($shipping_addr['name']??'') ?></strong><br>
                     <?= $e($shipping_addr['line1']??'') ?><br>
+                    <?php if (!empty($shipping_addr['line2'])): ?><?= $e($shipping_addr['line2']) ?><br><?php endif; ?>
                     <?= $e(($shipping_addr['city']??'').', '.($shipping_addr['state']??'').' '.($shipping_addr['zip']??'')) ?>
+                    <?php if ($isPickup && !empty($shipping_addr['opening_hours'])): ?>
+                        <br><span style="color:var(--wk-text-muted);font-size:13px">🕐 <?= $e($shipping_addr['opening_hours']) ?></span>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>

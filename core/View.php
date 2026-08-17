@@ -87,9 +87,21 @@ class View
 
     /**
      * Helper: format price.
+     *
+     * When no symbol is passed, the store's configured currency symbol is
+     * used. Views must not hardcode a fallback symbol — a store configured
+     * for EUR was showing ₹ on every call site that relied on the old
+     * hardcoded default.
      */
-    public static function price(float $amount, string $symbol = '₹'): string
+    public static function price(float $amount, ?string $symbol = null): string
     {
+        if ($symbol === null) {
+            try {
+                $symbol = Database::setting('general', 'currency_symbol') ?: '₹';
+            } catch (\Throwable $e) {
+                $symbol = '₹';
+            }
+        }
         return $symbol . number_format($amount, 2);
     }
 

@@ -6,10 +6,14 @@ class RazorpayGateway extends \Core\BaseGateway
 {
     public function createOrder(array $order): array
     {
+        $currency = $order['currency'] ?? 'INR';
         $amount = (int)($order['total'] * 100);
-        $resp = $this->api('/orders', ['amount'=>$amount, 'currency'=>$order['currency']??'INR', 'receipt'=>$order['order_number']]);
-        $this->logTransaction($order['id'], ['gateway_order_id'=>$resp['id']??null, 'amount'=>$order['total'], 'status'=>'initiated', 'response'=>$resp]);
-        return ['gateway_order_id'=>$resp['id'], 'key_id'=>$this->cfg('key_id'), 'amount'=>$amount];
+        $resp = $this->api('/orders', ['amount'=>$amount, 'currency'=>$currency, 'receipt'=>$order['order_number']]);
+        $this->logTransaction($order['id'], ['gateway_order_id'=>$resp['id']??null, 'amount'=>$order['total'], 'currency'=>$currency, 'status'=>'initiated', 'response'=>$resp]);
+        // currency must travel to the browser: the Razorpay checkout options
+        // must name the SAME currency the order was created with, or non-INR
+        // stores get a mismatch at payment time.
+        return ['gateway_order_id'=>$resp['id'], 'key_id'=>$this->cfg('key_id'), 'amount'=>$amount, 'currency'=>$currency];
     }
 
     public function verifyPayment(array $p): array

@@ -94,16 +94,21 @@ $countries = \App\Services\CurrencyService::countries();
         </div>
     </div>
 
-    <!-- Shipping Address -->
+    <!-- Shipping Address / Pickup Point -->
+    <?php $isPickup = !empty($shipping_addr['pickup']); ?>
     <div class="wk-collapse">
         <div class="wk-collapse-header" onclick="this.parentElement.classList.toggle('open')">
-            📍 Shipping Address <span class="wk-collapse-arrow">▼</span>
+            <?= $isPickup ? '📦 Pickup Point' : '📍 Shipping Address' ?> <span class="wk-collapse-arrow">▼</span>
         </div>
         <div class="wk-collapse-body">
             <?php if (!empty($shipping_addr)): ?>
                 <strong><?= $e($shipping_addr['name']??'') ?></strong><br>
                 <?= $e($shipping_addr['line1']??'') ?><br>
+                <?php if (!empty($shipping_addr['line2'])): ?><?= $e($shipping_addr['line2']) ?><br><?php endif; ?>
                 <?= $e(($shipping_addr['city']??'').', '.($shipping_addr['state']??'').' '.($shipping_addr['zip']??'')) ?>
+                <?php if ($isPickup && !empty($shipping_addr['opening_hours'])): ?>
+                    <br><span style="color:var(--wk-muted);font-size:13px">🕐 <?= $e($shipping_addr['opening_hours']) ?></span>
+                <?php endif; ?>
             <?php else: ?>
                 <span style="color:var(--wk-muted)">Same as billing address</span>
             <?php endif; ?>

@@ -1,0 +1,14 @@
+{
+    "name": "whiskerent/whisker-cart",
+    "description": "Whisker — free, self-hosted e-commerce cart. Dev-only manifest: the shipped product has zero dependencies; composer is used exclusively for the test suite and never ships in release zips.",
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.6"
+    },
+    "config": {
+        "sort-packages": true
+    }
+}
