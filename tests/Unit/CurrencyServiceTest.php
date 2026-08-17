@@ -53,6 +53,19 @@ class CurrencyServiceTest extends TestCase
         }
     }
 
+    public function testRatesApiPointsAtLiveEndpointNotTheDeadHost(): void
+    {
+        // The rate source api.frankfurter.app now 301-redirects to
+        // api.frankfurter.dev/v1; relying on the redirect broke conversion on
+        // hosts that don't follow redirects / have allow_url_fopen off. Guard
+        // against reverting to the dead host.
+        $api = (new \ReflectionClass(CurrencyService::class))->getConstant('RATES_API');
+        $this->assertIsString($api);
+        $this->assertStringStartsWith('https://', $api);
+        $this->assertStringContainsString('frankfurter.dev', $api);
+        $this->assertStringNotContainsString('frankfurter.app', $api);
+    }
+
     public function testInstallerCurrencyListStaysInSyncWithCurrencyService(): void
     {
         // The install wizard duplicates the currency list because it runs
