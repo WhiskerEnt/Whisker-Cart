@@ -174,7 +174,10 @@ class SeoService
             'offers' => [
                 '@type' => 'Offer',
                 'price' => number_format((float)$price, 2, '.', ''),
-                'priceCurrency' => $product['currency'] ?? 'INR',
+                // Store currency setting, NOT wk_products.currency — that column
+                // is never written and always holds its 'INR' default, which
+                // made every EUR store publish priceCurrency: "INR" to Google.
+                'priceCurrency' => \Core\Database::setting('general', 'currency') ?: 'INR',
                 'availability' => $inStock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
             ],
         ];

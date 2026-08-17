@@ -21,9 +21,20 @@ class SettingsController
             Response::redirect(View::url('admin/settings'));
             return;
         }
+        // Every field the settings form posts MUST be listed here — anything
+        // missing is silently dropped on save. (Bug fix: store_logo, logo_url's
+        // form field, homepage_style, store_country/state, business info and
+        // min_order were all posted by the form but absent from this list, so
+        // "Save Settings" threw them away without any error.)
         $fields = [
-            'general' => ['site_name','site_tagline','logo_url','store_theme','chatbot_name','chatbot_enabled','contact_email','currency','currency_symbol','timezone'],
-            'checkout'=> ['guest_checkout','tax_rate'],
+            'general' => [
+                'site_name','site_tagline','base_url','logo_url','store_theme','homepage_style',
+                'hero_title','hero_subtitle','hero_cta',
+                'chatbot_name','chatbot_enabled','contact_email','currency','currency_symbol','timezone',
+                'store_phone','store_address','store_tax_id','store_logo','store_country','store_state',
+                'disable_update_check',
+            ],
+            'checkout'=> ['guest_checkout','tax_rate','min_order'],
             'email'   => ['from_email','from_name','smtp_host','smtp_port','smtp_user','smtp_pass'],
         ];
         foreach ($fields as $group => $keys) {
@@ -37,6 +48,20 @@ class SettingsController
                     );
                 }
             }
+        }
+
+        // If a currency was chosen but the symbol field was left blank, derive
+        // the symbol from the currency code. Otherwise the seeded '₹' (or an
+        // emptied value) sticks and every price in the store shows the wrong
+        // symbol — the exact "picked EUR, still see ₹" bug.
+        $postedCurrency = strtoupper(trim((string)($request->input('general_currency') ?? '')));
+        $postedSymbol   = trim((string)($request->input('general_currency_symbol') ?? ''));
+        if ($postedCurrency !== '' && $postedSymbol === '') {
+            Database::query(
+                "INSERT INTO wk_settings (setting_group,setting_key,setting_value) VALUES('general','currency_symbol',?)
+                 ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value)",
+                [\App\Services\CurrencyService::symbol($postedCurrency)]
+            );
         }
         // M10/M14: drop the request-scoped settings cache so any later call
         // to Database::setting() in this request sees the new values. Without

@@ -82,7 +82,7 @@ function openRazorpay() {
     const options = {
         key: '<?= $e($payData['key_id']) ?>',
         amount: <?= (int)$payData['amount'] ?>,
-        currency: 'INR',
+        currency: '<?= $e($payData['currency'] ?? 'INR') ?>',
         name: document.title,
         order_id: '<?= $e($payData['gateway_order_id']) ?>',
         prefill: {

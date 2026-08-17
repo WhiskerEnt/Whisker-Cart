@@ -28,23 +28,23 @@ class Router
 
     // ── Route Registration ───────────────────────
 
-    public function get(string $path, array $handler, array $middleware = []): void
+    public function get(string $path, array|\Closure $handler, array $middleware = []): void
     {
         $this->addRoute('GET', $path, $handler, $middleware);
     }
 
-    public function post(string $path, array $handler, array $middleware = []): void
+    public function post(string $path, array|\Closure $handler, array $middleware = []): void
     {
         $this->addRoute('POST', $path, $handler, $middleware);
     }
 
-    public function any(string $path, array $handler, array $middleware = []): void
+    public function any(string $path, array|\Closure $handler, array $middleware = []): void
     {
         $this->addRoute('GET', $path, $handler, $middleware);
         $this->addRoute('POST', $path, $handler, $middleware);
     }
 
-    private function addRoute(string $method, string $path, array $handler, array $middleware): void
+    private function addRoute(string $method, string $path, array|\Closure $handler, array $middleware): void
     {
         $fullPath = $this->prefix . $path;
         $allMiddleware = array_merge($this->middleware, $middleware);
@@ -114,7 +114,14 @@ class Router
                     }
                 }
 
-                // Call the controller method
+                // Call the handler. Closures are invoked directly — plugin
+                // webhook routes use them because gateway classes live outside
+                // the autoloader and need constructor arguments, so the
+                // `new $class()` path below can never instantiate them.
+                if ($route['handler'] instanceof \Closure) {
+                    ($route['handler'])($request, $params);
+                    return;
+                }
                 [$controllerClass, $action] = $route['handler'];
                 $controller = new $controllerClass();
                 $controller->$action($request, $params);

@@ -55,8 +55,34 @@ $defAddr = !empty($addrs) ? $addrs[0] : [];
                     </div>
                 </div>
 
-                <!-- Shipping Address -->
+                <?php if (!empty($pickupEnabled)): ?>
+                <!-- Delivery Method -->
                 <div style="background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:var(--radius);padding:28px;margin-bottom:20px">
+                    <h2 style="font-size:17px;font-weight:900;margin-bottom:16px">Delivery Method</h2>
+                    <label style="display:flex;align-items:center;gap:12px;padding:14px;border:2px solid var(--wk-purple);border-radius:8px;cursor:pointer;margin-bottom:10px;background:rgba(139,92,246,.03)" id="wkDelivShipLabel">
+                        <input type="radio" name="delivery_method" value="shipping" checked onchange="wkDeliveryToggle()" style="accent-color:var(--wk-purple)">
+                        <div><div style="font-weight:800;font-size:14px">🏠 Home Delivery</div><div style="font-size:12px;color:var(--wk-muted)">Delivered to your address</div></div>
+                    </label>
+                    <label style="display:flex;align-items:center;gap:12px;padding:14px;border:2px solid var(--wk-border);border-radius:8px;cursor:pointer" id="wkDelivPickupLabel">
+                        <input type="radio" name="delivery_method" value="pickup" onchange="wkDeliveryToggle()" style="accent-color:var(--wk-purple)">
+                        <div><div style="font-weight:800;font-size:14px">📦 Pickup Point / Locker</div><div style="font-size:12px;color:var(--wk-muted)">Collect from a nearby pickup location</div></div>
+                    </label>
+                    <div id="wkPickupBox" style="display:none;margin-top:16px">
+                        <label style="<?= $ls ?>">Pickup Location</label>
+                        <select name="pickup_location_id" id="pickup_location" onchange="wkPickupHoursHint();wkRecalcTotals()" style="<?= $is ?> cursor:pointer">
+                            <?php foreach ($pickupLocations as $loc): ?>
+                            <option value="<?= (int)$loc['id'] ?>" data-hours="<?= $e($loc['opening_hours'] ?? '') ?>">
+                                <?= $e($loc['name']) ?><?= $loc['carrier'] ? ' · ' . $e($loc['carrier']) : '' ?> — <?= $e($loc['address_line1']) ?>, <?= $e($loc['city']) ?> <?= $e($loc['zip']) ?> (<?= $e($loc['country']) ?>)
+                            </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <div style="font-size:12px;color:var(--wk-muted);margin-top:6px" id="wkPickupHours"></div>
+                    </div>
+                </div>
+                <?php endif; ?>
+
+                <!-- Shipping Address -->
+                <div style="background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:var(--radius);padding:28px;margin-bottom:20px" id="wkShipCard">
                     <h2 style="font-size:17px;font-weight:900;margin-bottom:20px">Shipping Address</h2>
 
                     <?php if (!empty($addrs)): ?>
@@ -96,8 +122,8 @@ $defAddr = !empty($addrs) ? $addrs[0] : [];
                 <!-- Billing Address -->
                 <div style="background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:var(--radius);padding:28px;margin-bottom:20px">
                     <h2 style="font-size:17px;font-weight:900;margin-bottom:12px">Billing Address</h2>
-                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;font-size:14px;margin-bottom:16px">
-                        <input type="checkbox" id="sameAsShipping" checked onchange="toggleBilling()"> Same as shipping address
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;font-size:14px;margin-bottom:16px" id="wkSameRow">
+                        <input type="checkbox" id="sameAsShipping" checked onchange="toggleBilling()"> <span id="wkSameLabel">Same as shipping address</span>
                     </label>
                     <div id="billingFields" style="display:none">
                         <?php if (!empty($addrs)): ?>
@@ -185,7 +211,7 @@ $defAddr = !empty($addrs) ? $addrs[0] : [];
                             <span style="font-weight:700" id="wk-sum-tax"><?= $totals['tax_known'] ? $showPrice($totals['tax']) : '<span style="color:var(--wk-muted);font-weight:500;font-size:13px">Calculated at next step</span>' ?></span>
                         </div>
                         <div style="display:flex;justify-content:space-between;padding:6px 0">
-                            <span style="color:var(--wk-muted)">Shipping</span>
+                            <span style="color:var(--wk-muted)" id="wk-sum-shipping-label">Shipping</span>
                             <span style="font-weight:700" id="wk-sum-shipping"><?= $showPrice($totals['shipping']) ?></span>
                         </div>
                         <div style="display:flex;justify-content:space-between;padding:12px 0 0;margin-top:8px;border-top:2px solid var(--wk-border);font-size:20px">
@@ -224,6 +250,62 @@ function toggleBilling() {
     document.getElementById('billingFields').style.display = document.getElementById('sameAsShipping').checked ? 'none' : 'block';
 }
 
+// ── Delivery method: home shipping vs pickup point ─────────────────
+function wkDeliveryMethod() {
+    const sel = document.querySelector('input[name="delivery_method"]:checked');
+    return sel ? sel.value : 'shipping';
+}
+
+function wkDeliveryToggle() {
+    const isPickup = wkDeliveryMethod() === 'pickup';
+    const shipCard = document.getElementById('wkShipCard');
+    const pickupBox = document.getElementById('wkPickupBox');
+    const shipLabel = document.getElementById('wkDelivShipLabel');
+    const pickLabel = document.getElementById('wkDelivPickupLabel');
+
+    if (shipCard) shipCard.style.display = isPickup ? 'none' : 'block';
+    if (pickupBox) pickupBox.style.display = isPickup ? 'block' : 'none';
+    // Address inputs must not block submit while hidden.
+    ['ship_addr', 'ship_city', 'ship_state', 'ship_zip'].forEach(function(id) {
+        const el = document.getElementById(id);
+        if (el) el.required = !isPickup;
+    });
+    // "Same as shipping" makes no sense for a locker — the billing section
+    // becomes a plain optional billing-address form while pickup is active.
+    const sameRow = document.getElementById('wkSameRow');
+    const sameCheck = document.getElementById('sameAsShipping');
+    if (sameRow && sameCheck) {
+        if (isPickup) {
+            sameRow.style.display = 'none';
+            sameCheck.checked = false;
+        } else {
+            sameRow.style.display = 'flex';
+            sameCheck.checked = true;
+        }
+        toggleBilling();
+    }
+    // Highlight the selected option + relabel the summary row.
+    if (shipLabel && pickLabel) {
+        shipLabel.style.borderColor = isPickup ? 'var(--wk-border)' : 'var(--wk-purple)';
+        shipLabel.style.background  = isPickup ? 'transparent' : 'rgba(139,92,246,.03)';
+        pickLabel.style.borderColor = isPickup ? 'var(--wk-purple)' : 'var(--wk-border)';
+        pickLabel.style.background  = isPickup ? 'rgba(139,92,246,.03)' : 'transparent';
+    }
+    const sumLabel = document.getElementById('wk-sum-shipping-label');
+    if (sumLabel) sumLabel.textContent = isPickup ? 'Pickup' : 'Shipping';
+    wkPickupHoursHint();
+    wkRecalcTotals();
+}
+
+function wkPickupHoursHint() {
+    const sel = document.getElementById('pickup_location');
+    const hint = document.getElementById('wkPickupHours');
+    if (!sel || !hint) return;
+    const opt = sel.options[sel.selectedIndex];
+    const hours = opt ? (opt.dataset.hours || '') : '';
+    hint.textContent = hours ? '🕐 ' + hours : '';
+}
+
 // ── Server-authoritative totals recompute ──────────────────────────
 // Whenever the shipping address changes, ask the server for fresh totals.
 // The server is the single source of truth — this just keeps the display
@@ -238,7 +320,11 @@ function wkRecalcTotals() {
 async function wkDoRecalc() {
     const country = (document.getElementById('ship_country')||{}).value || '';
     const state   = (document.getElementById('ship_state')||{}).value   || '';
-    if (!country && !state) return; // nothing to compute against yet
+    const method  = wkDeliveryMethod();
+    const pickupId = (document.getElementById('pickup_location')||{}).value || '';
+    // For home delivery we need at least a country/state to compute against;
+    // for pickup the server derives everything from the pickup location.
+    if (method !== 'pickup' && !country && !state) return;
 
     // Coalesce concurrent calls — only the latest result wins.
     const myCall = wkRecalcInflight = Symbol('recalc');
@@ -246,7 +332,7 @@ async function wkDoRecalc() {
         const res = await fetch(WK_CHECKOUT_URL, {
             method: 'POST',
             headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
-            body: JSON.stringify({country: country, state: state}),
+            body: JSON.stringify({country: country, state: state, delivery_method: method, pickup_location_id: pickupId}),
             credentials: 'same-origin',
         });
         if (!res.ok) return;

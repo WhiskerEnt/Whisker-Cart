@@ -183,19 +183,19 @@ async function handleFiles(files) {
     for (const file of files) {
         if (!file.type.startsWith('image/')||file.size>5*1024*1024) continue;
         const form = new FormData(); form.append('image',file); form.append('product_id',productId);
-        const res = await fetch(baseUrl+'admin/products/upload-image',{method:'POST',body:form});
+        const res = await fetch(baseUrl+'admin/products/upload-image',{method:'POST',headers:{'X-CSRF-Token':csrfToken},body:form});
         const data = await res.json();
         if (data.success) { Whisker.toast('Uploaded!','success'); setTimeout(()=>location.reload(),500); }
-        else Whisker.toast(data.message||'Failed','error');
+        else Whisker.toast(data.message||data.error||'Failed','error');
     }
 }
-async function deleteImage(id) { await fetch(baseUrl+'admin/products/delete-image/'+id,{method:'POST'}); document.getElementById('img-'+id)?.remove(); Whisker.toast('Deleted','success'); }
-async function setPrimary(id) { await fetch(baseUrl+'admin/products/set-primary-image/'+id,{method:'POST'}); location.reload(); }
+async function deleteImage(id) { await fetch(baseUrl+'admin/products/delete-image/'+id,{method:'POST',headers:{'X-CSRF-Token':csrfToken}}); document.getElementById('img-'+id)?.remove(); Whisker.toast('Deleted','success'); }
+async function setPrimary(id) { await fetch(baseUrl+'admin/products/set-primary-image/'+id,{method:'POST',headers:{'X-CSRF-Token':csrfToken}}); location.reload(); }
 
 async function quickAddCategory() {
     const name=document.getElementById('qcName').value.trim(); if(!name)return;
     const form=new FormData(); form.append('name',name);
-    const res=await fetch(baseUrl+'admin/products/quick-category',{method:'POST',body:form});
+    const res=await fetch(baseUrl+'admin/products/quick-category',{method:'POST',headers:{'X-CSRF-Token':csrfToken},body:form});
     const data=await res.json();
     if(data.success){const s=document.getElementById('categorySelect');const o=document.createElement('option');o.value=data.id;o.textContent=data.name;o.selected=true;s.appendChild(o);document.getElementById('qcName').value='';document.getElementById('qcBox').style.display='none';Whisker.toast('Created!','success');}
 }
@@ -212,14 +212,14 @@ async function saveVariants() {
     const form=new FormData();
     document.querySelectorAll('input[name="variant_group_name[]"]').forEach((el,i)=>form.append('variant_group_name['+i+']',el.value));
     document.querySelectorAll('input[name="variant_options[]"]').forEach((el,i)=>form.append('variant_options['+i+']',el.value));
-    const res=await fetch(baseUrl+'admin/products/variants/save/'+productId,{method:'POST',body:form});
+    const res=await fetch(baseUrl+'admin/products/variants/save/'+productId,{method:'POST',headers:{'X-CSRF-Token':csrfToken},body:form});
     const data=await res.json();
     if(data.success){Whisker.toast(data.count+' combos generated!','success');setTimeout(()=>location.reload(),600);}
-    else Whisker.toast('Failed','error');
+    else Whisker.toast(data.error||'Failed','error');
 }
 async function updateCombo(id,field,val) {
     const form=new FormData();form.append(field,val);
-    await fetch(baseUrl+'admin/products/variants/update-combo/'+id,{method:'POST',body:form});
+    await fetch(baseUrl+'admin/products/variants/update-combo/'+id,{method:'POST',headers:{'X-CSRF-Token':csrfToken},body:form});
     Whisker.toast('Saved','success');
 }
 
@@ -228,7 +228,7 @@ async function uploadOptionImages(optionId, files) {
     for (const file of files) {
         if (!file.type.startsWith('image/')||file.size>5*1024*1024) continue;
         const form=new FormData(); form.append('image',file); form.append('product_id',productId); form.append('option_id',optionId);
-        const res=await fetch(baseUrl+'admin/products/variants/upload-option-image',{method:'POST',body:form});
+        const res=await fetch(baseUrl+'admin/products/variants/upload-option-image',{method:'POST',headers:{'X-CSRF-Token':csrfToken},body:form});
         const data=await res.json();
         if (data.success) {
             const container=document.getElementById('optImages-'+optionId);
@@ -242,7 +242,7 @@ async function uploadOptionImages(optionId, files) {
     }
 }
 async function deleteOptionImage(id) {
-    await fetch(baseUrl+'admin/products/variants/delete-option-image/'+id,{method:'POST'});
+    await fetch(baseUrl+'admin/products/variants/delete-option-image/'+id,{method:'POST',headers:{'X-CSRF-Token':csrfToken}});
     document.getElementById('vimg-'+id)?.remove();
     Whisker.toast('Deleted','success');
 }

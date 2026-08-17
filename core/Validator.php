@@ -99,19 +99,25 @@ class Validator
                 break;
 
             case 'min':
-                if (is_numeric($value) && $value < (float)$param) {
-                    return "{$label} must be at least {$param}.";
-                }
-                if (is_string($value) && strlen($value) < (int)$param) {
+                // Numeric values compare by magnitude; only non-numeric
+                // strings compare by length. These must be exclusive — both
+                // branches used to run for numeric strings, so '50' failed
+                // min:10 for being "only 2 characters".
+                if (is_numeric($value)) {
+                    if ($value < (float)$param) {
+                        return "{$label} must be at least {$param}.";
+                    }
+                } elseif (is_string($value) && strlen($value) < (int)$param) {
                     return "{$label} must be at least {$param} characters.";
                 }
                 break;
 
             case 'max':
-                if (is_numeric($value) && $value > (float)$param) {
-                    return "{$label} must be no more than {$param}.";
-                }
-                if (is_string($value) && strlen($value) > (int)$param) {
+                if (is_numeric($value)) {
+                    if ($value > (float)$param) {
+                        return "{$label} must be no more than {$param}.";
+                    }
+                } elseif (is_string($value) && strlen($value) > (int)$param) {
                     return "{$label} must be no more than {$param} characters.";
                 }
                 break;

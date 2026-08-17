@@ -308,7 +308,7 @@ AddDefaultCharset UTF-8' . $cpanelHandler . "\n";
             $_SESSION['wk_install']['store_name']   = $storeName;
             $_SESSION['wk_install']['store_tagline'] = trim($_POST['store_tagline'] ?? '');
             $_SESSION['wk_install']['store_url']     = $storeUrl;
-            $_SESSION['wk_install']['currency']      = trim($_POST['currency'] ?? 'INR');
+            $_SESSION['wk_install']['currency']      = strtoupper(trim($_POST['currency'] ?? 'INR'));
             $_SESSION['wk_install']['timezone']      = trim($_POST['timezone'] ?? 'Asia/Kolkata');
             $step = 4;
             break;
@@ -370,12 +370,18 @@ AddDefaultCharset UTF-8' . $cpanelHandler . "\n";
                 $pdo->prepare("UPDATE wk_admins SET username=?, email=?, password_hash=? WHERE id=1")
                     ->execute([$inst['admin_user'], $inst['admin_email'], $hash]);
 
-                // Store settings
+                // Store settings.
+                // currency_symbol MUST be written together with currency —
+                // schema.sql seeds it as '₹', and every price render reads the
+                // symbol setting. Saving only the code left EUR stores showing ₹.
+                $instCurrency = strtoupper($inst['currency'] ?? 'INR');
+                $instSymbol   = wk_install_currencies()[$instCurrency]['symbol'] ?? $instCurrency;
                 $stmtS = $pdo->prepare("UPDATE wk_settings SET setting_value=? WHERE setting_group=? AND setting_key=?");
                 foreach ([
                     ['general','site_name', $inst['store_name']],
                     ['general','site_tagline', $inst['store_tagline']??''],
-                    ['general','currency', $inst['currency']],
+                    ['general','currency', $instCurrency],
+                    ['general','currency_symbol', $instSymbol],
                     ['general','timezone', $inst['timezone']],
                 ] as [$g,$k,$v]) { $stmtS->execute([$v,$g,$k]); }
 
@@ -500,11 +506,49 @@ $requirements = [
 ];
 $allPassed = !in_array(false, array_column($requirements, 1));
 
-$currencies = [
-    'INR'=>'₹ Indian Rupee','USD'=>'$ US Dollar','EUR'=>'€ Euro','GBP'=>'£ British Pound',
-    'AUD'=>'A$ Australian Dollar','CAD'=>'C$ Canadian Dollar','JPY'=>'¥ Japanese Yen',
-    'SGD'=>'S$ Singapore Dollar','AED'=>'د.إ UAE Dirham',
-];
+/**
+ * Currency choices for the install wizard. The installer runs standalone
+ * (no autoloader / no DB yet), so this list is intentionally duplicated
+ * from App\Services\CurrencyService::currencies() — keep the two in sync.
+ */
+function wk_install_currencies(): array
+{
+    return [
+        'INR' => ['name' => 'Indian Rupee',      'symbol' => '₹'],
+        'USD' => ['name' => 'US Dollar',          'symbol' => '$'],
+        'EUR' => ['name' => 'Euro',               'symbol' => '€'],
+        'GBP' => ['name' => 'British Pound',      'symbol' => '£'],
+        'AUD' => ['name' => 'Australian Dollar',  'symbol' => 'A$'],
+        'CAD' => ['name' => 'Canadian Dollar',    'symbol' => 'C$'],
+        'JPY' => ['name' => 'Japanese Yen',       'symbol' => '¥'],
+        'SGD' => ['name' => 'Singapore Dollar',   'symbol' => 'S$'],
+        'AED' => ['name' => 'UAE Dirham',         'symbol' => 'د.إ'],
+        'BRL' => ['name' => 'Brazilian Real',     'symbol' => 'R$'],
+        'CNY' => ['name' => 'Chinese Yuan',       'symbol' => '¥'],
+        'MYR' => ['name' => 'Malaysian Ringgit',  'symbol' => 'RM'],
+        'THB' => ['name' => 'Thai Baht',          'symbol' => '฿'],
+        'IDR' => ['name' => 'Indonesian Rupiah',  'symbol' => 'Rp'],
+        'PHP' => ['name' => 'Philippine Peso',    'symbol' => '₱'],
+        'KRW' => ['name' => 'South Korean Won',   'symbol' => '₩'],
+        'ZAR' => ['name' => 'South African Rand', 'symbol' => 'R'],
+        'SEK' => ['name' => 'Swedish Krona',      'symbol' => 'kr'],
+        'NZD' => ['name' => 'New Zealand Dollar', 'symbol' => 'NZ$'],
+        'CHF' => ['name' => 'Swiss Franc',        'symbol' => 'CHF'],
+        'PLN' => ['name' => 'Polish Złoty',       'symbol' => 'zł'],
+        'NOK' => ['name' => 'Norwegian Krone',    'symbol' => 'kr'],
+        'DKK' => ['name' => 'Danish Krone',       'symbol' => 'kr'],
+        'CZK' => ['name' => 'Czech Koruna',       'symbol' => 'Kč'],
+        'HUF' => ['name' => 'Hungarian Forint',   'symbol' => 'Ft'],
+        'RON' => ['name' => 'Romanian Leu',       'symbol' => 'lei'],
+        'MXN' => ['name' => 'Mexican Peso',       'symbol' => 'MX$'],
+        'HKD' => ['name' => 'Hong Kong Dollar',   'symbol' => 'HK$'],
+    ];
+}
+
+$currencies = [];
+foreach (wk_install_currencies() as $wkCode => $wkCur) {
+    $currencies[$wkCode] = $wkCur['symbol'] . ' ' . $wkCur['name'];
+}
 
 $stepTitles = [1=>'Requirements',2=>'Database',3=>'Your Store',4=>'Admin Account',5=>'Payment Gateway',6=>'All Done!'];
 

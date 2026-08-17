@@ -121,17 +121,24 @@ img { max-width: 100%; display: block; }
 
 /* ── Header ─────────────────────────────────── */
 .wk-header { background: var(--wk-surface); border-bottom: 1px solid var(--wk-border); position: sticky; top: 0; z-index: 100; }
+/* The header must survive real stores: many categories with long names.
+   min-height (not height) + flex-wrap lets the nav drop to its own row as a
+   whole when it can't fit between the logo and the controls, instead of
+   squeezing labels into ragged two-line fragments. */
 .wk-header-inner {
-    max-width: var(--max-w); margin: 0 auto; padding: 0 24px; height: 68px;
+    max-width: var(--max-w); margin: 0 auto; padding: 10px 24px; min-height: 68px;
     display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 8px 24px;
 }
-.wk-logo { display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 900; }
+.wk-logo { display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 900; flex-shrink: 0; }
 .wk-logo-text {
     background: linear-gradient(135deg, var(--wk-purple), var(--wk-pink));
     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    white-space: nowrap;
 }
-.wk-header-nav { display: flex; align-items: center; gap: 24px; }
-.wk-header-nav > a, .wk-nav-dropdown-trigger { font-size: 14px; font-weight: 700; color: var(--wk-muted); transition: color .2s; text-decoration: none; }
+.wk-header-nav { display: flex; align-items: center; gap: 8px 22px; flex-wrap: wrap; flex: 1; justify-content: center; min-width: 0; }
+/* Each nav label stays on one line — long names wrap as whole items, never mid-label. */
+.wk-header-nav > a, .wk-nav-dropdown-trigger { font-size: 14px; font-weight: 700; color: var(--wk-muted); transition: color .2s; text-decoration: none; white-space: nowrap; }
 .wk-header-nav > a:hover, .wk-nav-dropdown-trigger:hover { color: var(--wk-purple); }
 
 /* Category Dropdown */

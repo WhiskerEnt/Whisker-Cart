@@ -96,9 +96,31 @@ class TicketController
             return;
         }
         $ticketId = (int)$params['id'];
+        $current = Database::fetch("SELECT status, priority FROM wk_tickets WHERE id=?", [$ticketId]);
+        if (!$current) { Response::redirect(View::url('admin/tickets')); return; }
+
+        // The priority dropdown posts to this same endpoint (with the current
+        // status as a hidden field). It used to be silently ignored, leaving
+        // every ticket stuck on 'medium' forever.
+        $newPriority = $request->input('priority');
+        if ($newPriority !== null
+            && $newPriority !== $current['priority']
+            && in_array($newPriority, ['low','medium','high','urgent'], true)) {
+            Database::update('wk_tickets', ['priority' => $newPriority], 'id=?', [$ticketId]);
+            Session::flash('success', 'Priority updated to ' . ucfirst($newPriority));
+        }
+
         $newStatus = $request->input('status');
         $allowed = ['open','in_progress','waiting','resolved','closed'];
         if (!in_array($newStatus, $allowed)) { Response::redirect(View::url('admin/tickets/'.$ticketId)); return; }
+
+        // Only act on a real status CHANGE — the priority form re-posts the
+        // unchanged status, which used to re-save it and email the customer a
+        // pointless "status updated" notification every time.
+        if ($newStatus === $current['status']) {
+            Response::redirect(View::url('admin/tickets/'.$ticketId));
+            return;
+        }
 
         $update = ['status'=>$newStatus];
         if ($newStatus === 'closed' || $newStatus === 'resolved') $update['closed_at'] = date('Y-m-d H:i:s');

@@ -41,7 +41,10 @@ abstract class BaseGateway implements PaymentGatewayInterface
             'transaction_id'   => $data['transaction_id'] ?? null,
             'gateway_order_id' => $data['gateway_order_id'] ?? null,
             'amount'           => $data['amount'],
-            'currency'         => $data['currency'] ?? 'INR',
+            // Fall back to the store's configured currency, not hardcoded INR —
+            // gateways charge in the order currency, which is the store currency.
+            'currency'         => $data['currency']
+                ?? (Database::setting('general', 'currency') ?: 'INR'),
             'status'           => $data['status'] ?? 'initiated',
             'gateway_response' => json_encode($response),
         ]);

@@ -20,6 +20,21 @@ class MigrationService
     private const MIGRATIONS_DIR = '/sql/migrations';
 
     /**
+     * Migrations recorded as "executed" by pre-1.3.2 versions that may never
+     * have actually run. The old splitSql() glued the `--` header comment to
+     * the first real statement, the runner then skipped that "comment"
+     * statement, and the file was still recorded as executed. On upgrade
+     * these are forgotten once so they re-run under the fixed splitter —
+     * safe now that benign duplicate errors are treated as already-applied.
+     */
+    private const REPAIR_RERUN = [
+        '20260420_v110_abandoned_cart_columns.sql',
+        '20260420_v120_tax_engine.sql',
+        '20260511_v121_password_resets_table.sql',
+        '20260520_v122_order_status_payment_failed.sql',
+    ];
+
+    /**
      * Run all pending migrations.
      * Called automatically when version changes.
      *
@@ -96,6 +111,14 @@ class MigrationService
                         Database::exec($cleaned[$i]);
                         $appliedThisRun++;
                     } catch (\Exception $e) {
+                        if (self::isBenignDuplicateError($e)) {
+                            // The object this statement creates already exists
+                            // (schema.sql seeded it on a fresh install, or the
+                            // migration is being re-run by the repair path).
+                            // That IS the desired end state — keep going.
+                            $appliedThisRun++;
+                            continue;
+                        }
                         $failedStmt = $cleaned[$i];
                         $errors[] = $filename . " (stmt " . ($i + 1) . "): " . $e->getMessage();
                         // Record how far we got so the next retry resumes here.
@@ -200,7 +223,15 @@ class MigrationService
 
     /**
      * Split SQL string into individual statements.
-     * Handles semicolons inside strings.
+     * Handles semicolons inside strings, and strips `--` line comments.
+     *
+     * Comment handling matters: every migration file starts with a `--`
+     * header block. The old splitter kept comment text inside the statement,
+     * so (a) the runner's "skip statements starting with --" check silently
+     * discarded the REAL statement glued to the header, and (b) apostrophes
+     * inside comment prose ("don't", "'payment_failed'") flipped the
+     * in-string state and broke splitting on later semicolons. Comments are
+     * now consumed during the scan, outside of string literals only.
      */
     private static function splitSql(string $sql): array
     {
@@ -212,6 +243,17 @@ class MigrationService
 
         for ($i = 0; $i < $len; $i++) {
             $char = $sql[$i];
+
+            // Consume `--` line comments (outside strings): skip to end of line.
+            if (!$inString && $char === '-' && ($sql[$i+1] ?? '') === '-') {
+                while ($i < $len && $sql[$i] !== "\n") $i++;
+                continue;
+            }
+            // Consume `#` line comments (outside strings) — MySQL also allows these.
+            if (!$inString && $char === '#') {
+                while ($i < $len && $sql[$i] !== "\n") $i++;
+                continue;
+            }
 
             // Handle string literals
             if (!$inString && ($char === "'" || $char === '"')) {
@@ -245,6 +287,46 @@ class MigrationService
     }
 
     /**
+     * True when the statement failed only because its object already exists —
+     * duplicate table/column/index/row. Codes: 1050 table exists, 1060 dup
+     * column, 1061 dup key name, 1062 dup entry, 1091 can't drop missing.
+     * Message match is the fallback for exceptions that lost errorInfo.
+     */
+    private static function isBenignDuplicateError(\Exception $e): bool
+    {
+        if ($e instanceof \PDOException && isset($e->errorInfo[1])
+            && in_array((int)$e->errorInfo[1], [1050, 1060, 1061, 1062, 1091], true)) {
+            return true;
+        }
+        return (bool)preg_match(
+            '/already exists|Duplicate column|Duplicate key name|Duplicate entry|check that (column|it) .*exists/i',
+            $e->getMessage()
+        );
+    }
+
+    /**
+     * Drop legacy filenames from the executed/partial bookkeeping so the
+     * fixed runner executes them for real (see REPAIR_RERUN).
+     */
+    private static function forgetRepairMigrations(): void
+    {
+        $executed = self::getExecutedMigrations();
+        $filtered = array_values(array_diff($executed, self::REPAIR_RERUN));
+        if (count($filtered) !== count($executed)) {
+            try {
+                Database::query(
+                    "INSERT INTO wk_settings (setting_group, setting_key, setting_value) VALUES ('system', 'executed_migrations', ?)
+                     ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)",
+                    [json_encode($filtered)]
+                );
+            } catch (\Exception $e) {}
+        }
+        foreach (self::REPAIR_RERUN as $file) {
+            self::clearPartialProgress($file);
+        }
+    }
+
+    /**
      * Check if version changed since last check. If so, run migrations.
      */
     public static function checkAndRun(): array
@@ -256,7 +338,13 @@ class MigrationService
             return ['ran' => 0, 'errors' => []]; // Same version, no migrations needed
         }
 
-        // Version changed — run pending migrations
+        // Version changed — first repair pre-1.4 bookkeeping so silently
+        // skipped legacy migrations get a real run (idempotent: on stores
+        // where they did apply, every statement hits the benign-duplicate
+        // path and is treated as applied).
+        self::forgetRepairMigrations();
+
+        // Run pending migrations
         $result = self::runPending();
 
         // Update stored version

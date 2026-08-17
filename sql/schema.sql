@@ -225,6 +225,8 @@ CREATE TABLE IF NOT EXISTS wk_orders (
     payment_status ENUM('pending','authorized','captured','failed','refunded') DEFAULT 'pending',
     billing_address JSON,
     shipping_address JSON,
+    delivery_method VARCHAR(20) DEFAULT 'shipping' COMMENT 'shipping = home delivery, pickup = locker/collection point',
+    pickup_location_id INT UNSIGNED DEFAULT NULL COMMENT 'wk_pickup_locations.id snapshot reference (address is snapshotted into shipping_address)',
     customer_email VARCHAR(255),
     customer_phone VARCHAR(20),
     notes TEXT,
@@ -234,6 +236,27 @@ CREATE TABLE IF NOT EXISTS wk_orders (
     FOREIGN KEY (customer_id) REFERENCES wk_customers(id) ON DELETE SET NULL,
     INDEX idx_order_number (order_number),
     INDEX idx_status (status)
+) ENGINE=InnoDB;
+
+-- Pickup points / parcel lockers (EU-style collection point delivery).
+-- Admin-managed list; customer picks one at checkout instead of entering
+-- a home shipping address. No FK from wk_orders — orders snapshot the
+-- pickup address into shipping_address JSON so history survives deletes.
+CREATE TABLE IF NOT EXISTS wk_pickup_locations (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(150) NOT NULL,
+    carrier VARCHAR(100) DEFAULT '' COMMENT 'e.g. InPost, Mondial Relay, DHL Packstation',
+    address_line1 VARCHAR(255) NOT NULL,
+    city VARCHAR(100) NOT NULL,
+    state VARCHAR(100) DEFAULT '',
+    zip VARCHAR(20) DEFAULT '',
+    country CHAR(2) NOT NULL DEFAULT 'IN',
+    opening_hours VARCHAR(255) DEFAULT '',
+    fee DECIMAL(12,2) DEFAULT NULL COMMENT 'NULL = use shipping.pickup_fee setting',
+    is_active TINYINT(1) DEFAULT 1,
+    sort_order INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_active (is_active)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS wk_order_items (
@@ -404,6 +427,8 @@ INSERT INTO wk_settings (setting_group, setting_key, setting_value) VALUES
 ('checkout', 'guest_checkout', '1'),
 ('checkout', 'tax_rate', '18'),
 ('checkout', 'shipping_flat_rate', '50.00'),
+('shipping', 'pickup_enabled', '0'),
+('shipping', 'pickup_fee', ''),
 ('email', 'from_email', 'shop@yourdomain.com'),
 ('email', 'from_name', 'My Whisker Store'),
 ('seo', 'site_meta_title', NULL),
