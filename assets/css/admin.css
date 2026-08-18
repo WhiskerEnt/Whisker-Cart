@@ -437,7 +437,12 @@ body {
 
 
 /* ── Confirmation modal ────────────────────────────────────────────── */
-.wk-modal { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
+/* :not([hidden]) rather than a bare display, because an author display
+   declaration beats the hidden attribute — a base `display: flex` here
+   left an invisible full-viewport overlay swallowing every click. */
+.wk-modal { position: fixed; inset: 0; z-index: 1000; padding: 20px; }
+.wk-modal[hidden] { display: none; }
+.wk-modal:not([hidden]) { display: flex; align-items: center; justify-content: center; }
 .wk-modal-backdrop { position: absolute; inset: 0; background: rgba(15, 12, 30, .55); opacity: 0; transition: opacity .18s ease; }
 .wk-modal.is-open .wk-modal-backdrop { opacity: 1; }
 .wk-modal-box {
