@@ -50,7 +50,7 @@ $currentSymbol = $currentCurrency === $baseCurrency
     <?php if (!empty($seoMeta)): ?>
     <?= $seoMeta ?>
     <?php else: ?>
-    <title><?= $e($pageTitle ?? $siteName) ?></title>
+    <title><?= $e(\App\Services\SeoService::buildTitle($pageTitle ?? null)) ?></title>
     <?php endif; ?>
     <?= $productSchema ?? '' ?>
     <?php if ($faviconUrl): ?>

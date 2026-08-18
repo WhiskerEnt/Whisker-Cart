@@ -40,6 +40,10 @@ class SeoService
 
         if (empty($pageTitle)) return $siteName;
 
+        // A page that already names the store keeps its own wording rather than
+        // ending up with the store name twice.
+        if (stripos($pageTitle, $siteName) !== false) return $pageTitle;
+
         $format = self::getSetting('title_format', '{page} {sep} {site}');
         $sep    = self::getSetting('title_separator', ' — ');
 

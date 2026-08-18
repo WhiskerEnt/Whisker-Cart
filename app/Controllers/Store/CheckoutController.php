@@ -55,6 +55,7 @@ class CheckoutController
         }
 
         View::render('store/checkout', [
+            'pageTitle'       => 'Checkout',
             'cart'            => $cart,
             'gateways'        => $gateways,
             'currency'        => $currency,
@@ -137,8 +138,14 @@ class CheckoutController
         $discount   = $totals['discount'];
         $total      = $totals['total'];
 
-        // Auto-create or find customer by email
+        // Auto-create or find customer by email.
+        // A session can outlive the customer record it points at (deleted in the
+        // admin, restored database). Drop the stale id rather than letting the
+        // order fail on a foreign key.
         $customerId = Session::customerId();
+        if ($customerId && !Database::fetchValue("SELECT id FROM wk_customers WHERE id=?", [$customerId])) {
+            $customerId = null;
+        }
         if (!$customerId && $email !== '') {
             $existing = Database::fetch("SELECT id FROM wk_customers WHERE email=?", [$email]);
             if ($existing) {
@@ -289,10 +296,17 @@ class CheckoutController
                     }
                 }
             });
+        } catch (\PDOException $e) {
+            // PDOException extends RuntimeException, so it must be caught first —
+            // otherwise its message (table names, constraint names) is shown to
+            // the shopper as if it were a friendly stock notice.
+            error_log('Whisker checkout: ' . $e->getMessage());
+            $stockError = 'Could not place order. Please try again.';
         } catch (\RuntimeException $e) {
+            // Raised deliberately below for out-of-stock lines; safe to show.
             $stockError = $e->getMessage();
         } catch (\Throwable $e) {
-            // Unexpected DB failure — log and treat as generic checkout failure.
+            error_log('Whisker checkout: ' . $e->getMessage());
             $stockError = 'Could not place order. Please try again.';
         }
 
@@ -613,8 +627,9 @@ class CheckoutController
             'retryExpired'  => $retryExpired,
             'retryMinutes'  => $retryMinutes,
             'retryExpires'  => $order ? strtotime($order['created_at']) + 900 : 0,
-            // Shown in the browser tab and any bookmark.
-            'pageTitle'     => $order ? $title . ' — ' . $order['order_number'] : $title,
+            // Tab space is tight and truncates; the status is what identifies
+            // the tab, and the store name is appended by the layout.
+            'pageTitle'     => $title,
         ], 'store/layouts/main');
     }
 
