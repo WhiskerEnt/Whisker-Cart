@@ -419,6 +419,10 @@ INSERT INTO wk_payment_gateways (gateway_code, display_name, description, is_act
  '["BTC","ETH","USDT","LTC","XRP"]');
 
 INSERT INTO wk_settings (setting_group, setting_key, setting_value) VALUES
+('reviews', 'reviews_enabled', '1'),
+('reviews', 'review_policy', 'purchased'),
+('reviews', 'auto_approve', '0'),
+('reviews', 'show_on_cards', '1'),
 ('shipping', 'ship_mode', 'domestic'),
 ('shipping', 'ship_countries', ''),
 ('privacy', 'cookie_consent', '0'),

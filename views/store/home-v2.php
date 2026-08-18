@@ -185,6 +185,7 @@ $gridProducts = $products;
                     <div class="wk-product-info" onclick="window.location='<?= $url('product/'.urlencode($p['slug'])) ?>'" style="cursor:pointer">
                         <?php if ($p['category_name'] ?? null): ?><div class="wk-product-cat"><?= $e($p['category_name']) ?></div><?php endif; ?>
                         <div class="wk-product-name"><?= $e($p['name']) ?></div>
+                        <?= \App\Services\ReviewService::cardRatingHtml((int) $p['id']) ?>
                         <div class="wk-product-price">
                             <span class="current"><?= $priceNormal($prc) ?></span>
                             <?php if ($hasSale): ?><span class="original"><?= $priceNormal($p['price']) ?></span><?php endif; ?>

@@ -41,6 +41,9 @@ $router->post('/checkout/calculate', [CheckoutController::class, 'calculate']);
 $router->post('/checkout/verify-payment', [CheckoutController::class, 'verifyPayment']);
 $router->get('/order-success',       [CheckoutController::class, 'success']);
 
+// Product reviews
+$router->post('/review',             [\App\Controllers\Store\ReviewController::class, 'store'], ['csrf']);
+
 // Pages, Contact, Chatbot
 $router->get('/page/{slug}',        [\App\Controllers\Store\PageController::class, 'show']);
 $router->get('/contact',            [\App\Controllers\Store\PageController::class, 'contact']);
@@ -187,6 +190,12 @@ $router->group(['prefix' => '/admin', 'middleware' => ['auth', 'csrf']], functio
     $r->post('/abandoned-carts/prune',              [\App\Controllers\Admin\AbandonedCartController::class, 'prune']);
 
     // Shipping Carriers
+    $r->get('/reviews',                  [\App\Controllers\Admin\ReviewController::class, 'index']);
+    $r->post('/reviews/status/{id}',     [\App\Controllers\Admin\ReviewController::class, 'status']);
+    $r->post('/reviews/reply/{id}',      [\App\Controllers\Admin\ReviewController::class, 'reply']);
+    $r->post('/reviews/delete/{id}',     [\App\Controllers\Admin\ReviewController::class, 'destroy']);
+    $r->post('/reviews/settings',        [\App\Controllers\Admin\ReviewController::class, 'updateSettings']);
+
     $r->get('/shipping',                 [\App\Controllers\Admin\ShippingController::class, 'index']);
     $r->post('/shipping/store',          [\App\Controllers\Admin\ShippingController::class, 'store']);
     $r->post('/shipping/update/{id}',    [\App\Controllers\Admin\ShippingController::class, 'update']);

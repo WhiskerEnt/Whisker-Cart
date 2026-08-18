@@ -72,6 +72,20 @@ foreach ($variants['combos'] ?? [] as $combo) {
 
                 <h1 style="font-size:28px;font-weight:900;margin-bottom:12px;line-height:1.2"><?= $e($p['name']) ?></h1>
 
+                <?php if (!empty($reviewsOn) && ($reviewStats['count'] ?? 0) > 0):
+                    $rAvg = (float) $reviewStats['average'];
+                    $rCount = (int) $reviewStats['count']; ?>
+                    <a href="#reviews" class="wk-rating-line">
+                        <span class="wk-stars" style="font-size:15px" aria-hidden="true"><?php
+                        for ($i = 1; $i <= 5; $i++) {
+                            $pct = max(0, min(1, $rAvg - ($i - 1))) * 100;
+                            echo '<span class="wk-star"><span class="wk-star-off">&#9733;</span>'
+                               . '<span class="wk-star-on" style="width:' . round($pct, 1) . '%">&#9733;</span></span>';
+                        } ?></span>
+                        <span class="wk-rating-line-text"><?= number_format($rAvg, 1) ?> &middot; <?= $rCount ?> review<?= $rCount === 1 ? '' : 's' ?></span>
+                    </a>
+                <?php endif; ?>
+
                 <div id="priceDisplay" class="wk-product-price" style="margin-bottom:20px">
                     <span class="current" style="font-size:28px"><?= $showPrice($prc) ?></span>
                     <?php if ($p['sale_price'] && $p['sale_price'] < $p['price']): ?>
@@ -167,6 +181,7 @@ foreach ($variants['combos'] ?? [] as $combo) {
                     </div>
                     <div class="wk-product-info">
                         <div class="wk-product-name"><?= $e($rp['name']) ?></div>
+                        <?= \App\Services\ReviewService::cardRatingHtml((int) $rp['id']) ?>
                         <div class="wk-product-price"><span class="current"><?= $showPrice($rprc) ?></span></div>
                     </div>
                     <button class="wk-add-btn" data-add-to-cart="<?= $rp['id'] ?>">🛒 Add to Cart</button>
@@ -175,6 +190,8 @@ foreach ($variants['combos'] ?? [] as $combo) {
             </div>
         </div>
         <?php endif; ?>
+
+        <?php if (!empty($reviewsOn)) require __DIR__ . '/partials/reviews.php'; ?>
     </div>
 </section>
 

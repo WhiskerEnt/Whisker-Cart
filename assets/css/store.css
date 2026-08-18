@@ -812,3 +812,136 @@ img { max-width: 100%; display: block; }
     .wk-cookie { transition: none; transform: none; }
     .wk-cookie-slider, .wk-cookie-slider::before { transition: none; }
 }
+
+/* ── Ratings & reviews ─────────────────────────────────────────────── */
+/* Half stars are done by clipping a filled star over an empty one, so any
+   average renders exactly without needing half-star glyphs. */
+.wk-stars { display: inline-flex; gap: 1px; line-height: 1; white-space: nowrap; }
+.wk-star { position: relative; display: inline-block; }
+.wk-star-off { color: var(--wk-border); }
+.wk-star-on {
+    position: absolute; left: 0; top: 0; overflow: hidden;
+    color: var(--wk-yellow); white-space: nowrap;
+}
+
+.wk-rating-line {
+    display: inline-flex; align-items: center; gap: 8px; margin-bottom: 14px;
+    text-decoration: none; color: inherit;
+}
+.wk-rating-line:hover .wk-rating-line-text { text-decoration: underline; }
+.wk-rating-line-text { font-size: 13px; font-weight: 700; color: var(--wk-muted); }
+
+.wk-reviews { margin-top: 60px; padding-top: 36px; border-top: 2px solid var(--wk-border); scroll-margin-top: 90px; }
+.wk-reviews-heading { font-size: 22px; font-weight: 900; margin: 0 0 22px; }
+.wk-reviews-empty { color: var(--wk-muted); font-size: 14px; margin: 0 0 24px; }
+
+.wk-reviews-summary {
+    display: grid; grid-template-columns: auto 1fr; gap: 32px; align-items: center;
+    background: var(--wk-surface); border: 2px solid var(--wk-border);
+    border-radius: var(--radius); padding: 22px 26px; margin-bottom: 28px;
+}
+.wk-reviews-score { text-align: center; }
+.wk-reviews-avg { font-size: 40px; font-weight: 900; line-height: 1; font-family: var(--font-mono); }
+.wk-reviews-count { font-size: 12px; color: var(--wk-muted); margin-top: 6px; font-weight: 700; }
+.wk-reviews-bars { display: grid; gap: 6px; min-width: 0; }
+.wk-reviews-bar { display: grid; grid-template-columns: 30px 1fr 28px; gap: 10px; align-items: center; font-size: 12px; }
+.wk-reviews-bar-label { color: var(--wk-muted); font-weight: 700; }
+.wk-reviews-bar-track { height: 7px; background: var(--wk-bg); border-radius: 99px; overflow: hidden; }
+.wk-reviews-bar-fill { display: block; height: 100%; background: var(--wk-yellow); border-radius: 99px; }
+.wk-reviews-bar-n { color: var(--wk-muted); font-family: var(--font-mono); text-align: right; }
+
+.wk-review-list { list-style: none; margin: 0 0 32px; padding: 0; display: grid; gap: 22px; }
+.wk-review { padding-bottom: 22px; border-bottom: 1px solid var(--wk-border); }
+.wk-review:last-child { border-bottom: 0; padding-bottom: 0; }
+.wk-review-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.wk-review-title { font-size: 15px; font-weight: 800; }
+.wk-review-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--wk-muted); margin-top: 6px; }
+.wk-review-author { font-weight: 800; color: var(--wk-text); }
+.wk-review-verified { color: var(--wk-green); font-weight: 800; background: var(--wk-green-soft); padding: 2px 8px; border-radius: 99px; }
+.wk-review-body { font-size: 14px; line-height: 1.75; margin: 10px 0 0; white-space: pre-line; }
+.wk-review-reply {
+    margin: 12px 0 0; padding: 12px 14px; background: var(--wk-bg);
+    border-left: 3px solid var(--wk-purple); border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+.wk-review-reply-who { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--wk-purple); }
+.wk-review-reply p { font-size: 13px; line-height: 1.7; margin: 4px 0 0; white-space: pre-line; }
+
+.wk-review-form-wrap {
+    background: var(--wk-surface); border: 2px solid var(--wk-border);
+    border-radius: var(--radius); padding: 18px 22px;
+}
+.wk-review-form-toggle { font-size: 15px; font-weight: 800; cursor: pointer; }
+.wk-review-note { font-size: 12.5px; color: var(--wk-muted); line-height: 1.6; margin: 12px 0 0; }
+.wk-review-form { margin-top: 18px; display: grid; gap: 16px; }
+.wk-review-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+.wk-review-form label, .wk-review-field { display: grid; gap: 5px; font-size: 13px; font-weight: 700; }
+.wk-review-form label em { font-weight: 500; color: var(--wk-muted); font-style: normal; }
+.wk-review-form small { font-size: 11px; font-weight: 500; color: var(--wk-muted); }
+.wk-review-form input[type=text], .wk-review-form input[type=email], .wk-review-form textarea {
+    font: inherit; font-weight: 500; padding: 11px 13px;
+    border: 2px solid var(--wk-border); border-radius: var(--radius-sm);
+    background: var(--wk-bg); color: var(--wk-text); width: 100%;
+}
+.wk-review-form textarea { resize: vertical; min-height: 96px; }
+.wk-review-form input:focus, .wk-review-form textarea:focus { outline: none; border-color: var(--wk-purple); }
+/* The storefront has no generic .wk-btn — that is an admin class — so the
+   submit button carries its own styling in the store's button language. */
+.wk-review-submit {
+    justify-self: start; padding: 13px 30px; border: none; border-radius: var(--radius-sm);
+    background: linear-gradient(135deg, var(--wk-purple), var(--wk-pink));
+    color: #fff; font-family: var(--font); font-size: 14px; font-weight: 800; cursor: pointer;
+    box-shadow: 0 4px 15px rgba(139,92,246,.25); transition: transform .2s, box-shadow .2s;
+}
+.wk-review-submit:hover { transform: translateY(-1px); box-shadow: 0 6px 25px rgba(139,92,246,.35); }
+.wk-review-submit:focus-visible { outline: 3px solid var(--wk-purple); outline-offset: 3px; }
+.wk-review-submit:disabled { opacity: .6; cursor: default; transform: none; box-shadow: none; }
+
+/* Inline field feedback */
+.wk-review-form input.is-bad { border-color: var(--wk-red); }
+.wk-review-form input.is-ok  { border-color: var(--wk-green); }
+.wk-review-form small.is-bad { color: var(--wk-red); font-weight: 700; }
+.wk-review-form small.is-ok  { color: var(--wk-green); font-weight: 700; }
+
+@media (prefers-reduced-motion: reduce) {
+    .wk-review-submit { transition: none; }
+    .wk-review-submit:hover { transform: none; }
+}
+
+/* Star picker. Rendered 5..1 so a CSS sibling selector can light up the
+   hovered star and everything before it. */
+.wk-rating-input { border: 0; padding: 0; margin: 0; display: flex; flex-direction: row-reverse; justify-content: flex-end; gap: 2px; }
+.wk-rating-input legend { font-size: 13px; font-weight: 700; margin-bottom: 5px; float: left; width: 100%; }
+.wk-rating-input input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.wk-rating-input label { font-size: 30px; line-height: 1; cursor: pointer; color: var(--wk-border); transition: color .12s ease; }
+.wk-rating-input label:hover,
+.wk-rating-input label:hover ~ label,
+.wk-rating-input input:checked ~ label { color: var(--wk-yellow); }
+.wk-rating-input input:focus-visible + label { outline: 3px solid var(--wk-purple); outline-offset: 2px; border-radius: 4px; }
+.wk-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Stars on a product card */
+.wk-card-rating { display: flex; align-items: center; gap: 5px; margin: 4px 0 2px; font-size: 11px; color: var(--wk-muted); font-weight: 700; }
+
+@media (max-width: 560px) {
+    .wk-reviews-summary { grid-template-columns: 1fr; gap: 20px; padding: 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .wk-rating-input label { transition: none; }
+}
+
+/* Rating an item straight from the customer's order */
+.wk-order-rate summary {
+    font-size: 12.5px; font-weight: 800; color: var(--wk-purple); cursor: pointer;
+    display: inline-block; padding: 4px 0;
+}
+.wk-order-rate-form { display: grid; gap: 10px; margin-top: 10px; max-width: 460px; }
+.wk-order-rate-form input[type=text], .wk-order-rate-form textarea {
+    font: inherit; font-size: 13px; padding: 9px 11px;
+    border: 2px solid var(--wk-border); border-radius: var(--radius-sm);
+    background: var(--wk-bg); color: var(--wk-text); width: 100%;
+}
+.wk-order-rate-form textarea { resize: vertical; }
+.wk-order-rate-form input:focus, .wk-order-rate-form textarea:focus { outline: none; border-color: var(--wk-purple); }
+.wk-order-rate-form .wk-rating-input label { font-size: 24px; }
+.wk-order-rate-form .wk-review-submit { padding: 10px 22px; font-size: 13px; }
+.wk-order-rate-note { font-size: 12px; color: var(--wk-muted); margin: 0; line-height: 1.55; }

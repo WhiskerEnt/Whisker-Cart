@@ -24,6 +24,14 @@ class ProductController
         // Get variant data
         $variants = \App\Services\VariantService::getForProduct($product['id']);
 
+        // Reviews. The table arrives with a migration, so the service answers
+        // with empties rather than throwing on a store that has not migrated.
+        $reviewsOn   = \App\Services\ReviewService::enabled();
+        $reviewStats = $reviewsOn
+            ? \App\Services\ReviewService::stats((int) $product['id'])
+            : ['count' => 0, 'average' => 0.0, 'breakdown' => []];
+        $reviews     = $reviewsOn ? \App\Services\ReviewService::forProduct((int) $product['id']) : [];
+
         // SEO meta tags
         $primaryImage = !empty($images) ? ($images[0]['image_path'] ?? null) : null;
         $seoMeta = \App\Services\SeoService::renderMeta([
@@ -37,7 +45,12 @@ class ProductController
             'type'              => 'product',
             'category_name'     => $product['category_name'] ?? null,
         ]);
-        $productSchema = \App\Services\SeoService::productSchema(array_merge($product, ['primary_image' => $primaryImage]));
+        $productSchema = \App\Services\SeoService::productSchema(array_merge($product, [
+            'primary_image' => $primaryImage,
+            // Feeds aggregateRating, so search results can show stars.
+            'rating_count'   => $reviewStats['count'],
+            'rating_average' => $reviewStats['average'],
+        ]));
 
         View::render('store/product', [
             'product'       => $product,
@@ -47,6 +60,10 @@ class ProductController
             'variants'      => $variants,
             'seoMeta'       => $seoMeta,
             'productSchema' => $productSchema,
+            'reviewsOn'     => $reviewsOn,
+            'reviewStats'   => $reviewStats,
+            'reviews'       => $reviews,
+            'reviewPolicy'  => \App\Services\ReviewService::policy(),
         ], 'store/layouts/main');
     }
 

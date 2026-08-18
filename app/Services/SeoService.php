@@ -186,6 +186,19 @@ class SeoService
             ],
         ];
 
+        // Only published when reviews actually exist. Claiming a rating with no
+        // reviews behind it is the kind of thing search engines penalise.
+        $ratingCount = (int) ($product['rating_count'] ?? 0);
+        if ($ratingCount > 0) {
+            $schema['aggregateRating'] = [
+                '@type'       => 'AggregateRating',
+                'ratingValue' => number_format((float) ($product['rating_average'] ?? 0), 1, '.', ''),
+                'reviewCount' => $ratingCount,
+                'bestRating'  => 5,
+                'worstRating' => 1,
+            ];
+        }
+
         if (!empty($product['primary_image'])) {
             $schema['image'] = rtrim($baseUrl, '/') . '/storage/uploads/products/' . ltrim($product['primary_image'], '/');
         }

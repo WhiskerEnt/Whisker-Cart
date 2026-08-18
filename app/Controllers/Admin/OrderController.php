@@ -85,6 +85,20 @@ class OrderController
         }
         Database::update('wk_orders', ['status' => $status], 'id=?', [$params['id']]);
 
+        // Marking an order paid, shipped or delivered by hand is a statement
+        // that the money arrived — often by bank transfer or cash, which no
+        // gateway ever saw. Without this, payment_status stays 'pending' and
+        // everything keyed off it (refunds, review eligibility) treats a
+        // delivered order as unpaid. Only promoted from the not-yet-paid
+        // states, so a refunded or failed payment is left alone.
+        if (in_array($status, ['paid', 'shipped', 'delivered'], true)) {
+            Database::query(
+                "UPDATE wk_orders SET payment_status='captured'
+                  WHERE id=? AND payment_status IN ('pending','authorized')",
+                [$params['id']]
+            );
+        }
+
         // Send status update email to customer
         $order = Database::fetch("SELECT * FROM wk_orders WHERE id=?", [$params['id']]);
         if ($order && $order['customer_email']) {

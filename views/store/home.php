@@ -122,6 +122,7 @@ $gridProducts = $products;
                             <div class="wk-product-cat"><?= $e($p['category_name']) ?></div>
                         <?php endif; ?>
                         <div class="wk-product-name"><?= $e($p['name']) ?></div>
+                        <?= \App\Services\ReviewService::cardRatingHtml((int) $p['id']) ?>
                         <div class="wk-product-price">
                             <span class="current"><?= $price($prc) ?></span>
                             <?php if ($hasSale): ?><span class="original"><?= $price($p['price']) ?></span><?php endif; ?>

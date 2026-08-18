@@ -293,7 +293,36 @@ class AccountController
              WHERE oi.order_id=?",
             [$params['id']]
         );
-        View::render('store/account/order-detail', ['pageTitle' => 'Order ' . $order['order_number'], 'order' => $order, 'items' => $items], 'store/layouts/main');
+        // The account's own email is authoritative for who this is; some older
+        // orders carry no email of their own.
+        $account = Database::fetch(
+            "SELECT email, CONCAT_WS(' ', first_name, last_name) AS full_name FROM wk_customers WHERE id=?",
+            [Session::customerId()]
+        ) ?: [];
+        $reviewEmail = trim((string) ($order['customer_email'] ?: ($account['email'] ?? '')));
+
+        // Which of these items this customer may still rate. Worked out here
+        // rather than in the view so the page does not run a query per row.
+        $rateable = [];
+        if (\App\Services\ReviewService::enabled()) {
+            foreach ($items as $item) {
+                $pid = (int) ($item['product_id'] ?? 0);
+                if (!$pid || isset($rateable[$pid])) continue;
+                $check = \App\Services\ReviewService::eligibility($pid, $reviewEmail, Session::customerId());
+                $rateable[$pid] = $check;
+            }
+        }
+
+        View::render('store/account/order-detail', [
+            'pageTitle' => 'Order ' . $order['order_number'],
+            'order'     => $order,
+            'items'     => $items,
+            'rateable'  => $rateable,
+            // Name and email come from the account, so the rating form does not
+            // ask for anything it already knows.
+            'customerName'  => trim((string) ($account['full_name'] ?? '')),
+            'reviewEmail'   => $reviewEmail,
+        ], 'store/layouts/main');
     }
 
     public function cancelOrder(Request $request, array $params = []): void
