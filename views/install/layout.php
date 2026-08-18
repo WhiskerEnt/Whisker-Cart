@@ -229,8 +229,38 @@
                     </select>
                     <div style="font-size:11px;color:var(--muted);margin-top:4px">You can change this any time in Settings.</div>
                 </div>
+                <div class="field">
+                    <label>Cookie Banner</label>
+                    <select name="cookie_consent" id="cookieConsent">
+                        <option value="0" <?= ($_POST['cookie_consent'] ?? '0')!=='1'?'selected':'' ?>>Off — no cookie banner</option>
+                        <option value="1" <?= ($_POST['cookie_consent'] ?? '0')==='1'?'selected':'' ?>>On — ask shoppers before setting optional cookies</option>
+                    </select>
+                    <div style="font-size:11px;color:var(--muted);margin-top:4px" id="cookieHint">
+                        Required if you sell to the EU or UK. Shoppers get an equal choice to accept or reject,
+                        and can pick categories individually. Change it any time in Settings → Privacy.
+                    </div>
+                </div>
                 <div class="btn-row"><a href="?step=2" class="btn btn-secondary">← Back</a><button type="submit" class="btn btn-primary">Continue →</button></div>
             </form>
+            <script>
+            // Picking a European timezone is a strong hint the store needs the
+            // banner, so switch it on and say why. The shopkeeper can still
+            // set it back.
+            (function () {
+                var tz = document.querySelector('select[name="timezone"]');
+                var cookie = document.getElementById('cookieConsent');
+                var hint = document.getElementById('cookieHint');
+                if (!tz || !cookie) return;
+                var touched = false;
+                cookie.addEventListener('change', function () { touched = true; });
+                tz.addEventListener('change', function () {
+                    if (touched) return;
+                    var european = tz.value.indexOf('Europe/') === 0;
+                    cookie.value = european ? '1' : '0';
+                    hint.style.color = european ? 'var(--purple)' : 'var(--muted)';
+                });
+            })();
+            </script>
 
         <!-- ═══ STEP 4: Admin Account ═══ -->
         <?php elseif ($step === 4): ?>

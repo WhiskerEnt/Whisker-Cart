@@ -311,6 +311,7 @@ AddDefaultCharset UTF-8' . $cpanelHandler . "\n";
             $_SESSION['wk_install']['currency']      = strtoupper(trim($_POST['currency'] ?? 'INR'));
             $_SESSION['wk_install']['multi_currency'] = ($_POST['multi_currency'] ?? '0') === '1' ? '1' : '0';
             $_SESSION['wk_install']['timezone']      = trim($_POST['timezone'] ?? 'Asia/Kolkata');
+            $_SESSION['wk_install']['cookie_consent'] = ($_POST['cookie_consent'] ?? '0') === '1' ? '1' : '0';
             $step = 4;
             break;
 
@@ -377,7 +378,12 @@ AddDefaultCharset UTF-8' . $cpanelHandler . "\n";
                 // in sync.
                 $instCurrency = strtoupper($inst['currency'] ?? 'INR');
                 $instSymbol   = wk_install_currencies()[$instCurrency]['symbol'] ?? $instCurrency;
-                $stmtS = $pdo->prepare("UPDATE wk_settings SET setting_value=? WHERE setting_group=? AND setting_key=?");
+                // Insert rather than update, so a setting introduced after the
+                // shipped seed still lands instead of updating nothing.
+                $stmtS = $pdo->prepare(
+                    "INSERT INTO wk_settings (setting_value, setting_group, setting_key) VALUES (?,?,?)
+                     ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value)"
+                );
                 foreach ([
                     ['general','site_name', $inst['store_name']],
                     ['general','site_tagline', $inst['store_tagline']??''],
@@ -385,6 +391,7 @@ AddDefaultCharset UTF-8' . $cpanelHandler . "\n";
                     ['general','currency_symbol', $instSymbol],
                     ['general','multi_currency', $inst['multi_currency'] ?? '0'],
                     ['general','timezone', $inst['timezone']],
+                    ['privacy','cookie_consent', $inst['cookie_consent'] ?? '0'],
                 ] as [$g,$k,$v]) { $stmtS->execute([$v,$g,$k]); }
 
                 // Gateway config
