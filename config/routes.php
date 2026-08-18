@@ -210,6 +210,10 @@ $router->group(['prefix' => '/admin', 'middleware' => ['auth', 'csrf']], functio
     $r->post('/shipping/update/{id}',    [\App\Controllers\Admin\ShippingController::class, 'update']);
     $r->post('/shipping/delete/{id}',    [\App\Controllers\Admin\ShippingController::class, 'delete']);
     $r->get('/shipping/settings',        [\App\Controllers\Admin\ShippingController::class, 'settings']);
+    $r->get('/shipping/zones',           [\App\Controllers\Admin\ShippingController::class, 'zones']);
+    $r->post('/shipping/zones/store',    [\App\Controllers\Admin\ShippingController::class, 'zoneStore']);
+    $r->post('/shipping/zones/update/{id}', [\App\Controllers\Admin\ShippingController::class, 'zoneUpdate']);
+    $r->post('/shipping/zones/delete/{id}', [\App\Controllers\Admin\ShippingController::class, 'zoneDelete']);
     $r->post('/shipping/settings/update',[\App\Controllers\Admin\ShippingController::class, 'updateSettings']);
 
     // Pickup points (lockers / collection points)

@@ -500,3 +500,8 @@ body {
 .wk-country.is-on { background: var(--wk-surface); font-weight: 700; }
 .wk-country input { flex: 0 0 auto; margin: 0; cursor: pointer; }
 .wk-country span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── Shipping zone rate fields ─────────────────────────────────────── */
+.wk-zone-rates { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-bottom: 4px; }
+.wk-zone-rates label { display: grid; gap: 4px; font-size: 12px; font-weight: 700; }
+.wk-zone-rates label em { font-weight: 500; color: var(--wk-text-muted); font-style: normal; }

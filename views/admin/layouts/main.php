@@ -122,6 +122,7 @@ $currentPath = (new \Core\Request())->path();
                     ['/admin/categories', 'Categories', '📂'],
                     ['/admin/shipping', 'Shipping Carriers', '🚚'],
                     ['/admin/shipping/settings', 'Shipping Rates', '📦'],
+                    ['/admin/shipping/zones', 'Shipping Zones', '🌍'],
                 ];
                 foreach ($commerceItems as [$href, $label, $icon]):
                     $isActive = $currentPath === $href;

@@ -782,7 +782,7 @@ class CheckoutController
                 'state'   => (string)$pickupLocation['state'],
             ];
         } else {
-            $shipping = self::calculateShipping($cart);
+            $shipping = self::calculateShipping($cart, (string) ($address['country'] ?? ''));
         }
 
         // Tax — only computed once we know the customer's country/state.
@@ -889,7 +889,7 @@ class CheckoutController
         }
     }
 
-    private static function calculateShipping(array $cart): float
+    private static function calculateShipping(array $cart, string $countryCode = ''): float
     {
         if (empty($cart['items'])) return 0;
 
@@ -922,9 +922,17 @@ class CheckoutController
         // If ALL items have overrides, just return the override total
         if (empty($normalItems)) return $overrideTotal;
 
-        // Calculate store-default shipping for normal items
-        $getSetting = fn($key, $default = '0') =>
-            Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='shipping' AND setting_key=?", [$key]) ?: $default;
+        // A zone covering the destination supplies the rate; anywhere else uses
+        // the store-wide settings. Both carry the same fields, so the maths
+        // below is untouched either way.
+        $zoneRates = \App\Services\ShippingZoneService::ratesFor($countryCode)['values'];
+        $getSetting = function ($key, $default = '0') use ($zoneRates) {
+            if (array_key_exists($key, $zoneRates)) return $zoneRates[$key];
+            return Database::fetchValue(
+                "SELECT setting_value FROM wk_settings WHERE setting_group='shipping' AND setting_key=?",
+                [$key]
+            ) ?: $default;
+        };
 
         $method = $getSetting('method', 'flat');
         $normalCount = array_sum(array_column($normalItems, 'quantity'));

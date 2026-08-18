@@ -8,6 +8,7 @@ try { $carriers = \Core\Database::fetchAll("SELECT * FROM wk_shipping_carriers W
 ?>
 <div style="display:flex;gap:12px;margin-bottom:24px">
     <a href="<?= $url('admin/shipping') ?>" class="wk-btn wk-btn-secondary">🚚 Manage Carriers</a>
+    <a href="<?= $url('admin/shipping/zones') ?>" class="wk-btn wk-btn-secondary">🌍 Shipping Zones</a>
 </div>
 
 <form method="POST" action="<?= $url('admin/shipping/settings/update') ?>">
