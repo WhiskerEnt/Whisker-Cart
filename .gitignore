@@ -20,6 +20,11 @@ robots.txt
 composer.lock
 .phpunit.result.cache
 
+# Internal planning documents — never published
+WHISKER-PREMIUM-*.md
+/internal/
+/_private/
+
 # OS
 .DS_Store
 Thumbs.db
