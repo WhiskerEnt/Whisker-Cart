@@ -295,3 +295,184 @@ const WhiskerStore = {
 };
 
 document.addEventListener('DOMContentLoaded', () => WhiskerStore.init());
+/**
+ * Header type-ahead search.
+ *
+ * Debounces keystrokes, asks /search/suggest for ranked matches, and renders
+ * a dropdown. Stale responses are discarded so a slow request can't overwrite
+ * results for a newer query. Keyboard: arrows move, Enter opens, Escape closes.
+ */
+const WhiskerSearch = {
+    minChars: 1,
+    debounceMs: 160,
+    _timer: null,
+    _seq: 0,
+    _items: [],
+    _active: -1,
+
+    init() {
+        this.input = document.getElementById('wkSearchInput');
+        this.panel = document.getElementById('wkSearchResults');
+        if (!this.input || !this.panel) return;
+
+        this.input.addEventListener('input', () => this.onType());
+        this.input.addEventListener('keydown', (e) => this.onKey(e));
+        this.input.addEventListener('focus', () => { if (this._items.length) this.open(); });
+        document.addEventListener('click', (e) => {
+            if (!this.panel.contains(e.target) && e.target !== this.input) this.close();
+        });
+    },
+
+    onType() {
+        clearTimeout(this._timer);
+        const q = this.input.value.trim();
+        if (q.length < this.minChars) { this._items = []; this.close(); return; }
+        this._timer = setTimeout(() => this.fetch(q), this.debounceMs);
+    },
+
+    async fetch(q) {
+        const seq = ++this._seq;
+        let data;
+        try {
+            const res = await fetch(WhiskerStore.base('search/suggest?q=' + encodeURIComponent(q)));
+            data = await res.json();
+        } catch (err) {
+            return; // network hiccup — leave the last result up
+        }
+        if (seq !== this._seq) return;               // a newer keystroke already fired
+        // Render outside the network try/catch so a rendering mistake surfaces
+        // in the console instead of looking like a failed request.
+        this.render(data, q);
+    },
+
+    render(data, q) {
+        const results = data.results || [];
+        this._items = results;
+        this._active = -1;
+
+        if (!results.length) {
+            this.panel.innerHTML = '<div class="wk-search-empty">No products match “' + WhiskerStore.esc(q) + '”</div>';
+            this.open();
+            return;
+        }
+
+        const rows = results.map((r, i) => {
+            const thumb = r.image
+                ? '<img class="wk-search-thumb" src="' + WhiskerStore.esc(r.image) + '" alt="">'
+                : '<div class="wk-search-thumb"></div>';
+            const meta = r.in_stock
+                ? WhiskerStore.esc(r.category || '')
+                : '<span class="wk-search-oos">Out of stock</span>';
+            return '<a class="wk-search-row" role="option" data-i="' + i + '" href="' + WhiskerStore.esc(r.url) + '">' +
+                   thumb +
+                   '<div class="wk-search-info">' +
+                     '<div class="wk-search-name">' + this.highlight(r.name, q) + '</div>' +
+                     '<div class="wk-search-meta">' + meta + '</div>' +
+                   '</div>' +
+                   '<div class="wk-search-price">' + WhiskerStore.esc(r.price) + '</div>' +
+                   '</a>';
+        }).join('');
+
+        const more = data.more_url
+            ? '<a class="wk-search-foot" href="' + WhiskerStore.esc(data.more_url) + '">See all results →</a>'
+            : '';
+        this.panel.innerHTML = rows + more;
+        this.open();
+    },
+
+    // Escape first, then wrap matches — never inject the raw query.
+    highlight(name, q) {
+        const safe = WhiskerStore.esc(name);
+        const needle = WhiskerStore.esc(q).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        if (!needle) return safe;
+        try {
+            return safe.replace(new RegExp('(' + needle + ')', 'ig'), '<mark>$1</mark>');
+        } catch (e) { return safe; }
+    },
+
+    onKey(e) {
+        const rows = this.panel.querySelectorAll('.wk-search-row');
+        if (e.key === 'Escape') { this.close(); this.input.blur(); return; }
+        if (e.key === 'Enter') {
+            if (this._active >= 0 && rows[this._active]) { e.preventDefault(); rows[this._active].click(); }
+            else if (this.input.value.trim()) {
+                e.preventDefault();
+                window.location.href = WhiskerStore.base('search?q=' + encodeURIComponent(this.input.value.trim()));
+            }
+            return;
+        }
+        if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+        if (!rows.length) return;
+        e.preventDefault();
+        this._active += (e.key === 'ArrowDown' ? 1 : -1);
+        if (this._active < 0) this._active = rows.length - 1;
+        if (this._active >= rows.length) this._active = 0;
+        rows.forEach((r, i) => r.classList.toggle('active', i === this._active));
+        rows[this._active].scrollIntoView({ block: 'nearest' });
+    },
+
+    open()  { this.panel.hidden = false; this.input.setAttribute('aria-expanded', 'true'); },
+    close() { this.panel.hidden = true;  this.input.setAttribute('aria-expanded', 'false'); this._active = -1; },
+};
+
+document.addEventListener('DOMContentLoaded', () => WhiskerSearch.init());
+
+
+/**
+ * Header navigation overflow.
+ *
+ * Categories are laid out on one row; whatever does not fit moves into a
+ * "More" dropdown. A shop with a handful of categories shows them all, and a
+ * shop with many still gets a tidy single-row header instead of a wrapped one.
+ */
+const WhiskerNav = {
+    init() {
+        this.nav  = document.querySelector('.wk-header-nav');
+        this.more = document.getElementById('wkNavMore');
+        this.menu = document.getElementById('wkNavMoreMenu');
+        if (!this.nav || !this.more || !this.menu) return;
+
+        // Everything except the overflow control itself, in source order.
+        this.items = Array.prototype.filter.call(
+            this.nav.children, (el) => el !== this.more
+        );
+        // Take control of wrapping now that we can measure.
+        this.nav.style.flexWrap = 'nowrap';
+
+        this.layout();
+        let t = null;
+        window.addEventListener('resize', () => {
+            clearTimeout(t);
+            t = setTimeout(() => this.layout(), 120);
+        });
+    },
+
+    layout() {
+        // Start from a clean slate so widening the window restores items.
+        this.items.forEach((el) => { el.hidden = false; });
+        this.menu.innerHTML = '';
+        this.more.hidden = true;
+
+        const fits = () => this.nav.scrollWidth <= this.nav.clientWidth + 1;
+        if (fits()) return;
+
+        // Move items from the end into the dropdown until the row fits.
+        // Home / Shop All stay put — they are the primary links.
+        const movable = this.items.slice(2);
+        for (let i = movable.length - 1; i >= 0; i--) {
+            const el = movable[i];
+            el.hidden = true;
+            this.more.hidden = false;
+            const link = el.matches('a') ? el : el.querySelector('a');
+            if (link) {
+                const a = document.createElement('a');
+                a.href = link.getAttribute('href');
+                a.textContent = link.textContent.replace(/\s*▼\s*$/, '').trim();
+                this.menu.insertBefore(a, this.menu.firstChild);
+            }
+            if (fits()) break;
+        }
+    },
+};
+
+document.addEventListener('DOMContentLoaded', () => WhiskerNav.init());

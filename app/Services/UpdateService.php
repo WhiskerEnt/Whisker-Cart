@@ -215,6 +215,14 @@ class UpdateService
             @unlink($zipPath);
             self::deleteDirectory($tempDir);
 
+            // Drop the compiled-file cache. Without this the server keeps
+            // serving the previous version of every PHP file it had cached,
+            // so the store runs a mix of old and new code until the cache
+            // expires or the process restarts.
+            if (function_exists('opcache_reset')) {
+                @opcache_reset();
+            }
+
             // Clear settings cache
             Database::clearSettingsCache();
 

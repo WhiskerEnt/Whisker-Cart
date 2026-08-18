@@ -1,4 +1,4 @@
-![Version](https://img.shields.io/badge/version-1.3.2-8b5cf6?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-1.4.0-8b5cf6?style=for-the-badge)
 ![License](https://img.shields.io/badge/license-Whisker%20Free-f59e0b?style=for-the-badge)
 ![PHP](https://img.shields.io/badge/PHP-8.0+-777BB4?style=for-the-badge&logo=php&logoColor=white)
 ![MySQL](https://img.shields.io/badge/MySQL-5.7+-4479A1?style=for-the-badge&logo=mysql&logoColor=white)
@@ -10,7 +10,7 @@ Beautiful storefront. Powerful admin panel. Built-in AI chatbot. Zero monthly fe
 
 🌐 **[Live Demo](https://whisker.lohit.me)** · 📖 **[Documentation](https://github.com/WhiskerEnt/Whisker-Cart/wiki)** · 📧 **[mail@lohit.me](mailto:mail@lohit.me)**
 
-> **v1.3.2** fixes the currency symbol not following the configured currency, settings that silently failed to save (shop logo, homepage layout, store country, business info), order confirmation emails never sending, migrations not applying on updated stores, and the storefront header breaking with long category names — and adds pickup point / locker delivery (EU-style collection points). Recommended for all installs.
+> **v1.4.0** adds pickup point / locker delivery, instant product search, an opt-in multi-currency switcher, and admin-managed branding — plus storefront and admin fixes throughout. Recommended for all installs.
 
 ---
 
@@ -51,6 +51,7 @@ Upload it to any ₹99/month shared hosting, run the 6-step installer, and you h
 - Multi-currency display (30+ currencies via Frankfurter API with 6-hour cache)
 - Shopping cart drawer with real-time updates
 - Guest checkout + customer accounts with saved addresses
+- **Instant product search** — type-ahead dropdown with relevance ranking across name, SKU and category
 - **Pickup point / locker delivery** — customers collect from admin-configured pickup locations (InPost, Mondial Relay, DHL Packstation-style), with per-location fee override and destination-based tax
 - Coupon codes (percentage & fixed, min order, usage limits, expiry)
 - Contact form with admin email notifications
@@ -232,5 +233,5 @@ Whisker Free Edition is released under the Whisker Free License v1.0. Free to us
 
 ---
 
-**🐱 Whisker v1.3.2** · Built by Lohit T
+**🐱 Whisker v1.4.0** · Built by Lohit T
 📧 [mail@lohit.me](mailto:mail@lohit.me)

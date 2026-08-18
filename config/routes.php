@@ -18,6 +18,7 @@ $router->get('/shop',               [HomeController::class, 'shop']);
 $router->get('/product/{slug}',      [ProductController::class, 'show']);
 $router->get('/category/{slug}',     [ProductController::class, 'category']);
 $router->get('/search',              [ProductController::class, 'search']);
+$router->get('/search/suggest',      [ProductController::class, 'suggest']);
 
 // Cart (AJAX) — CSRF-gated on all state-changing endpoints.
 // 'show' stays GET (no middleware needed). Storefront JS sends the token

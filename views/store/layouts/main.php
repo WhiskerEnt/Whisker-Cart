@@ -102,7 +102,7 @@ $currentSymbol = $currentCurrency === $baseCurrency
         <nav class="wk-header-nav">
             <a href="<?= $url('') ?>">Home</a>
             <a href="<?= $url('shop') ?>">Shop All</a>
-            <?php foreach (array_slice($parentCats, 0, 6) as $cat):
+            <?php foreach (array_slice($parentCats, 0, 14) as $cat):
                 $children = $childMap[$cat['id']] ?? [];
             ?>
                 <?php if (!empty($children)): ?>
@@ -119,8 +119,23 @@ $currentSymbol = $currentCurrency === $baseCurrency
                 <a href="<?= $url('category/' . $cat['slug']) ?>"><?= $e($cat['name']) ?></a>
                 <?php endif; ?>
             <?php endforeach; ?>
-            <a href="<?= $url('search') ?>">Search</a>
+            <a href="<?= $url('search') ?>" class="wk-search-link">Search</a>
+            <div class="wk-nav-dropdown wk-nav-more" id="wkNavMore" hidden>
+                <span class="wk-nav-dropdown-trigger">More <span style="font-size:9px;opacity:.5">▼</span></span>
+                <div class="wk-nav-dropdown-menu" id="wkNavMoreMenu"></div>
+            </div>
         </nav>
+
+        <div class="wk-search" role="search">
+            <svg class="wk-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
+                <circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="21" y2="21"></line>
+            </svg>
+            <input type="search" class="wk-search-input" id="wkSearchInput"
+                   placeholder="Search products&hellip;" autocomplete="off"
+                   aria-label="Search products" aria-expanded="false"
+                   aria-controls="wkSearchResults" role="combobox">
+            <div class="wk-search-panel" id="wkSearchResults" role="listbox" hidden></div>
+        </div>
 
         <div style="display:flex;align-items:center;gap:12px;flex-shrink:0">
             <?php if ($showSwitcher): ?>
