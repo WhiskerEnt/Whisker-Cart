@@ -248,6 +248,9 @@ $currentSymbol = $currentCurrency === $baseCurrency
             <a href="<?= $url('page/refund-policy') ?>" style="color:rgba(255,255,255,.5)">Refund Policy</a>
             <a href="<?= $url('page/exchange-policy') ?>" style="color:rgba(255,255,255,.5)">Exchange Policy</a>
             <a href="<?= $url('track') ?>" style="color:rgba(255,255,255,.5)">Track Order</a>
+            <?php if (\Core\Database::setting('privacy', 'cookie_consent', '0') === '1'): ?>
+                <a href="#" onclick="if(window.WhiskerConsent){WhiskerConsent.reopen();}return false;" style="color:rgba(255,255,255,.5)">Cookie Settings</a>
+            <?php endif; ?>
             <?php if ($isLoggedIn): ?>
                 <a href="<?= $url('account') ?>" style="color:rgba(255,255,255,.5)">My Account</a>
             <?php else: ?>
@@ -389,5 +392,6 @@ async function sendChat(override) {
 }
 </script>
 <?php endif; ?>
+<?php require __DIR__ . '/../partials/cookie-consent.php'; ?>
 </body>
 </html>

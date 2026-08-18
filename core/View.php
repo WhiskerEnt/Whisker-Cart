@@ -78,9 +78,18 @@ class View
      */
     public static function asset(string $path): string
     {
-        $url = self::url('assets/' . ltrim($path, '/'));
-        $version = defined('WK_VERSION') ? (string) WK_VERSION : '';
-        return $version !== '' ? $url . '?v=' . rawurlencode($version) : $url;
+        $rel = ltrim($path, '/');
+        $url = self::url('assets/' . $rel);
+
+        // Key the cache on the file's own modification time so an edited
+        // stylesheet or script reaches browsers immediately, including
+        // between releases when the version string has not moved.
+        $file = dirname(__DIR__) . '/assets/' . $rel;
+        $stamp = is_file($file) ? (string) filemtime($file) : '';
+        if ($stamp === '') {
+            $stamp = defined('WK_VERSION') ? (string) WK_VERSION : '';
+        }
+        return $stamp !== '' ? $url . '?v=' . rawurlencode($stamp) : $url;
     }
 
     /**

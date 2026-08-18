@@ -2,7 +2,7 @@
 
 <!-- Tab Navigation -->
 <div style="display:flex;gap:6px;margin-bottom:24px;border-bottom:2px solid var(--wk-border);padding-bottom:0;flex-wrap:wrap">
-    <?php $tabs = ['store'=>'🏪 Store','appearance'=>'🎨 Appearance','checkout'=>'🛒 Checkout & Tax','email'=>'📧 Email','system'=>'⚙️ System'];
+    <?php $tabs = ['store'=>'🏪 Store','appearance'=>'🎨 Appearance','checkout'=>'🛒 Checkout & Tax','privacy'=>'🍪 Privacy','email'=>'📧 Email','system'=>'⚙️ System'];
     foreach ($tabs as $key => $label): ?>
     <button onclick="switchTab('<?= $key ?>')" id="tab-btn-<?= $key ?>" style="padding:10px 20px;border:none;background:transparent;font-weight:700;font-size:13px;color:var(--wk-text-muted);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .2s;font-family:inherit"><?= $label ?></button>
     <?php endforeach; ?>
@@ -189,6 +189,70 @@
                     <?php endforeach; ?></tbody>
                 </table>
                 <?php endif; ?>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cookie consent lives with the other storefront policy controls -->
+    <div class="settings-tab" id="tab-privacy" style="display:none">
+        <div class="wk-card">
+            <div class="wk-card-header"><h2>🍪 Cookie Consent</h2></div>
+            <div class="wk-card-body">
+                <p style="font-size:12px;color:var(--wk-text-muted);margin-bottom:16px;line-height:1.6">
+                    Shows a banner asking shoppers to accept or reject cookies. Required in the EU, UK and a growing
+                    number of other regions. Accept and Reject are shown with equal prominence, which those rules require.
+                </p>
+                <div class="wk-form-group">
+                    <label>Banner</label>
+                    <select name="privacy_cookie_consent" class="wk-select">
+                        <option value="0" <?= ($s['privacy']['cookie_consent'] ?? '0')!=='1'?'selected':'' ?>>Off — do not show a cookie banner</option>
+                        <option value="1" <?= ($s['privacy']['cookie_consent'] ?? '0')==='1'?'selected':'' ?>>On — ask shoppers before setting optional cookies</option>
+                    </select>
+                </div>
+                <div class="wk-form-group">
+                    <label>Heading</label>
+                    <input type="text" name="privacy_cookie_title" class="wk-input" value="<?= $v('privacy','cookie_title') ?>" placeholder="We use cookies">
+                </div>
+                <div class="wk-form-group">
+                    <label>Message</label>
+                    <textarea name="privacy_cookie_text" class="wk-input" rows="3" placeholder="Explain briefly what you use cookies for."><?= $v('privacy','cookie_text') ?></textarea>
+                </div>
+                <div class="wk-form-group">
+                    <label>Policy Link <span style="font-weight:500;color:var(--wk-text-muted)">(optional)</span></label>
+                    <input type="url" name="privacy_cookie_policy_url" class="wk-input" value="<?= $v('privacy','cookie_policy_url') ?>" placeholder="https://yourstore.com/page/privacy-policy">
+                    <div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">Adds a “Read our policy” link to the banner.</div>
+                </div>
+
+                <div style="border-top:1px solid var(--wk-border);margin:20px 0 16px;padding-top:16px">
+                    <div style="font-weight:800;font-size:13px;margin-bottom:4px">Categories</div>
+                    <p style="font-size:12px;color:var(--wk-text-muted);margin-bottom:14px;line-height:1.6">
+                        Shoppers can grant these individually under “Customise”. Only offer a category you actually
+                        use — asking about ads you do not run just adds friction. Cookies needed for the cart,
+                        sign-in and checkout are always allowed and are not listed here.
+                    </p>
+                    <div class="wk-form-group">
+                        <label>Analytics</label>
+                        <select name="privacy_cookie_analytics" class="wk-select">
+                            <option value="1" <?= ($s['privacy']['cookie_analytics'] ?? '1')==='1'?'selected':'' ?>>Offer — you use analytics or visitor tracking</option>
+                            <option value="0" <?= ($s['privacy']['cookie_analytics'] ?? '1')==='0'?'selected':'' ?>>Do not offer</option>
+                        </select>
+                    </div>
+                    <div class="wk-form-group">
+                        <label>Marketing</label>
+                        <select name="privacy_cookie_marketing" class="wk-select">
+                            <option value="0" <?= ($s['privacy']['cookie_marketing'] ?? '0')!=='1'?'selected':'' ?>>Do not offer</option>
+                            <option value="1" <?= ($s['privacy']['cookie_marketing'] ?? '0')==='1'?'selected':'' ?>>Offer — you run ad or remarketing pixels</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="wk-form-group">
+                    <label>Policy Version</label>
+                    <input type="number" name="privacy_cookie_version" class="wk-input" min="1" step="1" value="<?= $v('privacy','cookie_version') ?: '1' ?>" style="max-width:140px">
+                    <div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">
+                        Raise this number when your cookie policy changes. Everyone who already answered is asked again.
+                    </div>
+                </div>
             </div>
         </div>
     </div>

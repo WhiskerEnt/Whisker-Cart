@@ -33,6 +33,7 @@ class SettingsController
             ],
             'checkout'=> ['guest_checkout','tax_rate','min_order'],
             'email'   => ['from_email','from_name','smtp_host','smtp_port','smtp_user','smtp_pass'],
+            'privacy' => ['cookie_consent','cookie_title','cookie_text','cookie_policy_url','cookie_analytics','cookie_marketing','cookie_version'],
         ];
         // Secret fields render empty, so an empty submission means "unchanged".
         $secretKeys = ['email_smtp_pass'];

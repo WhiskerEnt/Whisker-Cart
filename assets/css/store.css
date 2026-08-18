@@ -740,3 +740,75 @@ img { max-width: 100%; display: block; }
 @media (prefers-reduced-motion: reduce) {
     .wk-status-ring, .wk-status-mark { animation: none; stroke-dashoffset: 0; }
 }
+
+/* ── Cookie consent ────────────────────────────────────────────── */
+.wk-cookie {
+    position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 900;
+    background: var(--wk-surface); border: 2px solid var(--wk-border);
+    border-radius: var(--radius); box-shadow: 0 12px 40px rgba(0,0,0,.14);
+    max-height: min(52vh, 420px); overflow-y: auto;
+    opacity: 0; transform: translateY(14px); pointer-events: none;
+    transition: opacity .26s ease, transform .26s ease;
+}
+.wk-cookie.is-open { opacity: 1; transform: translateY(0); pointer-events: auto; }
+/* The inner wrapper stacks: the message row, then the preferences panel.
+   .wk-cookie-main does the horizontal layout within the first row. */
+.wk-cookie-inner { max-width: 1180px; margin: 0 auto; padding: 16px 20px; }
+.wk-cookie-main { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.wk-cookie-copy { flex: 1 1 320px; min-width: 0; }
+.wk-cookie-title { font-size: 14px; font-weight: 900; margin: 0 0 3px; }
+.wk-cookie-text { font-size: 13px; line-height: 1.55; color: var(--wk-muted); margin: 0; }
+.wk-cookie-link { color: var(--wk-purple); font-weight: 700; text-decoration: underline; }
+.wk-cookie-actions { display: flex; gap: 10px; flex: 0 0 auto; }
+.wk-cookie-btn {
+    font: inherit; font-size: 13px; font-weight: 800; cursor: pointer;
+    padding: 10px 18px; border-radius: var(--radius-sm);
+    border: 2px solid var(--wk-border); background: var(--wk-surface);
+    color: var(--wk-text); transition: border-color .15s ease, background .15s ease;
+}
+.wk-cookie-btn:hover { border-color: var(--wk-text); }
+.wk-cookie-btn-accept { background: var(--wk-purple); border-color: var(--wk-purple); color: #fff; }
+.wk-cookie-btn-accept:hover { filter: brightness(1.08); border-color: var(--wk-purple); }
+.wk-cookie-btn:focus-visible { outline: 3px solid var(--wk-purple); outline-offset: 2px; }
+/* Category preferences, revealed by Customise */
+.wk-cookie-prefs {
+    margin-top: 14px; padding-top: 14px; border-top: 2px solid var(--wk-border);
+}
+/* Categories sit side by side so opening Customise costs one short row,
+   not half the viewport. */
+.wk-cookie-cats {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 12px 28px; align-items: start;
+}
+.wk-cookie-cat-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.wk-cookie-cat-name { font-size: 13px; font-weight: 800; }
+.wk-cookie-cat-desc { font-size: 11.5px; line-height: 1.45; color: var(--wk-muted); margin: 2px 0 0; }
+.wk-cookie-always {
+    font-size: 11px; font-weight: 800; color: var(--wk-green);
+    background: var(--wk-green-soft); padding: 3px 9px; border-radius: 999px;
+}
+.wk-cookie-switch { position: relative; display: inline-block; width: 40px; height: 22px; flex: 0 0 auto; cursor: pointer; }
+.wk-cookie-switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.wk-cookie-slider {
+    position: absolute; inset: 0; background: var(--wk-border); border-radius: 999px;
+    transition: background .18s ease; pointer-events: none;
+}
+.wk-cookie-slider::before {
+    content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px;
+    background: #fff; border-radius: 50%; transition: transform .18s ease;
+}
+.wk-cookie-switch input:checked + .wk-cookie-slider { background: var(--wk-purple); }
+.wk-cookie-switch input:checked + .wk-cookie-slider::before { transform: translateX(18px); }
+.wk-cookie-switch input:focus-visible + .wk-cookie-slider { outline: 3px solid var(--wk-purple); outline-offset: 2px; }
+.wk-cookie-prefs-foot { display: flex; justify-content: flex-end; margin-top: 12px; }
+
+@media (max-width: 560px) {
+    .wk-cookie-inner { padding: 14px 16px; gap: 14px; }
+    .wk-cookie-prefs-foot .wk-cookie-btn { width: 100%; }
+    .wk-cookie-actions { width: 100%; }
+    .wk-cookie-btn { flex: 1 1 0; padding: 11px 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .wk-cookie { transition: none; transform: none; }
+    .wk-cookie-slider, .wk-cookie-slider::before { transition: none; }
+}
