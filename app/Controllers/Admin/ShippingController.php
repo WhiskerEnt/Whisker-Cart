@@ -163,7 +163,7 @@ class ShippingController
             return;
         }
 
-        $fields = ['method','flat_rate','flat_rate_below','free_threshold','per_item','per_item_cap','weight_base','weight_per_kg','pickup_enabled','pickup_fee'];
+        $fields = ['method','flat_rate','flat_rate_below','free_threshold','per_item','per_item_cap','weight_base','weight_per_kg','pickup_enabled','pickup_fee','ship_mode'];
         foreach ($fields as $key) {
             $val = $request->input('shipping_' . $key);
             if ($val !== null) {
@@ -173,6 +173,24 @@ class ShippingController
                     [$key, trim($val)]
                 );
             }
+        }
+
+        // Chosen destinations. Stored as one comma-separated list of ISO codes,
+        // validated here so nothing outside the known set is written. Only
+        // rewritten when the form actually carried the picker, so saving from
+        // another mode does not wipe a list the shopkeeper built earlier.
+        if ($request->input('shipping_ship_mode') === \App\Services\CountryService::MODE_SELECTED) {
+            $picked = (array) ($request->all()['ship_country'] ?? []);
+            $codes = [];
+            foreach ($picked as $code) {
+                $code = strtoupper(trim((string) $code));
+                if (\App\Services\CountryService::exists($code)) $codes[$code] = true;
+            }
+            Database::query(
+                "INSERT INTO wk_settings (setting_group,setting_key,setting_value) VALUES('shipping','ship_countries',?)
+                 ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value)",
+                [implode(',', array_keys($codes))]
+            );
         }
 
         // Carrier-specific rates

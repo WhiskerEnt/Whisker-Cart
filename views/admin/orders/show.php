@@ -46,13 +46,19 @@ $s=$sm[$o['status']]??['info','?'];
 
         <!-- Addresses -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+            <?php
+            // Addresses store the ISO code; a customer service rep reading this
+            // page wants "India", not "IN".
+            $country = fn($code) => $code !== '' ? \App\Services\CountryService::name((string) $code) : '';
+            ?>
             <div class="wk-card">
                 <div class="wk-card-header"><h2>📍 Billing Address</h2></div>
                 <div class="wk-card-body" style="font-size:14px;line-height:1.8">
                     <strong><?= $e($billing['name']??'') ?></strong><br>
                     <?= $e($billing['line1']??'') ?><br>
+                    <?php if (!empty($billing['line2'])): ?><?= $e($billing['line2']) ?><br><?php endif; ?>
                     <?= $e(($billing['city']??'').', '.($billing['state']??'').' '.($billing['zip']??'')) ?><br>
-                    <?= $e($billing['country']??'') ?>
+                    <?= $e($country($billing['country'] ?? '')) ?>
                 </div>
             </div>
             <?php $isPickup = !empty($shipping_addr['pickup']); ?>
@@ -63,7 +69,8 @@ $s=$sm[$o['status']]??['info','?'];
                     <strong><?= $e($shipping_addr['name']??'') ?></strong><br>
                     <?= $e($shipping_addr['line1']??'') ?><br>
                     <?php if (!empty($shipping_addr['line2'])): ?><?= $e($shipping_addr['line2']) ?><br><?php endif; ?>
-                    <?= $e(($shipping_addr['city']??'').', '.($shipping_addr['state']??'').' '.($shipping_addr['zip']??'')) ?>
+                    <?= $e(($shipping_addr['city']??'').', '.($shipping_addr['state']??'').' '.($shipping_addr['zip']??'')) ?><br>
+                    <?= $e($country($shipping_addr['country'] ?? '')) ?>
                     <?php if ($isPickup && !empty($shipping_addr['opening_hours'])): ?>
                         <br><span style="color:var(--wk-text-muted);font-size:13px">🕐 <?= $e($shipping_addr['opening_hours']) ?></span>
                     <?php endif; ?>

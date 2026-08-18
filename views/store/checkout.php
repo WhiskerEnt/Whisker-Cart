@@ -114,7 +114,13 @@ $defAddr = !empty($addrs) ? $addrs[0] : [];
                     </div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px">
                         <div><label style="<?= $ls ?>">Country</label><select name="country" id="ship_country" style="<?= $is ?> cursor:pointer">
-                            <?php foreach ($countries as $code => $info): ?><option value="<?= $code ?>" <?= $code===($defAddr['country']??'IN')?'selected':'' ?>><?= $e($info['name']) ?></option><?php endforeach; ?>
+                            <?php
+                            // Only what the store will post to. A single option is
+                            // still a select so the posted field stays the same.
+                            $shipTo  = \App\Services\CountryService::shippable();
+                            $shipDef = $defAddr['country'] ?? '';
+                            if (!isset($shipTo[$shipDef])) $shipDef = \App\Services\CountryService::defaultShippingCountry();
+                            foreach ($shipTo as $code => $name): ?><option value="<?= $e($code) ?>" <?= $code === $shipDef ? 'selected' : '' ?>><?= $e($name) ?></option><?php endforeach; ?>
                         </select></div>
                         <div><label style="<?= $ls ?>">ZIP / Postal Code</label><input type="text" name="zip" id="ship_zip" required value="<?= $e($defAddr['postal_code']??'') ?>" style="<?= $is ?>"></div>
                     </div>
@@ -153,7 +159,10 @@ $defAddr = !empty($addrs) ? $addrs[0] : [];
                         </div>
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px">
                             <div><label style="<?= $ls ?>">Country</label><select name="billing_country" id="bill_country" style="<?= $is ?> cursor:pointer">
-                                <?php foreach ($countries as $code => $info): ?><option value="<?= $code ?>" <?= $code==='IN'?'selected':'' ?>><?= $e($info['name']) ?></option><?php endforeach; ?>
+                                <?php
+                                // Billing is not restricted: you can pay from a
+                                // country the store does not post to.
+                                foreach (\App\Services\CountryService::all() as $code => $name): ?><option value="<?= $e($code) ?>" <?= $code === \App\Services\CountryService::storeCountry() ? 'selected' : '' ?>><?= $e($name) ?></option><?php endforeach; ?>
                             </select></div>
                             <div><label style="<?= $ls ?>">ZIP</label><input type="text" name="billing_zip" id="bill_zip" style="<?= $is ?>"></div>
                         </div>

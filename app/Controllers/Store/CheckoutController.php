@@ -138,6 +138,15 @@ class CheckoutController
         $discount   = $totals['discount'];
         $total      = $totals['total'];
 
+        // A shopper can edit the form, so the posted country is checked against
+        // the same list the dropdown was built from.
+        $shipCountry = strtoupper(trim((string) $request->input('country')));
+        if (!\App\Services\CountryService::canShipTo($shipCountry)) {
+            Session::flash('error', 'We do not ship to that country yet. Please choose another delivery address.');
+            Response::redirect(View::url('checkout'));
+            return;
+        }
+
         // Auto-create or find customer by email.
         // A session can outlive the customer record it points at (deleted in the
         // admin, restored database). Drop the stale id rather than letting the

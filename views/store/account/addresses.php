@@ -20,7 +20,7 @@ $ls = 'display:block;font-size:11px;font-weight:800;text-transform:uppercase;let
                 <?= $e($addr['address_line1']) ?><br>
                 <?php if ($addr['address_line2']): ?><?= $e($addr['address_line2']) ?><br><?php endif; ?>
                 <?= $e($addr['city']) ?>, <?= $e($addr['state']) ?> <?= $e($addr['postal_code']) ?><br>
-                <?= $e($countries[$addr['country']]['name'] ?? $addr['country']) ?>
+                <?= $e(\App\Services\CountryService::name((string) ($addr['country'] ?? ''))) ?>
             </div>
             <form method="POST" action="<?= $url('account/addresses/delete/'.$addr['id']) ?>" style="margin-top:12px" onsubmit="return confirm('Delete this address?')">
                 <?= \Core\Session::csrfField() ?>

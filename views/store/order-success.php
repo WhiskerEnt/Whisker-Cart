@@ -124,7 +124,8 @@ $items = $items ?? [];
                 $ship['line2'] ?? '',
                 trim(($ship['city'] ?? '') . ' ' . ($ship['zip'] ?? '')),
                 $ship['state'] ?? '',
-                $ship['country'] ?? '',
+                isset($ship['country']) && $ship['country'] !== ''
+                    ? \App\Services\CountryService::name((string) $ship['country']) : '',
             ], fn($l) => trim((string)$l) !== ''));
             ?>
             <?php if ($addrLines || !empty($order['customer_email']) || !empty($order['customer_phone'])): ?>

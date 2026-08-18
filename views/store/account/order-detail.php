@@ -87,7 +87,7 @@ $countries = \App\Services\CurrencyService::countries();
                 <strong><?= $e($billing['name']??'') ?></strong><br>
                 <?= $e($billing['line1']??'') ?><br>
                 <?= $e(($billing['city']??'').', '.($billing['state']??'').' '.($billing['zip']??'')) ?><br>
-                <?= $e($countries[$billing['country']??'']['name'] ?? ($billing['country']??'')) ?>
+                <?= $e(\App\Services\CountryService::name((string) ($billing['country'] ?? ''))) ?>
             <?php else: ?>
                 <span style="color:var(--wk-muted)">No billing address on file</span>
             <?php endif; ?>
