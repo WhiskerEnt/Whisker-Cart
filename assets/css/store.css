@@ -136,7 +136,7 @@ img { max-width: 100%; display: block; }
     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     white-space: nowrap;
 }
-.wk-header-nav { display: flex; align-items: center; gap: 6px 20px; flex-wrap: wrap; flex: 1 1 auto; justify-content: center; min-width: 0; overflow: hidden; }
+.wk-header-nav { display: flex; align-items: center; gap: 6px 20px; flex-wrap: wrap; flex: 1 1 0; justify-content: center; min-width: 0; overflow: hidden; }
 /* Each nav label stays on one line — long names wrap as whole items, never mid-label. */
 .wk-header-nav > a, .wk-nav-dropdown-trigger { font-size: 14px; font-weight: 700; color: var(--wk-muted); transition: color .2s; text-decoration: none; white-space: nowrap; }
 .wk-header-nav > a:hover, .wk-nav-dropdown-trigger:hover { color: var(--wk-purple); }
@@ -709,4 +709,34 @@ img { max-width: 100%; display: block; }
 
 @media (max-width: 900px) {
     .wk-search { order: 3; flex: 1 1 100%; min-width: 0; }
+}
+
+/* ── Order status icon ─────────────────────────── */
+/* The ring sweeps in, then the mark draws itself. Colour comes from the
+   state class so success, waiting and failure share one shape system. */
+.wk-status { width: 84px; height: 84px; display: block; margin: 0 auto; }
+.wk-status-ring,
+.wk-status-mark {
+    fill: none; stroke-width: 3;
+    stroke-linecap: round; stroke-linejoin: round;
+}
+.wk-status-ring {
+    stroke-dasharray: 151; stroke-dashoffset: 151;
+    animation: wkRing .55s cubic-bezier(.65,0,.45,1) forwards;
+}
+.wk-status-mark {
+    stroke-dasharray: 48; stroke-dashoffset: 48;
+    animation: wkMark .3s cubic-bezier(.65,0,.45,1) .5s forwards;
+}
+.wk-status-mark-2 { animation-delay: .68s; }
+
+.wk-status-ok   .wk-status-ring, .wk-status-ok   .wk-status-mark { stroke: var(--wk-green); }
+.wk-status-wait .wk-status-ring, .wk-status-wait .wk-status-mark { stroke: var(--wk-yellow); }
+.wk-status-bad  .wk-status-ring, .wk-status-bad  .wk-status-mark { stroke: var(--wk-red); }
+
+@keyframes wkRing { to { stroke-dashoffset: 0; } }
+@keyframes wkMark { to { stroke-dashoffset: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+    .wk-status-ring, .wk-status-mark { animation: none; stroke-dashoffset: 0; }
 }

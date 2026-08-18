@@ -200,7 +200,8 @@ class CheckoutController
                     ]
                     : [
                         'name'=>$customerName,
-                        'line1'=>$request->clean('address1'), 'city'=>$request->clean('city'),
+                        'line1'=>$request->clean('address1'), 'line2'=>$request->clean('address2') ?? '',
+                        'city'=>$request->clean('city'),
                         'state'=>$request->clean('state'), 'zip'=>$request->clean('zip'),
                         'country'=>$request->clean('country'),
                     ];
@@ -220,7 +221,8 @@ class CheckoutController
                         $request->input('billing_address1')
                         ? [
                             'name'=>$customerName,
-                            'line1'=>$request->clean('billing_address1'), 'city'=>$request->clean('billing_city'),
+                            'line1'=>$request->clean('billing_address1'), 'line2'=>$request->clean('billing_address2') ?? '',
+                            'city'=>$request->clean('billing_city'),
                             'state'=>$request->clean('billing_state'), 'zip'=>$request->clean('billing_zip'),
                             'country'=>$request->clean('billing_country'),
                         ]
@@ -442,16 +444,22 @@ class CheckoutController
             }
         }
 
-        // Send confirmation email
+        // Send the confirmation on shutdown, so the shopper is redirected
+        // immediately and a slow mail server never holds up the page.
+        // Registering it (rather than calling it after the redirect) is what
+        // makes it run at all: Response::redirect() ends the request, so any
+        // statement written after it is unreachable.
         if ($orderData && $orderData['customer_email']) {
-            if (function_exists('fastcgi_finish_request')) {
-                Session::set('wk_last_order', $orderNumber);
-                Response::redirect(View::url('order-success?order=' . $orderNumber));
-                fastcgi_finish_request();
-                \App\Services\EmailService::sendOrderConfirmation($orderData, $orderItems);
-                return;
-            }
-            try { \App\Services\EmailService::sendOrderConfirmation($orderData, $orderItems); } catch (\Exception $e) {}
+            register_shutdown_function(static function () use ($orderData, $orderItems) {
+                if (function_exists('fastcgi_finish_request')) {
+                    fastcgi_finish_request();
+                }
+                try {
+                    \App\Services\EmailService::sendOrderConfirmation($orderData, $orderItems);
+                } catch (\Throwable $e) {
+                    error_log('Whisker: order confirmation email failed — ' . $e->getMessage());
+                }
+            });
         }
 
         Session::set('wk_last_order', $orderNumber);
@@ -551,7 +559,63 @@ class CheckoutController
             }
         }
 
-        View::render('store/order-success', ['order' => $order], 'store/layouts/main');
+        // The confirmation page shows a full summary, so the items come with it.
+        $items = [];
+        if ($order) {
+            try {
+                $items = Database::fetchAll(
+                    "SELECT oi.product_name, oi.quantity, oi.unit_price, oi.total_price,
+                            oi.variant_label, p.slug,
+                            (SELECT image_path FROM wk_product_images
+                              WHERE product_id = oi.product_id AND is_primary = 1 LIMIT 1) AS image
+                       FROM wk_order_items oi
+                       LEFT JOIN wk_products p ON p.id = oi.product_id
+                      WHERE oi.order_id = ?",
+                    [$order['id']]
+                );
+            } catch (\Exception $e) {
+                $items = Database::fetchAll(
+                    "SELECT product_name, quantity, unit_price, total_price
+                       FROM wk_order_items WHERE order_id = ?",
+                    [$order['id']]
+                );
+            }
+        }
+
+        // Work out which state the page is showing here, so the browser tab
+        // title matches what the shopper sees.
+        $payData = Session::get('wk_payment_data');
+        if ($payData && $order && ($payData['order_number'] ?? null) !== ($order['order_number'] ?? null)) {
+            $payData = null;
+        }
+        if (Session::get('wk_payment_data')) Session::remove('wk_payment_data');
+
+        $needsPayment  = $order && $order['payment_status'] !== 'captured' && $payData && ($payData['gateway'] ?? '') === 'razorpay';
+        $paymentFailed = $order && ($order['status'] === 'payment_failed' || $order['payment_status'] === 'failed');
+        $retryMinutes  = $order ? max(0, (int)ceil(((strtotime($order['created_at']) + 900) - time()) / 60)) : 0;
+        $retryExpired  = $retryMinutes <= 0 && ($paymentFailed || $needsPayment);
+
+        if     ($retryExpired)  { $state = 'expired'; $title = 'Order expired';    $blurb = 'Payment was not completed in time, so the items have been released back into stock.'; }
+        elseif ($paymentFailed) { $state = 'failed';  $title = 'Payment failed';   $blurb = 'Your order is still reserved. You can try paying again below.'; }
+        elseif ($needsPayment)  { $state = 'pending'; $title = 'Complete payment'; $blurb = 'Your order is created and waiting for payment.'; }
+        elseif ($order)         { $state = 'ok';      $title = 'Order confirmed';  $blurb = 'Thank you — we have your order and a confirmation email is on its way.'; }
+        else                    { $state = 'ok';      $title = 'Thank you';        $blurb = 'Thank you for your order.'; }
+
+        View::render('store/order-success', [
+            'order'         => $order,
+            'items'         => $items,
+            'payData'       => $payData,
+            'state'         => $state,
+            'statusTitle'   => $title,
+            'statusBlurb'   => $blurb,
+            'needsPayment'  => $needsPayment,
+            'paymentFailed' => $paymentFailed,
+            'retryExpired'  => $retryExpired,
+            'retryMinutes'  => $retryMinutes,
+            'retryExpires'  => $order ? strtotime($order['created_at']) + 900 : 0,
+            // Shown in the browser tab and any bookmark.
+            'pageTitle'     => $order ? $title . ' — ' . $order['order_number'] : $title,
+        ], 'store/layouts/main');
     }
 
     /**

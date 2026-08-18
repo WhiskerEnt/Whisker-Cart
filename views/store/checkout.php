@@ -107,6 +107,7 @@ $defAddr = !empty($addrs) ? $addrs[0] : [];
                     <?php endif; ?>
 
                     <div><label style="<?= $ls ?>">Address</label><input type="text" name="address1" id="ship_addr" required value="<?= $e($defAddr['address_line1']??'') ?>" placeholder="123 Main Street" style="<?= $is ?>"></div>
+                    <div style="margin-top:14px"><label style="<?= $ls ?>">Apartment, suite, etc. <span style="font-weight:500;text-transform:none;color:var(--wk-muted)">(optional)</span></label><input type="text" name="address2" id="ship_addr2" value="<?= $e($defAddr['address_line2']??'') ?>" placeholder="Flat 4B" style="<?= $is ?>"></div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px">
                         <div><label style="<?= $ls ?>">City</label><input type="text" name="city" id="ship_city" required value="<?= $e($defAddr['city']??'') ?>" style="<?= $is ?>"></div>
                         <div><label style="<?= $ls ?>">State</label><input type="text" name="state" id="ship_state" required value="<?= $e($defAddr['state']??'') ?>" style="<?= $is ?>"></div>
@@ -145,6 +146,7 @@ $defAddr = !empty($addrs) ? $addrs[0] : [];
                         </div>
                         <?php endif; ?>
                         <div><label style="<?= $ls ?>">Address</label><input type="text" name="billing_address1" id="bill_addr" placeholder="123 Main Street" style="<?= $is ?>"></div>
+                        <div style="margin-top:14px"><label style="<?= $ls ?>">Apartment, suite, etc. <span style="font-weight:500;text-transform:none;color:var(--wk-muted)">(optional)</span></label><input type="text" name="billing_address2" id="bill_addr2" placeholder="Flat 4B" style="<?= $is ?>"></div>
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px">
                             <div><label style="<?= $ls ?>">City</label><input type="text" name="billing_city" id="bill_city" style="<?= $is ?>"></div>
                             <div><label style="<?= $ls ?>">State</label><input type="text" name="billing_state" id="bill_state" style="<?= $is ?>"></div>
