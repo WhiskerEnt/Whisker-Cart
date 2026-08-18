@@ -20,6 +20,10 @@ $router->get('/category/{slug}',     [ProductController::class, 'category']);
 $router->get('/search',              [ProductController::class, 'search']);
 $router->get('/search/suggest',      [ProductController::class, 'suggest']);
 
+// Guest order tracking (order number + email, no account needed)
+$router->get('/track',               [\App\Controllers\Store\TrackController::class, 'show']);
+$router->post('/track',              [\App\Controllers\Store\TrackController::class, 'lookup'], ['csrf']);
+
 // Cart (AJAX) — CSRF-gated on all state-changing endpoints.
 // 'show' stays GET (no middleware needed). Storefront JS sends the token
 // either as 'wk_csrf' in FormData (default path) or as X-CSRF-Token header.

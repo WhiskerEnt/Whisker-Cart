@@ -247,6 +247,7 @@ $currentSymbol = $currentCurrency === $baseCurrency
             <a href="<?= $url('page/privacy-policy') ?>" style="color:rgba(255,255,255,.5)">Privacy Policy</a>
             <a href="<?= $url('page/refund-policy') ?>" style="color:rgba(255,255,255,.5)">Refund Policy</a>
             <a href="<?= $url('page/exchange-policy') ?>" style="color:rgba(255,255,255,.5)">Exchange Policy</a>
+            <a href="<?= $url('track') ?>" style="color:rgba(255,255,255,.5)">Track Order</a>
             <?php if ($isLoggedIn): ?>
                 <a href="<?= $url('account') ?>" style="color:rgba(255,255,255,.5)">My Account</a>
             <?php else: ?>
