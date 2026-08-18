@@ -192,6 +192,8 @@ foreach ($variants['combos'] ?? [] as $combo) {
         <?php endif; ?>
 
         <?php if (!empty($reviewsOn)) require __DIR__ . '/partials/reviews.php'; ?>
+
+        <?php if (!empty($questionsOn)) require __DIR__ . '/partials/questions.php'; ?>
     </div>
 </section>
 

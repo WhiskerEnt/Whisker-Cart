@@ -419,6 +419,8 @@ INSERT INTO wk_payment_gateways (gateway_code, display_name, description, is_act
  '["BTC","ETH","USDT","LTC","XRP"]');
 
 INSERT INTO wk_settings (setting_group, setting_key, setting_value) VALUES
+('questions', 'questions_enabled', '1'),
+('questions', 'notify_on_answer', '1'),
 ('reviews', 'reviews_enabled', '1'),
 ('reviews', 'review_policy', 'purchased'),
 ('reviews', 'auto_approve', '0'),

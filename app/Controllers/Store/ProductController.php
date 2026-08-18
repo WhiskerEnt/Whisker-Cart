@@ -32,6 +32,9 @@ class ProductController
             : ['count' => 0, 'average' => 0.0, 'breakdown' => []];
         $reviews     = $reviewsOn ? \App\Services\ReviewService::forProduct((int) $product['id']) : [];
 
+        $questionsOn = \App\Services\QuestionService::enabled();
+        $questions   = $questionsOn ? \App\Services\QuestionService::forProduct((int) $product['id']) : [];
+
         // SEO meta tags
         $primaryImage = !empty($images) ? ($images[0]['image_path'] ?? null) : null;
         $seoMeta = \App\Services\SeoService::renderMeta([
@@ -64,6 +67,8 @@ class ProductController
             'reviewStats'   => $reviewStats,
             'reviews'       => $reviews,
             'reviewPolicy'  => \App\Services\ReviewService::policy(),
+            'questionsOn'   => $questionsOn,
+            'questions'     => $questions,
         ], 'store/layouts/main');
     }
 
