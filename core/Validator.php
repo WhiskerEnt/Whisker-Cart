@@ -78,9 +78,8 @@ class Validator
                 break;
 
             case 'email':
-                // L13: use explicit empty-check rather than truthy-check —
-                // `$value && ...` skips validation for legitimate values like
-                // "0" (PHP-falsy but not empty). Only skip when truly empty.
+                // Explicit empty-check rather than truthy-check so PHP-falsy
+                // values like "0" are still validated; skip only when truly empty.
                 if ($value !== null && $value !== '' && !filter_var($value, FILTER_VALIDATE_EMAIL)) {
                     return "{$label} must be a valid email.";
                 }
@@ -100,9 +99,8 @@ class Validator
 
             case 'min':
                 // Numeric values compare by magnitude; only non-numeric
-                // strings compare by length. These must be exclusive — both
-                // branches used to run for numeric strings, so '50' failed
-                // min:10 for being "only 2 characters".
+                // strings compare by length. The branches are exclusive so a
+                // numeric string is never also length-checked.
                 if (is_numeric($value)) {
                     if ($value < (float)$param) {
                         return "{$label} must be at least {$param}.";

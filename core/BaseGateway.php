@@ -95,12 +95,9 @@ abstract class BaseGateway implements PaymentGatewayInterface
             }
         }
 
-        // Finding 5: previously this was a plain UPDATE that left a race
-        // window between the SELECT-based idempotency check and the write.
-        // Concurrent webhook + verify-callback could both reach this point
-        // and both run the UPDATE. End-state was the same (idempotent
-        // values), but the conditional UPDATE makes "only one writer wins"
-        // a property of the schema, not of timing luck.
+        // Conditional UPDATE so concurrent webhook + verify-callback writers
+        // cannot both capture the order — "only one writer wins" is enforced
+        // by the WHERE clause, not by timing.
         $affected = Database::query(
             "UPDATE wk_orders
                 SET payment_status  = 'captured',

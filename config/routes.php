@@ -19,7 +19,7 @@ $router->get('/product/{slug}',      [ProductController::class, 'show']);
 $router->get('/category/{slug}',     [ProductController::class, 'category']);
 $router->get('/search',              [ProductController::class, 'search']);
 
-// Cart (AJAX) — L1: CSRF-gated on all state-changing endpoints.
+// Cart (AJAX) — CSRF-gated on all state-changing endpoints.
 // 'show' stays GET (no middleware needed). Storefront JS sends the token
 // either as 'wk_csrf' in FormData (default path) or as X-CSRF-Token header.
 $router->get('/cart',                [CartController::class, 'show']);

@@ -42,9 +42,8 @@ class AccountController
             Response::redirect(View::url('account/register')); return;
         }
 
-        // The form posts password_confirm; enforcing the match only in JS let
-        // a direct POST (or JS-off submit) register with a typo'd password.
-        // Every other password flow in the app verifies this server-side.
+        // Verify the password/confirmation match server-side, consistent with
+        // every other password flow in the app.
         if ($pass !== $request->input('password_confirm')) {
             Session::flash('error', 'Passwords do not match.');
             Response::redirect(View::url('account/register')); return;
@@ -79,9 +78,8 @@ class AccountController
             Session::flash('error', 'Session expired.'); Response::redirect(View::url('account/login')); return;
         }
 
-        // M8: validate that email/password are at least present before
-        // burning a rate-limit slot. Hitting "Sign in" with empty fields
-        // shouldn't count against the IP's attempt budget.
+        // Require both fields before consuming a rate-limit slot — an empty
+        // submit shouldn't count against the IP's attempt budget.
         $emailRaw = trim((string)$request->input('email'));
         $passRaw = (string)$request->input('password');
         if ($emailRaw === '' || $passRaw === '') {
@@ -116,11 +114,9 @@ class AccountController
 
     public function logout(Request $request, array $params = []): void
     {
-        // M18/L20: before wiping the session, mark this customer's current
-        // cart as abandoned. Without this the cart row keyed by the old
-        // session_id was orphaned in 'active' state forever — visible only to
-        // admin in the abandoned-carts view and double-counted with the
-        // customer's later carts. 'abandoned' is the correct terminal state.
+        // Before wiping the session, move the customer's current cart to its
+        // 'abandoned' terminal state so it isn't left 'active' under a
+        // session_id that no longer exists.
         try {
             $sid = Session::cartId();
             if ($sid) {
@@ -146,11 +142,8 @@ class AccountController
         $customer = Database::fetch("SELECT * FROM wk_customers WHERE id=?", [Session::customerId()]);
         $recentOrders = Database::fetchAll("SELECT * FROM wk_orders WHERE customer_id=? ORDER BY created_at DESC LIMIT 5", [Session::customerId()]);
 
-        // Findings 1+2 cleanup: removed dead $needsPassword calculation that
-        // referenced $_SESSION['wk_password_set'] (a key never written
-        // anywhere) and was then immediately overridden by !$hasSetPassword
-        // on the View::render line. The DB-backed flag below is the only
-        // truth.
+        // The DB-backed customer_flags entry is the single source of truth
+        // for whether this customer has set a password.
         $hasSetPassword = (bool)Database::fetchValue(
             "SELECT setting_value FROM wk_settings WHERE setting_group='customer_flags' AND setting_key=?",
             ['password_set_' . Session::customerId()]
@@ -193,14 +186,10 @@ class AccountController
             Session::flash('error', 'Session expired.'); Response::redirect(View::url('account/profile')); return;
         }
 
-        // Finding 10: changing a password used to require nothing but a
-        // valid session. If a session cookie was stolen (XSS, shared
-        // machine, leaked token), the attacker could change the password
-        // and permanently lock out the owner. Industry standard: require
-        // the CURRENT password to change to a new one. Exception: accounts
-        // that were created via guest checkout still hold the sentinel '*'
-        // password_hash — those customers genuinely have no password to
-        // prove yet, so they can set one without proof.
+        // Changing a password requires the current password, not just a valid
+        // session. Exception: guest-checkout accounts hold the sentinel '*'
+        // password_hash — they have no password to prove yet, so they may set
+        // one directly.
         $custId = Session::customerId();
         $current = Database::fetch(
             "SELECT password_hash FROM wk_customers WHERE id=?",
@@ -212,9 +201,7 @@ class AccountController
         if (!$isGuestShell) {
             $currentPass = (string)$request->input('current_password');
             if ($currentPass === '' || !password_verify($currentPass, $current['password_hash'])) {
-                // Rate-limit current-password attempts to keep this from
-                // becoming an offline guessing oracle for a session
-                // attacker who already has the cookie.
+                // Rate-limit current-password attempts.
                 \Core\RateLimiter::attempt('set_password', (string)$custId, 5, 900);
                 Session::flash('error', 'Current password is incorrect.');
                 Response::redirect(View::url('account/profile'));
@@ -320,12 +307,9 @@ class AccountController
             Response::redirect(View::url('account/orders')); return;
         }
 
-        // M27: atomic compare-and-set on status. Without this, two concurrent
-        // cancel requests both pass the in_array() check above, both run the
-        // stock-restore loop, and the customer's stock is incremented twice.
-        // By gating on status IN ('pending','processing') inside the UPDATE,
-        // only the first request actually transitions the row — rowCount()
-        // returns 0 for losers, so they bail before restoring stock.
+        // Atomic compare-and-set on status: gating inside the UPDATE means
+        // only one concurrent cancel request transitions the row (the rest
+        // see rowCount() 0 and bail), so stock is restored exactly once.
         $cancelled = Database::query(
             "UPDATE wk_orders SET status='cancelled'
              WHERE id=? AND customer_id=? AND status IN ('pending','processing')",
@@ -340,8 +324,13 @@ class AccountController
             return;
         }
 
-        // Restore stock
-        $items = Database::fetchAll("SELECT product_id, quantity, variant_combo_id FROM wk_order_items WHERE order_id=?", [$params['id']]);
+        // Restore stock. Fall back to the always-present columns so a database
+        // awaiting the v1.3.3 migration still returns product stock.
+        try {
+            $items = Database::fetchAll("SELECT product_id, quantity, variant_combo_id FROM wk_order_items WHERE order_id=?", [$params['id']]);
+        } catch (\Exception $e) {
+            $items = Database::fetchAll("SELECT product_id, quantity FROM wk_order_items WHERE order_id=?", [$params['id']]);
+        }
         foreach ($items as $item) {
             Database::query("UPDATE wk_products SET stock_quantity = stock_quantity + ? WHERE id=?", [$item['quantity'], $item['product_id']]);
             if (!empty($item['variant_combo_id'])) {
@@ -422,11 +411,9 @@ class AccountController
                     'expires_at' => $expiresAt,
                 ]);
             } catch (\Exception $e) {
-                // Fallback for old installs without the table. M23: store
-                // ONLY the SHA-256 hash, never the raw token — if wk_settings
-                // is later dumped (backup leak, SQLi), exposed hashes are
-                // useless for hijacking the reset flow because the reset URL
-                // carries the raw token which is then hashed for comparison.
+                // Fallback for old installs without the table. Only the
+                // SHA-256 hash is stored; the raw token travels in the reset
+                // URL and is hashed for comparison.
                 $fallback = json_encode(['token_hash' => $tokenHash, 'expires' => time() + 3600]);
                 Database::query(
                     "INSERT INTO wk_settings (setting_group, setting_key, setting_value) VALUES ('reset_tokens', ?, ?)
@@ -475,10 +462,9 @@ class AccountController
         if (strlen($newPass) < 8) { Session::flash('error', 'Password must be at least 8 characters.'); Response::redirect(View::url('account/forgot-password')); return; }
         if ($newPass !== $confirm) { Session::flash('error', 'Passwords do not match.'); Response::redirect(View::url('account/forgot-password')); return; }
 
-        // Verify token — try new table first, fallback to old.
-        // L23: reject empty tokens up front. hash_equals('', '') returns true,
-        // and the rest of the guards rely on $data['token'] / $data['token_hash']
-        // being well-formed, so an empty token shouldn't even reach them.
+        // Verify token — try new table first, fallback to old. Reject empty
+        // tokens up front: hash_equals('', '') returns true, and the guards
+        // below expect a well-formed token.
         if ($token === '' || $token === null) {
             Session::flash('error', 'Invalid or expired link. Please request a new one.');
             Response::redirect(View::url('account/forgot-password')); return;
@@ -495,11 +481,9 @@ class AccountController
         } catch (\Exception $e) {}
 
         if (!$validToken) {
-            // Fallback: old wk_settings storage. M23: compare the stored
-            // hash against the hash of the submitted token, never the raw
-            // token. Also accept legacy rows that still hold a raw token
-            // (so installs already in the wild keep working) but verify by
-            // hashing both sides — works either way.
+            // Fallback: old wk_settings storage. Hashes are compared, never
+            // raw tokens; legacy rows that hold a raw token are hashed first
+            // so existing installs keep working.
             $stored = Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='reset_tokens' AND setting_key=?", ['token_' . $id]);
             if ($stored) {
                 $data = json_decode($stored, true);
@@ -521,9 +505,8 @@ class AccountController
         // Update password
         Database::update('wk_customers', ['password_hash' => password_hash($newPass, PASSWORD_BCRYPT, ['cost' => 12])], 'id=?', [$id]);
 
-        // Mark password as set (M9 follow-up): a customer who completed the
-        // reset flow now has a known-to-them password — the dashboard's
-        // "Set Your Password" CTA should hide on next login.
+        // Mark password as set: after a completed reset the customer knows
+        // their password, so the dashboard's "Set Your Password" CTA hides.
         try {
             Database::query(
                 "INSERT INTO wk_settings (setting_group, setting_key, setting_value) VALUES ('customer_flags', ?, '1')

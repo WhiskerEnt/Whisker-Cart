@@ -62,8 +62,8 @@ class ShippingController
             return;
         }
 
-        // L16: structured validation. The carrier `code` is intentionally
-        // optional but, if present, must look like a short identifier.
+        // The carrier `code` is intentionally optional but, if present,
+        // must look like a short identifier.
         $v = new Validator($request->all(), [
             'name' => 'required|min:2|max:100',
             'code' => 'max:50',
@@ -74,8 +74,8 @@ class ShippingController
             return;
         }
         $name = trim($request->input('name') ?? '');
-        // M26 follow-up: reject javascript: et al on the tracking-URL
-        // template before it can land in any <a href> at display time.
+        // The tracking-URL template is rendered into <a href> at display
+        // time, so only http(s) or relative URLs are accepted.
         $trackingTemplate = trim($request->input('tracking_url_template') ?? '');
         if ($trackingTemplate !== '' && !View::isSafeUrl($trackingTemplate)) {
             Session::flash('error', 'Tracking URL template must be http(s) or a relative path.');
@@ -102,8 +102,7 @@ class ShippingController
             return;
         }
 
-        // L16: same validation as store(). Without this, admin can clear the
-        // name field and trigger a 500 on the NOT NULL constraint.
+        // Same validation as store(); name is NOT NULL in the schema.
         $v = new Validator($request->all(), [
             'name' => 'required|min:2|max:100',
             'code' => 'max:50',
@@ -195,7 +194,7 @@ class ShippingController
              ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value)",
             [$flat]
         );
-        // M10/M14: invalidate request-scoped settings cache.
+        // Invalidate the request-scoped settings cache.
         Database::clearSettingsCache();
 
         Session::flash('success', 'Shipping settings saved!');

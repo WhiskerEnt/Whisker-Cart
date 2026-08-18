@@ -36,7 +36,7 @@ class NowPaymentsGateway extends \Core\BaseGateway
 
     public function webhook(\Core\Request $request): void
     {
-        // L6: rate-limit by source IP. See RazorpayGateway::webhook comment.
+        // Rate-limit by source IP. See RazorpayGateway::webhook comment.
         if (!\Core\RateLimiter::attempt('webhook_nowpayments', $request->ip(), 300, 300)) {
             \Core\Response::json(['error' => 'Rate limited'], 429);
             return;

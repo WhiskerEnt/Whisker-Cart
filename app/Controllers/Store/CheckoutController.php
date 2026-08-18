@@ -12,7 +12,13 @@ class CheckoutController
                 "SELECT id FROM wk_orders WHERE status IN ('pending','payment_failed') AND payment_status != 'captured' AND created_at < DATE_SUB(NOW(), INTERVAL 15 MINUTE) LIMIT 10"
             );
             foreach ($expiredOrders as $expired) {
-                $items = Database::fetchAll("SELECT product_id, quantity, variant_combo_id FROM wk_order_items WHERE order_id=?", [$expired['id']]);
+                // Fall back to the always-present columns so the sweep still
+                // runs on a database awaiting the v1.3.3 migration.
+                try {
+                    $items = Database::fetchAll("SELECT product_id, quantity, variant_combo_id FROM wk_order_items WHERE order_id=?", [$expired['id']]);
+                } catch (\Exception $e) {
+                    $items = Database::fetchAll("SELECT product_id, quantity FROM wk_order_items WHERE order_id=?", [$expired['id']]);
+                }
                 foreach ($items as $item) {
                     Database::query("UPDATE wk_products SET stock_quantity = stock_quantity + ? WHERE id = ?", [$item['quantity'], $item['product_id']]);
                     if ($item['variant_combo_id'] ?? null) {
@@ -83,20 +89,16 @@ class CheckoutController
             return;
         }
 
-        // Enforce guest-checkout setting. The admin toggle existed but was
-        // never consulted — "Disabled" happily created guest accounts anyway.
+        // Enforce the admin's guest-checkout toggle.
         if (!Session::customerId() && Database::setting('checkout', 'guest_checkout') === '0') {
             Session::flash('error', 'Please sign in or create an account to check out.');
             Response::redirect(View::url('account/login'));
             return;
         }
 
-        // Capture email on cart for abandoned cart tracking. Finding 8:
-        // previously the email was written raw to wk_carts here, but
-        // htmlspecialchars'd into wk_customers below and Request::clean'd
-        // into wk_orders later — three different representations of the
-        // same address across tables. Validate once and use the validated
-        // form everywhere.
+        // Capture email on cart for abandoned-cart tracking. Validate and
+        // lowercase once here; the same form is stored in every table, with
+        // escaping applied at output.
         $emailRaw = trim((string)$request->input('email'));
         $email = ($emailRaw !== '' && filter_var($emailRaw, FILTER_VALIDATE_EMAIL))
             ? strtolower($emailRaw)
@@ -143,19 +145,14 @@ class CheckoutController
                 $customerId = $existing['id'];
                 // Do NOT call Session::setCustomer() — guest cannot hijack existing account
             } else {
-                // M9: a guest-checkout customer should not have a real
-                // password they don't know about. Storing a random bcrypt
-                // hash made the column "valid" but unreachable; the customer
-                // had no way to learn they even had an account. Instead we
-                // store the shadow-file sentinel '*', which password_verify
-                // always rejects (deterministic, no entropy waste). When the
-                // customer later wants to log in, they go through the normal
-                // "forgot password" flow which overwrites the sentinel with
-                // a real bcrypt hash. The DB column stays NOT NULL.
+                // Guest checkout stores the sentinel '*' (which
+                // password_verify always rejects) instead of a usable hash;
+                // the customer sets a real password via the forgot-password
+                // flow. Keeps the NOT NULL column satisfied.
                 $customerId = Database::insert('wk_customers', [
                     'first_name'    => $request->clean('first_name') ?? '',
                     'last_name'     => $request->clean('last_name') ?? '',
-                    'email'         => $email, // Finding 8: validated lowercase, raw — escape at output, not at storage
+                    'email'         => $email, // validated lowercase; escape at output, not at storage
                     'phone'         => $request->clean('phone') ?? '',
                     'password_hash' => '*',
                     'is_active'     => 1,
@@ -168,11 +165,10 @@ class CheckoutController
         $orderNumber = 'WK-' . strtoupper(date('ymd')) . '-' . strtoupper(bin2hex(random_bytes(6)));
 
         // ── Atomic order-creation + stock reservation ──
-        // Wrapping order/items insert AND stock deduction in one transaction
-        // closes the M5 race: if two customers race for the last unit, the
-        // first writer wins the conditional UPDATE (row affected) and the
-        // second sees 0 rows affected → we throw → rollback → no order at
-        // all, no stock left in an inconsistent state.
+        // One transaction covers the order/items insert and the stock
+        // deduction: if two customers race for the last unit, the loser's
+        // conditional UPDATE affects 0 rows, we throw, and the whole order
+        // rolls back cleanly.
         //
         // Gateway init is deliberately kept OUTSIDE the transaction so we
         // never hold InnoDB row locks across a network call (which can take
@@ -216,7 +212,7 @@ class CheckoutController
                     'discount_amount'=>$discount, 'total'=>$total,
                     'currency'=>Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='currency'") ?: 'INR',
                     'payment_gateway'=>$request->clean('payment_gateway'),
-                    'customer_email'=>$email, // Finding 8: validated lowercase form
+                    'customer_email'=>$email, // validated lowercase form
                     'customer_phone'=>$request->clean('phone'),
                     'tax_details'=>json_encode($totals['tax_breakdown'] ?? []),
                     'shipping_address'=>json_encode($shippingAddress),
@@ -250,13 +246,24 @@ class CheckoutController
                         'total_price'=>$item['unit_price'] * $item['quantity'],
                     ];
                     $comboId = $item['variant_combo_id'] ?? null;
+                    if ($comboId) {
+                        $orderItemData['variant_combo_id'] = $comboId;
+                        $orderItemData['variant_label'] = $item['variant_label'] ?? '';
+                    }
+                    // The variant columns arrive with the v1.3.3 migration. If a
+                    // store is mid-update (files copied, migration pending),
+                    // fall back to variant_info so the sale still completes.
                     try {
-                        if ($comboId) {
-                            $orderItemData['variant_combo_id'] = $comboId;
-                            $orderItemData['variant_label'] = $item['variant_label'] ?? '';
+                        Database::insert('wk_order_items', $orderItemData);
+                    } catch (\PDOException $e) {
+                        if ($comboId && self::isUnknownColumnError($e)) {
+                            unset($orderItemData['variant_combo_id'], $orderItemData['variant_label']);
+                            $orderItemData['variant_info'] = $item['variant_label'] ?? '';
+                            Database::insert('wk_order_items', $orderItemData);
+                        } else {
+                            throw $e;
                         }
-                    } catch (\Exception $e) {}
-                    Database::insert('wk_order_items', $orderItemData);
+                    }
 
                     // Atomic stock deduction. The conditional WHERE guarantees
                     // that only one of two concurrent orders can reserve the
@@ -324,7 +331,7 @@ class CheckoutController
                     // wk_payment_transactions. That table is the source of
                     // truth verifyPayment() consults to confirm a client-
                     // submitted gateway_order_id genuinely belongs to the
-                    // order (M11 — no extra column on wk_orders needed).
+                    // order (no extra column on wk_orders needed).
                 } else {
                     throw new \Exception('Gateway not found: ' . $gatewayCode);
                 }
@@ -341,14 +348,10 @@ class CheckoutController
             }
         }
 
-        // Increment coupon usage — atomic. Finding 4: previously this was a
-        // plain `UPDATE ... SET used_count = used_count + 1` that could push
-        // used_count past usage_limit under concurrent checkouts. Now the
-        // conditional WHERE refuses to bump past the limit. If 0 rows are
-        // affected, the limit was already reached by a concurrent order;
-        // record a system warning so ops can review (the discount this
-        // order got was technically "the last one within budget", but the
-        // race may have over-applied by one).
+        // Increment coupon usage atomically: the conditional WHERE cannot
+        // push used_count past usage_limit under concurrent checkouts. If 0
+        // rows are affected the limit was reached by a concurrent order —
+        // record a system warning so ops can review.
         $coupon = Session::get('wk_coupon');
         if ($discount > 0 && $coupon && !empty($coupon['id'])) {
             $bumped = Database::query(
@@ -571,14 +574,15 @@ class CheckoutController
             return;
         }
 
-        // ── M11: ownership check ──
+        // ── Ownership check ──
         // The client passes a razorpay_order_id (or equivalent) in the verify
-        // payload. Confirm it matches the gateway_order_id we recorded when
-        // creating the order, so a logged-in customer can't paste another
-        // customer's payment ID into their own order to mark it paid.
+        // payload; it must match the gateway_order_id recorded when the order
+        // was created. session_id is Stripe's key for this value; the others
+        // cover Razorpay and the generic case.
         $clientGatewayOrderId = (string)(
             $input['razorpay_order_id']
             ?? $input['gateway_order_id']
+            ?? $input['session_id']
             ?? ''
         );
         if (!self::gatewayOrderIdMatches($orderId, (string)$order['payment_gateway'], $clientGatewayOrderId)) {
@@ -657,8 +661,8 @@ class CheckoutController
      *                             (front-end should show "Calculated at checkout").
      * @param array|null  $coupon  Session coupon row (or null). Re-validated here:
      *                             a coupon that has since expired or hit its usage
-     *                             cap is silently ignored, so a stale session
-     *                             cannot grant a discount.
+     *                             cap is ignored, so a stale session cannot
+     *                             grant a discount.
      * @param array|null  $pickupLocation Active wk_pickup_locations row when the
      *                             customer chose locker/collection-point delivery.
      *                             Overrides the shipping fee (location fee, else
@@ -756,6 +760,16 @@ class CheckoutController
             'discount_code' => $discountCode,
             'total'         => round($total, 2),
         ];
+    }
+
+    /**
+     * True when a PDOException is MySQL's "Unknown column" (1054) — used to
+     * degrade gracefully on a database that hasn't run the latest migration.
+     */
+    private static function isUnknownColumnError(\PDOException $e): bool
+    {
+        if (isset($e->errorInfo[1]) && (int)$e->errorInfo[1] === 1054) return true;
+        return stripos($e->getMessage(), 'Unknown column') !== false;
     }
 
     /**
@@ -859,7 +873,7 @@ class CheckoutController
     }
 
     /**
-     * M11 — ownership check for gateway verify-callbacks.
+     * Ownership check for gateway verify-callbacks.
      *
      * Returns true iff:
      *   - The client supplied no gateway_order_id (legacy clients / gateways
@@ -887,10 +901,9 @@ class CheckoutController
             [$orderId, $gatewayCode]
         );
         if ($expected === null || $expected === false) {
-            // No stored value (pre-B8 row, or fetchValue miss). Pass-through
-            // to the gateway HMAC — that's the only line of defense for
-            // legacy rows, but blanket-rejecting them would brick all
-            // in-flight orders at deploy time.
+            // No stored value (legacy row, or fetchValue miss). Pass through
+            // to the gateway HMAC check — rejecting legacy rows outright
+            // would break in-flight orders at deploy time.
             return true;
         }
         return hash_equals((string)$expected, $clientGatewayOrderId);

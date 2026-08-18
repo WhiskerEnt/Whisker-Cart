@@ -49,7 +49,9 @@
 </form>
 <script>
 const editor=document.getElementById('editor'),hidden=document.getElementById('bodyHidden'),sourceView=document.getElementById('sourceView');let sourceMode=false;
-document.querySelector('form').addEventListener('submit',function(){if(sourceMode)editor.innerHTML=sourceView.value;hidden.value=editor.innerHTML;});
+// Scope to this editor's own form — the layout renders other forms first, so a
+// document-wide selector would bind to the wrong one.
+hidden.closest('form').addEventListener('submit',function(){if(sourceMode)editor.innerHTML=sourceView.value;hidden.value=editor.innerHTML;});
 function execCmd(c,v){document.execCommand(c,false,v||null);editor.focus();}
 function toggleSource(){sourceMode=!sourceMode;if(sourceMode){sourceView.value=editor.innerHTML;editor.style.display='none';sourceView.style.display='block';}else{editor.innerHTML=sourceView.value;sourceView.style.display='none';editor.style.display='block';}}
 </script>

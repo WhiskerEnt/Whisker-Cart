@@ -268,43 +268,13 @@ class Session
     /**
      * Generate a session fingerprint to detect cookie theft across devices.
      *
-     * **Historical note:** earlier versions of this method hashed
-     * IP + User-Agent + salt. That was too aggressive in practice and
-     * caused the "Your session expired. Please try again." failure mode
-     * at checkout on consumer ISPs:
-     *
-     *   - Mobile carriers (Jio, Airtel, etc.) rotate egress IPs behind
-     *     CGNAT mid-session.
-     *   - Customers handing off Wi-Fi ↔ cellular get a new public IP for
-     *     the form-submit POST that didn't exist for the form-render GET.
-     *   - CDNs / corporate proxies sometimes load-balance requests across
-     *     multiple egress IPs for the same user.
-     *
-     * In all three cases the IP changed but the user did NOT — the session
-     * cookie wasn't stolen. The fingerprint mismatch then destroyed the
-     * session, wiping $_SESSION['wk_csrf'] and $_SESSION['wk_cart_session'],
-     * which presented to the customer as "session expired + empty cart" at
-     * the moment they pressed Pay.
-     *
-     * OWASP's Session Management Cheat Sheet explicitly recommends AGAINST
-     * binding session validity to client IP for exactly this reason
-     * (https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html#binding-the-session-id-to-other-user-properties).
-     * Every mainstream framework (Laravel, Symfony, Rails, Django) does
-     * UA-only or no fingerprinting at all. The real defenses against
-     * cookie theft are:
-     *
-     *   - HttpOnly cookie (set in start() — blocks JS access)
-     *   - SameSite=Lax (blocks cross-site CSRF-via-cookie)
-     *   - Secure flag when HTTPS (no plaintext leak)
-     *   - session_regenerate_id(true) on every privilege change
-     *     (setAdmin/setCustomer call this — limits replay window)
-     *
-     * Those are what stop a stolen cookie. The UA component below is a
-     * cheap last-mile check that catches the trivial case of a cookie
-     * pasted into a different browser; it does NOT catch a determined
-     * attacker who copies the User-Agent header along with the cookie,
-     * but that's an acceptable tradeoff because the alternative (the old
-     * IP-bound fingerprint) was breaking real checkouts.
+     * UA-only — deliberately not bound to client IP: mobile carriers behind
+     * CGNAT, Wi-Fi/cellular handoffs, and load-balanced proxies all change a
+     * legitimate user's IP mid-session, and OWASP's Session Management Cheat
+     * Sheet recommends against binding sessions to IP for this reason.
+     * Cookie theft is defended by the HttpOnly/SameSite/Secure cookie flags
+     * and session_regenerate_id(true) on privilege changes; the UA hash is a
+     * cheap last-mile check for a cookie pasted into a different browser.
      */
     private static function generateFingerprint(): string
     {

@@ -233,6 +233,12 @@ img { max-width: 100%; display: block; }
     transition: all .3s cubic-bezier(.25,.8,.25,1);
     cursor: pointer;
     animation: cardReveal .5s ease backwards;
+    /* Flex column so the Add-to-Cart button pins to the bottom. Without this,
+       a card with a shorter body (e.g. a product with no sale/strikethrough
+       line) leaves the empty grid-stretch space BELOW the button, so its
+       button sits higher than its row-mates. */
+    display: flex;
+    flex-direction: column;
 }
 .wk-product-card:nth-child(1) { animation-delay: .05s; }
 .wk-product-card:nth-child(2) { animation-delay: .1s; }
@@ -252,6 +258,7 @@ img { max-width: 100%; display: block; }
 .wk-product-img {
     aspect-ratio: 4/3; background: var(--wk-bg);
     overflow: hidden; position: relative;
+    flex-shrink: 0; /* keep the 4/3 image from squishing in the flex column */
 }
 .wk-product-img img { width: 100%; height: 100%; object-fit: cover; transition: transform .5s; }
 .wk-product-card:hover .wk-product-img img { transform: scale(1.08); }
@@ -281,6 +288,9 @@ img { max-width: 100%; display: block; }
     letter-spacing: .5px; text-transform: uppercase;
     cursor: pointer; transition: all .2s;
 }
+/* Pin the button to the bottom of the card (flex column) so every card in a
+   row lines its button up regardless of body height. */
+.wk-product-card .wk-add-btn { margin-top: auto; }
 .wk-add-btn:hover { background: var(--wk-purple); }
 .wk-add-btn.added {
     background: var(--wk-green);

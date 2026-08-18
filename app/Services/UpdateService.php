@@ -114,26 +114,10 @@ class UpdateService
      */
     public static function applyUpdate(string $downloadUrl, ?string $expectedHash = null, string $dbBackupMode = 'schema'): array
     {
-        // Finding 26: enforce a dot boundary on the host suffix check.
-        // The old test `str_ends_with($host, 'lohit.me')` would happily
-        // accept an attacker-registered host like `evillohit.me` because
-        // it literally ends in the string `lohit.me`. The correct test
-        // is equality with `lohit.me` (the apex) OR a suffix preceded by
-        // a literal dot (a real subdomain). This is the same pattern
-        // browsers use for the eTLD+1 cookie scope check.
-        $host = parse_url($downloadUrl, PHP_URL_HOST);
-        $host = is_string($host) ? strtolower($host) : '';
-        $allowedApex = 'lohit.me';
-        $hostOk = $host !== ''
-            && ($host === $allowedApex || str_ends_with($host, '.' . $allowedApex));
-        if (!$hostOk) {
-            return ['success' => false, 'message' => 'Updates can only be downloaded from lohit.me.'];
-        }
-
-        // SECURITY: Must be HTTPS
-        $scheme = parse_url($downloadUrl, PHP_URL_SCHEME);
-        if ($scheme !== 'https') {
-            return ['success' => false, 'message' => 'Update URL must use HTTPS.'];
+        // Host must equal the vendor apex or be a real subdomain of it
+        // (dot-boundary suffix check), and the scheme must be HTTPS.
+        if (!self::isAllowedUpdateUrl($downloadUrl)) {
+            return ['success' => false, 'message' => 'Updates can only be downloaded from lohit.me over HTTPS.'];
         }
 
         // Check disk space (need at least 50MB free)
@@ -157,11 +141,8 @@ class UpdateService
                 return ['success' => false, 'message' => 'Cannot create temp directory. Check storage/cache/ permissions.'];
             }
 
-            // Download ZIP — M19/L5: cap downloaded bytes at 50MB and reject
-            // up-front if the server advertises a larger Content-Length. The
-            // previous file_get_contents path had no size guard at all, so
-            // a misconfigured (or hostile) update endpoint serving GBs of
-            // garbage would exhaust memory.
+            // Download ZIP with a 50MB byte cap; oversized payloads are
+            // rejected up-front from Content-Length or aborted mid-stream.
             $maxBytes = 50 * 1024 * 1024;
             $zipData = self::downloadWithCap($downloadUrl, $maxBytes);
             if ($zipData === null) {
@@ -218,16 +199,9 @@ class UpdateService
             }
 
             // Protected files — never overwritten during update.
-            //
-            // Note: app/version.php is INTENTIONALLY NOT in this list — it
-            // ships with each release as a single-line `<?php return 'X.Y.Z';`
-            // file and gets overwritten like any other code file. The
-            // previous design tried to maintain the version inside config.php
-            // and surgically rewrite it with preg_replace — fragile because
-            // any operator hand-edit (different quoting, added comment) would
-            // break the regex and pin the version forever. Industry standard
-            // is "build identity is a code fact"; config is for operator
-            // decisions.
+            // app/version.php is intentionally NOT listed: it ships with each
+            // release and is overwritten like any other code file, so build
+            // identity stays a code fact while config holds operator decisions.
             $protectedFiles = [
                 'config/config.php',
                 'config/database.php',
@@ -251,15 +225,10 @@ class UpdateService
                 );
             } catch (\Exception $e) {}
 
-            // M16: run pending migrations as PART of the update step. The
-            // previous flow deferred them to the next dashboard load, which
-            // meant the new code ran against the old schema in the gap —
-            // any new SQL touching an unmigrated column raised an exception
-            // that the controllers masked with try/catch and the operator
-            // never saw. Running here closes that gap; if migrations fail
-            // we still return success on the file copy (the operator can
-            // see the migration error in the dashboard banner) but at least
-            // we attempt them eagerly.
+            // Run pending migrations as part of the update step so the new
+            // code doesn't run against the old schema. If they fail, the file
+            // copy still counts as success; errors surface in the dashboard
+            // banner and retry on the next load.
             $migrationResult = ['ran' => 0, 'errors' => []];
             try {
                 $migrationResult = \App\Services\MigrationService::runPending();
@@ -308,12 +277,9 @@ class UpdateService
         }
 
         $version = defined('WK_VERSION') ? WK_VERSION : 'unknown';
-        // L14: defense-in-depth — append a short random suffix so an
-        // attacker who somehow lists the backup directory can't trivially
-        // read the version from the filename and target known-version
-        // exploits. storage/cache is blocked at the web layer in the
-        // shipped .htaccess; this is a second line of defense if that
-        // config goes missing during deploy.
+        // Defense-in-depth: a short random suffix keeps backup filenames
+        // unguessable. storage/cache is also blocked at the web layer by
+        // the shipped .htaccess.
         $rand = bin2hex(random_bytes(4));
         $filename = 'backup_v' . $version . '_' . date('Ymd_His') . '_' . $rand . '.zip';
         $backupPath = $backupDir . '/' . $filename;
@@ -465,9 +431,7 @@ class UpdateService
     public static function rollback(string $filename): array
     {
         // Sanitize filename. The optional 8-hex suffix matches the random
-        // component createBackup() appends (L14) — the old pattern without it
-        // rejected every backup created since that change, making the Restore
-        // button always fail with "Invalid backup filename".
+        // component createBackup() appends.
         $filename = basename($filename);
         if (!preg_match('/^backup_v[\d.]+_\d{8}_\d{6}(?:_[0-9a-f]{8})?\.zip$/', $filename)) {
             return ['success' => false, 'message' => 'Invalid backup filename.'];
@@ -538,8 +502,6 @@ class UpdateService
         foreach (glob($backupDir . '/backup_v*.zip') as $file) {
             $name = basename($file);
             // Optional 8-hex random suffix — see rollback()/createBackup().
-            // Without it in the pattern, suffixed backups listed as version
-            // "unknown" with an empty date in the dashboard.
             preg_match('/^backup_v([\d.]+)_(\d{8})_(\d{6})(?:_[0-9a-f]{8})?\.zip$/', $name, $m);
 
             // Check if ZIP contains _db_backup.sql
@@ -675,13 +637,24 @@ class UpdateService
     }
 
     /**
+     * True when a URL is an acceptable update-package source: HTTPS, on the
+     * vendor apex or a real subdomain of it (dot-boundary suffix check).
+     */
+    public static function isAllowedUpdateUrl(string $url): bool
+    {
+        $scheme = strtolower((string)parse_url($url, PHP_URL_SCHEME));
+        if ($scheme !== 'https') return false;
+        $host = parse_url($url, PHP_URL_HOST);
+        $host = is_string($host) ? strtolower($host) : '';
+        $allowedApex = 'lohit.me';
+        return $host !== '' && ($host === $allowedApex || str_ends_with($host, '.' . $allowedApex));
+    }
+
+    /**
      * Download a URL with a maximum byte cap, returning the bytes or null on
      * any failure (network, timeout, oversized payload, non-2xx response).
-     *
-     * Prefers cURL because it gives us a hard `progressfunction` abort knob;
-     * falls back to a chunked stream read on hosts without curl.
-     * Used by applyUpdate for M19 (size guard) and L5 (better failure
-     * surface than file_get_contents's silent 60s timeout).
+     * Prefers cURL for its hard progress-abort; falls back to a chunked
+     * stream read on hosts without curl.
      */
     private static function downloadWithCap(string $url, int $maxBytes): ?string
     {
@@ -692,8 +665,11 @@ class UpdateService
             $aborted = false;
             curl_setopt_array($ch, [
                 CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_FOLLOWLOCATION => true,
-                CURLOPT_MAXREDIRS      => 3,
+                // Redirects are followed manually so every hop is re-checked
+                // against isAllowedUpdateUrl(); cURL's own following would skip
+                // that check.
+                CURLOPT_FOLLOWLOCATION => false,
+                CURLOPT_PROTOCOLS      => CURLPROTO_HTTPS,
                 CURLOPT_CONNECTTIMEOUT => 15,
                 CURLOPT_TIMEOUT        => 180,
                 CURLOPT_SSL_VERIFYPEER => true,

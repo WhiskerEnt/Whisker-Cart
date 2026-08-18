@@ -262,13 +262,21 @@ class ImportController
 
                 if (Database::fetchValue("SELECT id FROM wk_variant_groups WHERE product_id=? AND name=?", [$productId, $groupName])) continue;
 
+                // Encode on the way in, matching the admin form path
+                // (VariantService::saveGroups). CSV feeds are untrusted input;
+                // these values are baked into the variant combo label which the
+                // storefront renders, so a raw payload here becomes stored XSS.
                 $groupId = Database::insert('wk_variant_groups', [
-                    'product_id' => $productId, 'name' => $groupName, 'sort_order' => $groupsCreated,
+                    'product_id' => $productId,
+                    'name' => htmlspecialchars($groupName, ENT_QUOTES, 'UTF-8'),
+                    'sort_order' => $groupsCreated,
                 ]);
                 foreach (array_map('trim', explode(',', $options)) as $oi => $val) {
                     if (empty($val)) continue;
                     Database::insert('wk_variant_options', [
-                        'group_id' => $groupId, 'value' => $val, 'sort_order' => $oi,
+                        'group_id' => $groupId,
+                        'value' => htmlspecialchars($val, ENT_QUOTES, 'UTF-8'),
+                        'sort_order' => $oi,
                     ]);
                 }
                 $affectedProducts[$productId] = true;
@@ -427,10 +435,12 @@ class ImportController
             if (empty($groupName) || empty($options)) continue;
             if (Database::fetchValue("SELECT id FROM wk_variant_groups WHERE product_id=? AND name=?", [$productId, $groupName])) continue;
 
-            $groupId = Database::insert('wk_variant_groups', ['product_id' => $productId, 'name' => $groupName, 'sort_order' => $groupsCreated]);
+            // Encode on the way in — see importAll(); CSV values reach the
+            // storefront through the generated combo label.
+            $groupId = Database::insert('wk_variant_groups', ['product_id' => $productId, 'name' => htmlspecialchars($groupName, ENT_QUOTES, 'UTF-8'), 'sort_order' => $groupsCreated]);
             foreach (array_map('trim', explode(',', $options)) as $oi => $val) {
                 if (empty($val)) continue;
-                Database::insert('wk_variant_options', ['group_id' => $groupId, 'value' => $val, 'sort_order' => $oi]);
+                Database::insert('wk_variant_options', ['group_id' => $groupId, 'value' => htmlspecialchars($val, ENT_QUOTES, 'UTF-8'), 'sort_order' => $oi]);
             }
             $affectedProducts[$productId] = true;
             $groupsCreated++;

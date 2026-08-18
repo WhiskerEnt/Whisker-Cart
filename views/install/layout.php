@@ -221,6 +221,14 @@
                         <option value="UTC">UTC</option>
                     </select></div>
                 </div>
+                <div class="field">
+                    <label>Currency Switcher</label>
+                    <select name="multi_currency">
+                        <option value="0" <?= ($_POST['multi_currency'] ?? '0')!=='1'?'selected':'' ?>>Off — sell in your store currency only (recommended)</option>
+                        <option value="1" <?= ($_POST['multi_currency'] ?? '0')==='1'?'selected':'' ?>>On — let customers pick a currency</option>
+                    </select>
+                    <div style="font-size:11px;color:var(--muted);margin-top:4px">You can change this any time in Settings.</div>
+                </div>
                 <div class="btn-row"><a href="?step=2" class="btn btn-secondary">← Back</a><button type="submit" class="btn btn-primary">Continue →</button></div>
             </form>
 

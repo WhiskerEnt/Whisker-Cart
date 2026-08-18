@@ -20,6 +20,10 @@
                     <div class="wk-form-group"><label>Store Name</label><input type="text" name="general_site_name" class="wk-input" value="<?= $v('general','site_name') ?>"></div>
                     <div class="wk-form-group"><label>Tagline</label><input type="text" name="general_site_tagline" class="wk-input" value="<?= $v('general','site_tagline') ?>"></div>
                     <div class="wk-form-group"><label>Shop Logo URL</label><input type="text" name="general_logo_url" class="wk-input" value="<?= $v('general','logo_url') ?>" placeholder="/storage/uploads/logo.png or https://yourstore.com/logo.png"><div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">Shown in the storefront header and emails. Use a full URL or a relative path. Tip: on an https:// shop, an http:// logo URL is blocked by browsers — use a relative path or https. Leave empty to show the store name.</div></div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+                        <div class="wk-form-group"><label>Favicon URL</label><input type="text" name="general_favicon_url" class="wk-input" value="<?= $v('general','favicon_url') ?>" placeholder="/storage/uploads/favicon.png"><div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">Browser tab icon (.png, .svg, or .ico). Leave empty for the default.</div></div>
+                        <div class="wk-form-group"><label>Loading Icon URL</label><input type="text" name="general_loader_url" class="wk-input" value="<?= $v('general','loader_url') ?>" placeholder="/storage/uploads/loader.png"><div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">Shown on the page loader. Leave empty for the default.</div></div>
+                    </div>
                     <div class="wk-form-group"><label>Store URL</label><input type="url" name="general_base_url" class="wk-input" value="<?= $v('general','base_url') ?>"><div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">Used in sitemaps and SEO tags. The primary URL lives in config/config.php.</div></div>
                     <?php $wkCurrencies = \App\Services\CurrencyService::currencies();
                           $curCurrency = $s['general']['currency'] ?? 'INR'; ?>
@@ -36,14 +40,21 @@
                         </div>
                         <div class="wk-form-group"><label>Currency Symbol</label><input type="text" name="general_currency_symbol" id="wkCurrencySymbol" class="wk-input" value="<?= $v('general','currency_symbol') ?>" placeholder="₹"><div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">Auto-fills when you change the currency</div></div>
                     </div>
+                    <div class="wk-form-group"><label>Multi-Currency</label>
+                        <select name="general_multi_currency" class="wk-select">
+                            <option value="0" <?= ($s['general']['multi_currency'] ?? '0')!=='1'?'selected':'' ?>>Off — sell in your store currency only</option>
+                            <option value="1" <?= ($s['general']['multi_currency'] ?? '0')==='1'?'selected':'' ?>>On — let customers pick a currency</option>
+                        </select>
+                        <div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">When on, shoppers choose from the currencies your active payment gateways can charge, and pay in that currency. Off keeps everything in your store currency.</div>
+                    </div>
                     <div class="wk-form-group"><label>Timezone</label><input type="text" name="general_timezone" class="wk-input" value="<?= $v('general','timezone') ?>"></div>
-                    <div class="wk-form-group"><label>Contact Form Email</label><input type="email" name="general_contact_email" class="wk-input" value="<?= $v('general','contact_email') ?>" placeholder="support@yourstore.com"></div>
+                    <div class="wk-form-group"><label>Contact Email</label><input type="email" name="general_contact_email" class="wk-input" value="<?= $v('general','contact_email') ?>" placeholder="support@yourstore.com"><div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">Receives contact-form messages and is shown in the storefront footer.</div></div>
                 </div>
             </div>
             <div class="wk-card">
                 <div class="wk-card-header"><h2>Business Info (Invoices)</h2></div>
                 <div class="wk-card-body">
-                    <div class="wk-form-group"><label>Store Phone</label><input type="text" name="general_store_phone" class="wk-input" value="<?= $v('general','store_phone') ?>" placeholder="+91 98765 43210"></div>
+                    <div class="wk-form-group"><label>Store Phone</label><input type="text" name="general_store_phone" class="wk-input" value="<?= $v('general','store_phone') ?>" placeholder="+91 98765 43210"><div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">Shown on invoices and in the storefront footer.</div></div>
                     <div class="wk-form-group"><label>Store Address</label><textarea name="general_store_address" class="wk-input" rows="3" placeholder="123 Main Street&#10;City, State 560001&#10;Country"><?= $v('general','store_address') ?></textarea></div>
                     <div class="wk-form-group"><label>GSTIN / VAT / Tax ID</label><input type="text" name="general_store_tax_id" class="wk-input" value="<?= $v('general','store_tax_id') ?>" placeholder="e.g. 29ABCDE1234F1Z5"><div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">Shown on invoices</div></div>
                     <div class="wk-form-group"><label>Store Logo URL</label><input type="text" name="general_store_logo" class="wk-input" value="<?= $v('general','store_logo') ?>" placeholder="https://yourstore.com/logo.png"><div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">Shown on invoices</div></div>
@@ -199,7 +210,8 @@
                     <div class="wk-form-group"><label>SMTP Host</label><input type="text" name="email_smtp_host" id="smtpHost" class="wk-input" value="<?= $v('email','smtp_host') ?>" placeholder="smtp.gmail.com"></div>
                     <div class="wk-form-group"><label>SMTP Port</label><input type="number" name="email_smtp_port" id="smtpPort" class="wk-input" value="<?= $v('email','smtp_port') ?>" placeholder="587"></div>
                     <div class="wk-form-group"><label>SMTP Username</label><input type="text" name="email_smtp_user" id="smtpUser" class="wk-input" value="<?= $v('email','smtp_user') ?>"></div>
-                    <div class="wk-form-group"><label>SMTP Password</label><input type="password" name="email_smtp_pass" id="smtpPass" class="wk-input" value="<?= $v('email','smtp_pass') ?>"></div>
+                    <?php $hasSmtpPass = ($s['email']['smtp_pass'] ?? '') !== ''; ?>
+                    <div class="wk-form-group"><label>SMTP Password</label><input type="password" name="email_smtp_pass" id="smtpPass" class="wk-input" value="" placeholder="<?= $hasSmtpPass ? '•••••••• (saved — leave blank to keep)' : '' ?>"><div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">Never shown for security. Leave blank to keep the saved password.</div></div>
                     <div style="display:flex;gap:8px;flex-wrap:wrap">
                         <button type="button" onclick="testSmtpConnection()" id="testConnBtn" class="wk-btn wk-btn-secondary" style="justify-content:center">🔌 Test Connection</button>
                         <button type="button" onclick="sendTestEmail()" id="testEmailBtn" class="wk-btn wk-btn-secondary" style="justify-content:center">📧 Send Test Email</button>

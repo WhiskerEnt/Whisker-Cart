@@ -37,11 +37,9 @@ class RazorpayGateway extends \Core\BaseGateway
 
     public function webhook(\Core\Request $request): void
     {
-        // L6: rate-limit webhook hits by source IP. Legitimate gateway
-        // callbacks come from a small set of Razorpay IPs at modest rate; an
-        // attacker with a leaked webhook secret (or just probing) gets
-        // throttled to 100 requests per 5 minutes. The HMAC check below is
-        // still the primary defense — this just caps the blast radius.
+        // Rate-limit webhook hits by source IP. Legitimate gateway callbacks
+        // arrive at modest rates, so throttling caps abusive traffic without
+        // affecting them. The HMAC check below remains the primary defense.
         if (!\Core\RateLimiter::attempt('webhook_razorpay', $request->ip(), 300, 300)) {
             \Core\Response::json(['error' => 'Rate limited'], 429);
             return;

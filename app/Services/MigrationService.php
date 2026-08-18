@@ -20,12 +20,10 @@ class MigrationService
     private const MIGRATIONS_DIR = '/sql/migrations';
 
     /**
-     * Migrations recorded as "executed" by pre-1.3.2 versions that may never
-     * have actually run. The old splitSql() glued the `--` header comment to
-     * the first real statement, the runner then skipped that "comment"
-     * statement, and the file was still recorded as executed. On upgrade
-     * these are forgotten once so they re-run under the fixed splitter —
-     * safe now that benign duplicate errors are treated as already-applied.
+     * Migrations whose pre-1.3.2 bookkeeping entries may not reflect an
+     * actual run. On upgrade these are forgotten once so they execute again;
+     * the re-run is idempotent because benign duplicate errors are treated
+     * as already-applied.
      */
     private const REPAIR_RERUN = [
         '20260420_v110_abandoned_cart_columns.sql',
@@ -38,11 +36,9 @@ class MigrationService
      * Run all pending migrations.
      * Called automatically when version changes.
      *
-     * Finding 16: when two admins clicked "Apply Update" near-simultaneously,
-     * both processes saw the same "not-yet-executed" list and both tried to
-     * run the same SQL — typically producing "duplicate column" or
-     * double-inserted seed rows. Now wrapped in a MySQL named lock so only
-     * one runner can be active at a time, server-wide.
+     * Wrapped in a MySQL named lock so only one runner can be active at a
+     * time, server-wide — concurrent "Apply Update" clicks cannot run the
+     * same SQL twice.
      *
      * @return array ['ran' => int, 'errors' => [...], 'busy' => bool]
      */
@@ -89,12 +85,8 @@ class MigrationService
                 $sql = file_get_contents($file);
                 if (!$sql || !trim($sql)) continue;
 
-                // M17: per-statement progress. The old behavior was "record the
-                // migration only on full success", which meant a failure on
-                // statement 3-of-5 caused statements 1-2 to re-run on retry —
-                // typically triggering "duplicate column" failures even though
-                // the data migration was actually in progress. Now we remember
-                // how far we got, so retries skip the already-succeeded prefix.
+                // Per-statement progress: a retry resumes after the last
+                // successful statement instead of re-running the whole file.
                 $startIdx = (int)($partialProgress[$filename] ?? 0);
                 $statements = self::splitSql($sql);
                 $cleaned = [];
@@ -177,7 +169,7 @@ class MigrationService
         } catch (\Exception $e) {}
     }
 
-    // ── Partial-progress bookkeeping (M17) ──
+    // ── Partial-progress bookkeeping ──
     // Stores how many statements within an in-progress migration have
     // succeeded, keyed by filename. Cleared when the migration finishes.
 
@@ -225,13 +217,9 @@ class MigrationService
      * Split SQL string into individual statements.
      * Handles semicolons inside strings, and strips `--` line comments.
      *
-     * Comment handling matters: every migration file starts with a `--`
-     * header block. The old splitter kept comment text inside the statement,
-     * so (a) the runner's "skip statements starting with --" check silently
-     * discarded the REAL statement glued to the header, and (b) apostrophes
-     * inside comment prose ("don't", "'payment_failed'") flipped the
-     * in-string state and broke splitting on later semicolons. Comments are
-     * now consumed during the scan, outside of string literals only.
+     * Comments are consumed during the scan (outside string literals only),
+     * so a `--` header block never merges into the first statement and
+     * apostrophes in comment prose cannot flip the in-string state.
      */
     private static function splitSql(string $sql): array
     {
@@ -305,8 +293,8 @@ class MigrationService
     }
 
     /**
-     * Drop legacy filenames from the executed/partial bookkeeping so the
-     * fixed runner executes them for real (see REPAIR_RERUN).
+     * Drop REPAIR_RERUN filenames from the executed/partial bookkeeping so
+     * they run again (see REPAIR_RERUN).
      */
     private static function forgetRepairMigrations(): void
     {
@@ -338,10 +326,9 @@ class MigrationService
             return ['ran' => 0, 'errors' => []]; // Same version, no migrations needed
         }
 
-        // Version changed — first repair pre-1.4 bookkeeping so silently
-        // skipped legacy migrations get a real run (idempotent: on stores
-        // where they did apply, every statement hits the benign-duplicate
-        // path and is treated as applied).
+        // Version changed — first reset bookkeeping for the REPAIR_RERUN
+        // migrations so they run (idempotent: statements that already
+        // applied hit the benign-duplicate path).
         self::forgetRepairMigrations();
 
         // Run pending migrations

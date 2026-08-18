@@ -8,31 +8,31 @@ $baseCurrency = \App\Services\CurrencyService::baseCurrency();
 $displayCurrency = $_SESSION['wk_display_currency'] ?? $baseCurrency;
 $baseSymbol = \App\Services\CurrencyService::baseSymbol();
 
-$showPrice = function($amount) use ($baseSymbol, $baseCurrency, $displayCurrency) {
-    $base = $baseSymbol . number_format($amount, 2);
-    if ($displayCurrency === $baseCurrency) return $base;
-    $converted = \App\Services\CurrencyService::convert($amount, $baseCurrency, $displayCurrency);
-    return \App\Services\CurrencyService::format($converted, $displayCurrency)
-         . ' <span style="font-size:12px;color:var(--wk-muted);font-weight:500">(' . $base . ')</span>';
-};
+// Show prices in the visitor's chosen currency only (no base-currency clutter).
+$showPrice = fn($amount) => \App\Services\CurrencyService::displayPrice((float) $amount);
 
 $hasVariants = !empty($variants['combos']);
 
 // Build variant JS data
 $variantData = [];
 foreach ($variants['combos'] ?? [] as $combo) {
-    $comboImages = \Core\Database::fetchAll(
-        "SELECT image_path FROM wk_product_images WHERE product_id=? AND alt_text=? ORDER BY sort_order",
-        [$p['id'], 'variant_' . $combo['id']]
-    );
-    if (empty($comboImages) && $combo['image_path']) {
-        $comboImages = [['image_path' => $combo['image_path']]];
-    }
+    // Variant images are stored against the option, tagged
+    // 'variant_opt_<optionId>' by the admin uploader.
+    $firstOptionId = (int) strtok((string)($combo['option_ids'] ?? ''), ',');
+    $comboImages = $firstOptionId > 0
+        ? \Core\Database::fetchAll(
+            "SELECT image_path FROM wk_product_images WHERE product_id=? AND alt_text=? ORDER BY sort_order",
+            [$p['id'], 'variant_opt_' . $firstOptionId]
+          )
+        : [];
+    $comboPrice = $combo['price_override'] ?? $p['price'];
     $variantData[] = [
         'id' => $combo['id'],
         'label' => $combo['label'],
         'option_ids' => $combo['option_ids'],
-        'price' => $combo['price_override'] ?? $p['price'],
+        'price' => $comboPrice,
+        // Pre-formatted in the visitor's display currency.
+        'price_formatted' => \App\Services\CurrencyService::displayPrice((float) $comboPrice),
         'stock' => $combo['stock_quantity'],
         'sku' => $combo['sku'] ?? $p['sku'],
         'images' => array_map(fn($img) => $url('storage/uploads/products/' . $img['image_path']), $comboImages),
@@ -121,6 +121,8 @@ foreach ($variants['combos'] ?? [] as $combo) {
                         <span style="width:8px;height:8px;border-radius:50%;background:#ef4444"></span>
                         <span style="color:#ef4444">Out of Stock</span>
                     <?php endif; ?>
+                    <!-- Filled in with the selected variant's availability. -->
+                    <span id="stockCount" style="color:var(--wk-muted);font-weight:500"></span>
                 </div>
 
                 <!-- Quantity + Add to Cart -->
@@ -176,14 +178,9 @@ foreach ($variants['combos'] ?? [] as $combo) {
     </div>
 </section>
 
-<?php if ($hasVariants): ?>
 <script>
-const variantCombos = <?= json_encode($variantData) ?>;
-const basePrice = <?= $prc ?>;
-const baseCurrencySymbol = '<?= $baseSymbol ?>';
-const selectedOptions = {};
-const groups = <?= json_encode(array_map(fn($g) => ['id'=>$g['id'],'name'=>$g['name']], $variants['groups'])) ?>;
-
+// Image gallery — used by every product, so it stays outside the
+// variants-only block below.
 function setMainImage(src, thumbEl) {
     const img = document.getElementById('mainImg');
     if (img) img.src = src;
@@ -192,6 +189,15 @@ function setMainImage(src, thumbEl) {
         thumbEl.style.borderColor = 'var(--wk-purple)';
     }
 }
+</script>
+
+<?php if ($hasVariants): ?>
+<script>
+const variantCombos = <?= json_encode($variantData) ?>;
+const basePrice = <?= $prc ?>;
+const baseCurrencySymbol = '<?= $baseSymbol ?>';
+const selectedOptions = {};
+const groups = <?= json_encode(array_map(fn($g) => ['id'=>$g['id'],'name'=>$g['name']], $variants['groups'])) ?>;
 
 function selectVariantOption(btn) {
     const groupId = btn.dataset.group;
@@ -227,9 +233,12 @@ function findMatchingCombo() {
     const addBtn = document.getElementById('addToCartBtn');
 
     if (match) {
-        // Update price
-        const price = parseFloat(match.price);
-        document.querySelector('#priceDisplay .current').innerHTML = baseCurrencySymbol + price.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        // Use the server-formatted price so it stays in the visitor's currency.
+        const priceEl = document.querySelector('#priceDisplay .current');
+        if (priceEl) {
+            priceEl.textContent = match.price_formatted
+                || (baseCurrencySymbol + parseFloat(match.price).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','));
+        }
 
         // Update stock
         const stockEl = document.getElementById('stockCount');
@@ -253,14 +262,19 @@ function findMatchingCombo() {
             ).join('');
         }
 
-        // Enable/disable add to cart
-        if (match.stock > 0) {
-            if (addBtn) { addBtn.disabled = false; addBtn.style.opacity = '1'; addBtn.style.cursor = 'pointer'; addBtn.innerHTML = '🛒 Add to Cart — ' + match.label; }
-            msg.innerHTML = '<span style="color:#10b981">✓ ' + match.label + ' — In Stock</span>';
-        } else {
-            if (addBtn) { addBtn.disabled = true; addBtn.style.opacity = '.5'; addBtn.style.cursor = 'not-allowed'; addBtn.innerHTML = 'Out of Stock — ' + match.label; }
-            msg.innerHTML = '<span style="color:#ef4444">✗ ' + match.label + ' — Out of Stock</span>';
+        // Labels are merchant-supplied, so set them via textContent.
+        const inStock = match.stock > 0;
+        if (addBtn) {
+            addBtn.disabled = !inStock;
+            addBtn.style.opacity = inStock ? '1' : '.5';
+            addBtn.style.cursor = inStock ? 'pointer' : 'not-allowed';
+            addBtn.textContent = (inStock ? '🛒 Add to Cart — ' : 'Out of Stock — ') + match.label;
         }
+        msg.textContent = '';
+        const tag = document.createElement('span');
+        tag.style.color = inStock ? '#10b981' : '#ef4444';
+        tag.textContent = (inStock ? '✓ ' : '✗ ') + match.label + (inStock ? ' — In Stock' : ' — Out of Stock');
+        msg.appendChild(tag);
 
         // Store selected combo ID for cart
         if (addBtn) addBtn.dataset.variantCombo = match.id;

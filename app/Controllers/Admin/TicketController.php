@@ -7,12 +7,8 @@ class TicketController
 {
     public function index(Request $request, array $params = []): void
     {
-        // Finding 13: previously used `addslashes($status)` and string-
-        // concatenated it into the SQL WHERE clause. addslashes is NOT a
-        // safe SQL escape (doesn't handle backslash escapes, charset edge
-        // cases, etc.) — real injection vector via ?status=...
-        // Fix: whitelist the status value against the known enum, then
-        // use a parameterized query. Anything off-list → no filter.
+        // Whitelist the status filter against the known enum, then bind it
+        // as a query parameter. Anything off-list means no filter.
         $rawStatus = (string)($request->query('status') ?? '');
         $allowedStatuses = ['open','in_progress','waiting','resolved','closed'];
         $status = in_array($rawStatus, $allowedStatuses, true) ? $rawStatus : '';
@@ -99,9 +95,8 @@ class TicketController
         $current = Database::fetch("SELECT status, priority FROM wk_tickets WHERE id=?", [$ticketId]);
         if (!$current) { Response::redirect(View::url('admin/tickets')); return; }
 
-        // The priority dropdown posts to this same endpoint (with the current
-        // status as a hidden field). It used to be silently ignored, leaving
-        // every ticket stuck on 'medium' forever.
+        // The priority dropdown posts here too, carrying the current status as
+        // a hidden field.
         $newPriority = $request->input('priority');
         if ($newPriority !== null
             && $newPriority !== $current['priority']
@@ -114,9 +109,8 @@ class TicketController
         $allowed = ['open','in_progress','waiting','resolved','closed'];
         if (!in_array($newStatus, $allowed)) { Response::redirect(View::url('admin/tickets/'.$ticketId)); return; }
 
-        // Only act on a real status CHANGE — the priority form re-posts the
-        // unchanged status, which used to re-save it and email the customer a
-        // pointless "status updated" notification every time.
+        // Only act on a real status change: the priority form re-posts the
+        // current status, which should not trigger a customer notification.
         if ($newStatus === $current['status']) {
             Response::redirect(View::url('admin/tickets/'.$ticketId));
             return;

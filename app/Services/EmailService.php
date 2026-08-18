@@ -241,19 +241,11 @@ class EmailService
 
     private static function replaceVars(string $text, array $vars): string
     {
-        // Email templates are HTML. Variable values from DB (customer name,
-        // ticket subject, order number, etc.) are plain text that could
-        // contain "<" or "&" — these MUST be HTML-escaped before being
-        // interpolated into the body, or a name like
-        //   Bob <script>alert(1)</script>
-        // becomes executable when the recipient opens the email in a webmail
-        // client that renders HTML.
-        //
-        // A small set of variables legitimately carry pre-built HTML and must
-        // remain unescaped: logo (an <img> tag), order_items_html, the
-        // address blocks, and reply_message (already escaped + nl2br'd by the
-        // caller). Variables ending in "_html" follow the same convention for
-        // future additions.
+        // Templates are HTML; variable values are plain text and are
+        // HTML-escaped before interpolation into the body. A small set of
+        // variables legitimately carry pre-built (already-safe) HTML and stay
+        // unescaped: the names listed below, plus any variable ending in
+        // "_html" by convention.
         $rawHtmlNames = [
             '{{logo}}',
             '{{order_items_html}}',

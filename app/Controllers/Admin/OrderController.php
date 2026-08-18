@@ -53,17 +53,10 @@ class OrderController
             return;
         }
 
-        // Finding 27: validate status against the writable status set before
-        // writing. Same pattern as Finding 13 on tickets — without a whitelist,
-        // an admin (or anyone riding the admin session) can write arbitrary
-        // strings to wk_orders.status, breaking the storefront UI's status
-        // emoji map, the email status labels, and the cron that matches
-        // on these literal values.
-        //
-        // Keep this list in sync with the wk_orders.status ENUM in
-        // sql/schema.sql. 'payment_failed' was added in migration
-        // 20260520_v122 because CheckoutController writes that value when
-        // gateway init fails and DashboardController's sweep reads it.
+        // Whitelist the status before writing: these literal values drive the
+        // storefront status map, email labels, and cron matching. Keep in sync
+        // with the wk_orders.status ENUM in sql/schema.sql ('payment_failed'
+        // is written by CheckoutController when gateway init fails).
         $status = (string)$request->input('status');
         $allowedStatuses = [
             'pending', 'processing', 'paid', 'shipped',

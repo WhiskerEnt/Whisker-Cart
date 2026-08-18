@@ -94,11 +94,18 @@ $fields = [
                     </label>
                 </div>
 
-                <?php foreach ($fields[$code] ?? [] as [$key, $label, $type]): ?>
+                <?php foreach ($fields[$code] ?? [] as [$key, $label, $type]):
+                    // Stored secrets are never rendered back into the page.
+                    // Secret fields show empty; submitting empty keeps the
+                    // saved value (see GatewayController::configure).
+                    $isSecret = ($type === 'password');
+                    $hasStored = ($config[$key] ?? '') !== '';
+                ?>
                 <div class="wk-form-group">
                     <label><?= $label ?></label>
                     <input type="<?= $type ?>" name="cfg_<?= $key ?>" class="wk-input"
-                           value="<?= $e($config[$key] ?? '') ?>" placeholder="Enter <?= strtolower($label) ?>" autocomplete="off">
+                           value="<?= $isSecret ? '' : $e($config[$key] ?? '') ?>"
+                           placeholder="<?= $isSecret && $hasStored ? '•••••••• (saved — leave blank to keep)' : 'Enter ' . strtolower($label) ?>" autocomplete="off">
                 </div>
                 <?php endforeach; ?>
 

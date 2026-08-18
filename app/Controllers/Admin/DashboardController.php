@@ -24,8 +24,13 @@ class DashboardController
                 "SELECT id FROM wk_orders WHERE status IN ('pending','payment_failed') AND payment_status != 'captured' AND created_at < DATE_SUB(NOW(), INTERVAL 15 MINUTE)"
             );
             foreach ($expiredOrders as $expired) {
-                // Restore stock
-                $items = Database::fetchAll("SELECT product_id, quantity, variant_combo_id FROM wk_order_items WHERE order_id=?", [$expired['id']]);
+                // Restore stock. Fall back to the always-present columns so the
+                // sweep still runs on a database awaiting the v1.3.3 migration.
+                try {
+                    $items = Database::fetchAll("SELECT product_id, quantity, variant_combo_id FROM wk_order_items WHERE order_id=?", [$expired['id']]);
+                } catch (\Exception $e) {
+                    $items = Database::fetchAll("SELECT product_id, quantity FROM wk_order_items WHERE order_id=?", [$expired['id']]);
+                }
                 foreach ($items as $item) {
                     Database::query("UPDATE wk_products SET stock_quantity = stock_quantity + ? WHERE id = ?", [$item['quantity'], $item['product_id']]);
                     if ($item['variant_combo_id'] ?? null) {

@@ -15,10 +15,8 @@ class RateLimiter
     {
         if (!self::$dir) {
             self::$dir = WK_ROOT . '/storage/cache/ratelimit';
-            // L12: 0700/0600 — principle of least privilege. The rate-limit
-            // files are just counters but on shared hosting (cPanel), 0755
-            // means other tenants on the same box can list and read the
-            // directory. 0700 restricts to the web server's user.
+            // 0700: on shared hosting, wider modes let other tenants list
+            // and read the directory; restrict to the web server's user.
             if (!is_dir(self::$dir)) @mkdir(self::$dir, 0700, true);
         }
         return self::$dir;
@@ -37,14 +35,9 @@ class RateLimiter
     {
         $file = self::dir() . '/' . md5($action . ':' . $key) . '.json';
 
-        // Finding 11: the read-modify-write here used to be non-atomic. Two
-        // concurrent attempts could both read count=4, both write count=5,
-        // and the rate limiter would effectively grant 2 attempts for the
-        // cost of 1. Under brute-force pressure this measurably weakens
-        // protection. Now we hold an exclusive flock() across the full
-        // sequence: open ("c+" creates if missing), lock exclusive, read,
-        // decide, write, unlock. Other concurrent attempts block on the
-        // lock rather than racing.
+        // Exclusive flock() across the full read-modify-write so concurrent
+        // attempts serialize instead of racing the counter: open ("c+"
+        // creates if missing), lock, read, decide, write, unlock.
         $fp = @fopen($file, 'c+');
         if (!$fp) {
             // If we can't even open the file (disk full, permissions),
@@ -85,7 +78,7 @@ class RateLimiter
         } finally {
             @flock($fp, LOCK_UN);
             @fclose($fp);
-            // L12: tighten file mode in case the default umask leaves it
+            // Tighten file mode in case the default umask leaves it
             // group/world-readable on shared hosting.
             @chmod($file, 0600);
         }

@@ -94,11 +94,9 @@ class AbandonedCartController
         );
         if (!$cart) { Response::json(['success' => false, 'message' => 'Cart not found']); return; }
 
-        // M25: 6-hour cooldown per cart. Without this an admin (or attacker
-        // riding a compromised admin session) can spam reminders to a
-        // customer's email — and the UI's btn.disabled isn't binding. The
-        // wk_carts.reminder_sent_at column already exists and gets bumped
-        // on a successful send below; we just need to enforce the window.
+        // 6-hour cooldown per cart, enforced server-side (the UI's disabled
+        // button is advisory only). A successful send bumps
+        // wk_carts.reminder_sent_at below.
         if (!empty($cart['reminder_sent_at'])) {
             $lastSent = strtotime($cart['reminder_sent_at']);
             $sixHours = 6 * 3600;
@@ -179,16 +177,13 @@ class AbandonedCartController
     }
 
     /**
-     * M1: Prune old carts to keep the table bounded.
+     * Prune old carts to keep the table bounded.
      *
      * Deletes carts in terminal states (abandoned, converted, merged) whose
-     * last activity is older than 90 days. Active carts are NEVER pruned —
-     * a customer might still come back to a real cart.
-     *
-     * Triggered manually by the admin from the abandoned-carts page. We
-     * deliberately do not run this on every request: cart pruning is a
-     * housekeeping operation that should be observable, not a silent
-     * background sweep that could surprise an operator.
+     * last activity is older than 90 days. Active carts are never pruned —
+     * a customer might still come back to a real cart. Triggered manually
+     * from the abandoned-carts page so pruning stays observable rather than
+     * running as a silent background sweep.
      */
     public function prune(Request $request, array $params = []): void
     {

@@ -20,14 +20,8 @@ class TicketController
     /** Customer: View ticket + replies */
     public function show(Request $request, array $params = []): void
     {
-        // Finding 6: previously this method failed open for anonymous users.
-        // `if ($custId && $ticket['customer_id'] != $custId)` short-circuited
-        // to allow when $custId was null — so any anonymous visitor iterating
-        // /account/tickets/{id} could read another customer's PII (name,
-        // email, phone, message). Now: customer login is REQUIRED, and the
-        // SELECT is constrained to the customer's own tickets at the SQL
-        // level — defense in depth so a future controller change can't
-        // re-open the hole.
+        // Login is required, and the SELECT is scoped to the customer's own
+        // tickets so ownership is enforced at the SQL level as defense in depth.
         $custId = Session::customerId();
         if (!$custId) { Response::redirect(View::url('account/login')); return; }
 
@@ -119,11 +113,8 @@ class TicketController
     /** Customer: Reply to ticket */
     public function reply(Request $request, array $params = []): void
     {
-        // Finding 7: same fail-open IDOR as show(). Without auth, anyone
-        // could post a reply impersonating the legit customer (sender_name
-        // pulled from the ticket row itself, so the spoofed reply looked
-        // genuine to admin). Customer login is now REQUIRED and ownership
-        // is enforced at SQL level — no row, no reply.
+        // Login is required and ownership is enforced in the SQL, same as show():
+        // no matching row, no reply.
         $custId = Session::customerId();
         if (!$custId) { Response::redirect(View::url('account/login')); return; }
 

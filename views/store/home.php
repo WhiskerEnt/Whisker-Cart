@@ -5,15 +5,8 @@ $baseCurrency = \App\Services\CurrencyService::baseCurrency();
 $displayCurrency = $_SESSION['wk_display_currency'] ?? $baseCurrency;
 $baseSymbol = \App\Services\CurrencyService::baseSymbol();
 
-// Smart price display — shows converted if different currency selected
-$showPrice = function($amount) use ($baseSymbol, $baseCurrency, $displayCurrency) {
-    $base = $baseSymbol . number_format($amount, 2);
-    if ($displayCurrency === $baseCurrency) return $base;
-    $converted = \App\Services\CurrencyService::convert($amount, $baseCurrency, $displayCurrency);
-    return \App\Services\CurrencyService::format($converted, $displayCurrency)
-         . ' <span style="font-size:11px;color:var(--wk-muted);font-weight:500">(' . $base . ')</span>';
-};
-
+// Show prices in the visitor's chosen currency only (no base-currency clutter).
+$showPrice = fn($amount) => \App\Services\CurrencyService::displayPrice((float) $amount);
 $price = $showPrice; // alias
 
 // Split products: featured for carousel, rest for grid

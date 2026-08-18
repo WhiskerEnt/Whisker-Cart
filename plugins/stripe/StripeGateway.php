@@ -21,9 +21,30 @@ class StripeGateway extends \Core\BaseGateway
 
     public function verifyPayment(array $p): array
     {
-        $session = $this->api('/checkout/sessions/'.$p['session_id'], [], 'GET');
-        $ok = ($session['payment_status']??'') === 'paid';
-        return ['success'=>$ok, 'payment_id'=>$session['payment_intent']??null];
+        $sessionId = trim((string)($p['session_id'] ?? ''));
+        if ($sessionId === '') return ['success'=>false, 'message'=>'Missing session id'];
+
+        $session = $this->api('/checkout/sessions/'.$sessionId, [], 'GET');
+        if (($session['payment_status'] ?? '') !== 'paid') {
+            return ['success'=>false, 'message'=>'Session not paid'];
+        }
+
+        // Bind the session to this order: createOrder() stamps
+        // metadata.order_id, so a session can only confirm the order it was
+        // created for.
+        $claimedOrderId = (int)($p['order_id'] ?? 0);
+        $sessionOrderId = (int)($session['metadata']['order_id'] ?? 0);
+        if ($claimedOrderId <= 0 || $sessionOrderId <= 0 || $sessionOrderId !== $claimedOrderId) {
+            return ['success'=>false, 'message'=>'Payment session does not belong to this order'];
+        }
+
+        $result = ['success'=>true, 'payment_id'=>$session['payment_intent'] ?? null];
+        // Report the amount actually paid so markOrderPaid() can run its
+        // amount-mismatch check.
+        if (isset($session['amount_total'])) {
+            $result['amount'] = (float)$session['amount_total'] / 100;
+        }
+        return $result;
     }
 
     public function refund(string $paymentId, float $amount): array
@@ -36,7 +57,7 @@ class StripeGateway extends \Core\BaseGateway
 
     public function webhook(\Core\Request $request): void
     {
-        // L6: rate-limit by source IP. See RazorpayGateway::webhook comment.
+        // Rate-limit by source IP. See RazorpayGateway::webhook comment.
         if (!\Core\RateLimiter::attempt('webhook_stripe', $request->ip(), 300, 300)) {
             \Core\Response::json(['error' => 'Rate limited'], 429);
             return;

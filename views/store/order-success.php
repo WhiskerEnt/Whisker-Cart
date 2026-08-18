@@ -1,6 +1,10 @@
 <?php
 $e=fn($v)=>\Core\View::e($v); $url=fn($p)=>\Core\View::url($p);
 $payData = \Core\Session::get('wk_payment_data');
+// Only use stashed payment data that belongs to the order being shown.
+if ($payData && $order && ($payData['order_number'] ?? null) !== ($order['order_number'] ?? null)) {
+    $payData = null;
+}
 $needsPayment = $order && $order['payment_status'] !== 'captured' && $payData && ($payData['gateway'] ?? '') === 'razorpay';
 $paymentFailed = $order && ($order['status'] === 'payment_failed' || $order['payment_status'] === 'failed');
 if ($payData) \Core\Session::remove('wk_payment_data');
@@ -74,7 +78,8 @@ $retryExpired = $retryMinutes <= 0 && ($paymentFailed || $needsPayment);
 </section>
 <style>@keyframes successPop{from{transform:scale(0)}to{transform:scale(1)}}</style>
 
-<?php if ($needsPayment && !$retryExpired): ?>
+<?php /* Matches the branch that renders #payNowBtn. */ ?>
+<?php if ($needsPayment && !$paymentFailed && !$retryExpired): ?>
 <!-- Razorpay Checkout -->
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <script>
@@ -105,7 +110,7 @@ function openRazorpay() {
                 else alert('Payment verification failed. Please contact support.');
             });
         },
-        modal: { ondismiss: function() { document.getElementById('payNowBtn').textContent = 'Retry Payment →'; } }
+        modal: { ondismiss: function() { const b = document.getElementById('payNowBtn'); if (b) b.textContent = 'Retry Payment →'; } }
     };
     new Razorpay(options).open();
 }

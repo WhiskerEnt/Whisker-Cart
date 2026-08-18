@@ -52,7 +52,12 @@ class GatewayController
         $config = json_decode($gw['config'], true) ?? [];
         foreach ($request->all() as $key => $value) {
             if (str_starts_with($key, 'cfg_')) {
-                $config[substr($key,4)] = trim($value);
+                $name  = substr($key, 4);
+                $value = trim($value);
+                // Secret fields render empty, so an empty submission means
+                // "unchanged" — keep the saved credential.
+                if ($value === '' && ($config[$name] ?? '') !== '') continue;
+                $config[$name] = $value;
             }
         }
         Database::update('wk_payment_gateways', [

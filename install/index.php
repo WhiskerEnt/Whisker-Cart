@@ -309,6 +309,7 @@ AddDefaultCharset UTF-8' . $cpanelHandler . "\n";
             $_SESSION['wk_install']['store_tagline'] = trim($_POST['store_tagline'] ?? '');
             $_SESSION['wk_install']['store_url']     = $storeUrl;
             $_SESSION['wk_install']['currency']      = strtoupper(trim($_POST['currency'] ?? 'INR'));
+            $_SESSION['wk_install']['multi_currency'] = ($_POST['multi_currency'] ?? '0') === '1' ? '1' : '0';
             $_SESSION['wk_install']['timezone']      = trim($_POST['timezone'] ?? 'Asia/Kolkata');
             $step = 4;
             break;
@@ -371,9 +372,9 @@ AddDefaultCharset UTF-8' . $cpanelHandler . "\n";
                     ->execute([$inst['admin_user'], $inst['admin_email'], $hash]);
 
                 // Store settings.
-                // currency_symbol MUST be written together with currency —
-                // schema.sql seeds it as '₹', and every price render reads the
-                // symbol setting. Saving only the code left EUR stores showing ₹.
+                // currency_symbol is written together with currency — every
+                // price render reads the symbol setting, so the two must stay
+                // in sync.
                 $instCurrency = strtoupper($inst['currency'] ?? 'INR');
                 $instSymbol   = wk_install_currencies()[$instCurrency]['symbol'] ?? $instCurrency;
                 $stmtS = $pdo->prepare("UPDATE wk_settings SET setting_value=? WHERE setting_group=? AND setting_key=?");
@@ -382,6 +383,7 @@ AddDefaultCharset UTF-8' . $cpanelHandler . "\n";
                     ['general','site_tagline', $inst['store_tagline']??''],
                     ['general','currency', $instCurrency],
                     ['general','currency_symbol', $instSymbol],
+                    ['general','multi_currency', $inst['multi_currency'] ?? '0'],
                     ['general','timezone', $inst['timezone']],
                 ] as [$g,$k,$v]) { $stmtS->execute([$v,$g,$k]); }
 
@@ -402,16 +404,14 @@ AddDefaultCharset UTF-8' . $cpanelHandler . "\n";
                 if ($basePath === '') $basePath = '/';
 
                 // ── Write config files via var_export ──
-                // Using var_export() instead of string interpolation prevents PHP
-                // injection — even if any value below contained "');system('rm -rf
-                // /'); //" it would be safely serialized as a quoted string
-                // literal, not executable code.
+                // var_export() serializes every value as a quoted literal, so
+                // user-supplied config values can never be interpreted as PHP
+                // code.
                 $salt = bin2hex(random_bytes(32));
 
                 // Read the shipped version from app/version.php — the single
-                // source of truth. Don't store version in config.php; the
-                // front controller no longer reads it from there (this used
-                // to require a brittle preg_replace at update time).
+                // source of truth. The version is not stored in config.php,
+                // so updates never have to rewrite config files.
                 $installedVersion = is_file(WK_ROOT . '/app/version.php')
                     ? (string) require WK_ROOT . '/app/version.php'
                     : '1.3.0';
@@ -446,17 +446,11 @@ AddDefaultCharset UTF-8' . $cpanelHandler . "\n";
 
                 // Mark as installed (second sentinel — front controller already
                 // uses config/config.php existence as the primary check).
-                // L4: include SHA-256 checksums of the freshly-written config
-                // files so a future integrity-check job can detect tampering
-                // (a malicious actor swapping config/database.php to point at
-                // their own DB would change the hash). The marker is plain
-                // text and human-readable; a structured JSON line keeps it
-                // both diff-friendly and parseable.
-                //
-                // whisker_version records what version this site was FIRST
-                // installed at — never updated by the auto-updater, useful
-                // as an audit trail and for support diagnosing schema state
-                // on legacy installs.
+                // The marker includes SHA-256 checksums of the freshly-written
+                // config files so an integrity check can detect tampering.
+                // whisker_version records the version this site was first
+                // installed at (never touched by the auto-updater) — useful
+                // for support when diagnosing schema state.
                 $integrity = json_encode([
                     'installed_at'         => date('Y-m-d H:i:s'),
                     'whisker_version'      => $installedVersion,
