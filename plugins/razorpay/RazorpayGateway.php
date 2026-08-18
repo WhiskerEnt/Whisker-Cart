@@ -43,10 +43,33 @@ class RazorpayGateway extends \Core\BaseGateway
         return ['success' => false, 'message' => 'Razorpay returned HTTP ' . $r['status'] . '.'];
     }
 
-    public function refund(string $paymentId, float $amount): array
+    public function refund(string $paymentId, float $amount, array $options = []): array
     {
-        $r = $this->api("/payments/{$paymentId}/refund", ['amount'=>(int)($amount*100)]);
-        return ['success'=>isset($r['id']), 'refund_id'=>$r['id']??null];
+        $currency = $options['currency'] ?? 'INR';
+        $payload = ['amount' => \App\Services\CurrencyService::toMinorUnits($amount, $currency)];
+
+        // Our own reference travels with the refund so the two sides can be
+        // matched up in the Razorpay dashboard later.
+        if (!empty($options['idempotency_key'])) {
+            $payload['notes'] = ['whisker_ref' => $options['idempotency_key']];
+        }
+        if (!empty($options['reason'])) {
+            $payload['notes']['reason'] = substr((string) $options['reason'], 0, 200);
+        }
+
+        $r = $this->api("/payments/{$paymentId}/refund", $payload);
+
+        if ($this->lastTransportError !== '') {
+            return $this->refundUnknown($this->lastTransportError);
+        }
+        if (isset($r['id'])) {
+            $status = ($r['status'] ?? 'processed') === 'processed' ? 'completed' : 'pending';
+            return $this->refundOk($r['id'], $status, 'Razorpay refund ' . ($r['status'] ?? ''));
+        }
+        if ($this->lastHttp >= 500 || $this->lastHttp === 0) {
+            return $this->refundUnknown('Razorpay returned HTTP ' . $this->lastHttp);
+        }
+        return $this->refundFailed($r['error']['description'] ?? 'Razorpay rejected the refund.');
     }
 
     public function getPublicConfig(): array { return ['key_id'=>$this->cfg('key_id')]; }
@@ -107,14 +130,18 @@ class RazorpayGateway extends \Core\BaseGateway
         \Core\Response::json(['status' => 'ok']);
     }
 
-    private function api(string $ep, array $data): array
+    /** HTTP status and transport error of the last api() call. */
+    private int $lastHttp = 0;
+    private string $lastTransportError = '';
+
+    private function api(string $ep, array $data, array $headers = []): array
     {
         $ch = curl_init('https://api.razorpay.com/v1' . $ep);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => 1,
             CURLOPT_POST => 1,
             CURLOPT_POSTFIELDS => json_encode($data),
-            CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+            CURLOPT_HTTPHEADER => array_merge(['Content-Type: application/json'], $headers),
             CURLOPT_USERPWD => $this->cfg('key_id') . ':' . $this->cfg('key_secret'),
             CURLOPT_TIMEOUT => 30,
             CURLOPT_SSL_VERIFYPEER => true,
@@ -122,8 +149,10 @@ class RazorpayGateway extends \Core\BaseGateway
         ]);
         $body = curl_exec($ch);
         $err = curl_error($ch);
+        $this->lastHttp = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $this->lastTransportError = $err;
         curl_close($ch);
         if ($err) return ['error' => $err];
-        return json_decode($body, true) ?? [];
+        return json_decode((string) $body, true) ?? [];
     }
 }

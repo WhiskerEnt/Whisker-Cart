@@ -115,6 +115,7 @@ $router->group(['prefix' => '/admin', 'middleware' => ['auth', 'csrf']], functio
     $r->get('/orders/{id}',              [OrderController::class, 'show']);
     $r->post('/orders/status/{id}',      [OrderController::class, 'updateStatus']);
     $r->post('/orders/shipping/{id}',    [OrderController::class, 'updateShipping']);
+    $r->post('/orders/refund/{id}',      [OrderController::class, 'refund']);
     $r->get('/orders/invoice/{id}',      [OrderController::class, 'invoice']);
 
     // Product Variants (AJAX)

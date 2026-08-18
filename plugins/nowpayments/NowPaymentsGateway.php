@@ -43,8 +43,11 @@ class NowPaymentsGateway extends \Core\BaseGateway
         return ['success' => false, 'message' => 'NOWPayments returned HTTP ' . $r['status'] . '.'];
     }
 
-    public function refund(string $paymentId, float $amount): array {
-        return ['success'=>false, 'message'=>'Crypto refunds handled manually'];
+    public function refund(string $paymentId, float $amount, array $options = []): array {
+        return $this->refundFailed(
+            'Crypto payments cannot be reversed automatically. Send the refund to the '
+            . "customer's wallet, then record it here as a manual refund."
+        );
     }
     public function getPublicConfig(): array { return []; }
 

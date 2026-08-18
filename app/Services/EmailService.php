@@ -17,7 +17,16 @@ class EmailService
             $tpl = null;
         }
 
-        if (!$tpl) return self::send($to, $vars['subject'] ?? 'Notification', $vars['body'] ?? '');
+        // No template row: fall back to the built-in wording for this slug.
+        // Sending $vars['body'] ?? '' here delivered an empty email with the
+        // subject "Notification" whenever a template had not been created.
+        if (!$tpl) {
+            $fallback = self::builtInTemplate($slug, $vars);
+            if ($fallback) {
+                return self::send($to, $fallback['subject'], $fallback['body']);
+            }
+            return self::send($to, $vars['subject'] ?? 'Notification', $vars['body'] ?? '');
+        }
 
         $subject = self::replaceVars($tpl['subject'], $vars);
         $body = self::replaceVars($tpl['body'], $vars);
@@ -55,10 +64,30 @@ class EmailService
         $fromEmail = $strip($fromEmail);
         $fromName  = $strip($fromName);
         $to        = $strip($to);
-        $subject   = $strip($subject);
+        $subject   = self::headerSubject($subject);
 
         $html = self::wrapTemplate($htmlBody);
         return self::sendSmtpRaw($to, $subject, $html, $fromEmail, $fromName, $host, $port, $user, $pass);
+    }
+
+    /**
+     * Prepare a subject line for a mail header.
+     *
+     * Template bodies are HTML, so an author naturally writes entities like
+     * &mdash; in the subject too — but a subject is plain text and would show
+     * those characters literally. Entities are decoded, then anything
+     * non-ASCII is MIME encoded so it survives every mail client.
+     */
+    private static function headerSubject(string $subject): string
+    {
+        $subject = html_entity_decode($subject, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $subject = str_replace(["\r", "\n", '%0a', '%0d'], '', $subject);
+        $subject = trim($subject);
+
+        if (preg_match('/[\x80-\xFF]/', $subject)) {
+            return '=?UTF-8?B?' . base64_encode($subject) . '?=';
+        }
+        return $subject;
     }
 
     /**
@@ -74,7 +103,7 @@ class EmailService
         $fromEmail = str_replace(["\r", "\n", "%0a", "%0d"], '', $fromEmail);
         $fromName  = str_replace(["\r", "\n", "%0a", "%0d"], '', $fromName);
         $to        = str_replace(["\r", "\n", "%0a", "%0d"], '', $to);
-        $subject   = str_replace(["\r", "\n", "%0a", "%0d"], '', $subject);
+        $subject   = self::headerSubject($subject);
         if ($replyTo) $replyTo = str_replace(["\r", "\n", "%0a", "%0d"], '', $replyTo);
 
         $headers  = "MIME-Version: 1.0\r\nContent-type: text/html; charset=UTF-8\r\nFrom: {$fromName} <{$fromEmail}>\r\n";
@@ -176,6 +205,117 @@ class EmailService
         </div>';
 
         return self::send($order['customer_email'], "Order Confirmed — {$order['order_number']}", $body);
+    }
+
+    /**
+     * Wording used when a store has not customised the template for a slug.
+     *
+     * @return array{subject:string, body:string}|null
+     */
+    private static function builtInTemplate(string $slug, array $vars): ?array
+    {
+        $v = fn(string $key, string $default = '') => $vars['{{' . $key . '}}'] ?? $default;
+        $store = $v('store_name', self::storeName());
+
+        if ($slug === 'shipping-notification') {
+            $tracking = $v('tracking_number');
+            $url      = $v('tracking_url');
+            $body = '
+            <div style="text-align:center;margin-bottom:28px">
+                <div style="font-size:48px;margin-bottom:8px">📦</div>
+                <h1 style="font-size:26px;font-weight:900;margin:0 0 6px">Your order is on its way</h1>
+                <p style="color:#6b7280;margin:0;font-size:15px">Order ' . htmlspecialchars($v('order_number')) . '</p>
+            </div>
+            <div style="background:#faf8f6;border-radius:10px;padding:20px;margin-bottom:24px">
+                <table style="width:100%;font-size:14px">
+                    <tr><td style="color:#6b7280;padding:5px 0">Carrier</td><td style="text-align:right;font-weight:700">' . htmlspecialchars($v('carrier_name')) . '</td></tr>
+                    ' . ($tracking !== '' ? '<tr><td style="color:#6b7280;padding:5px 0">Tracking number</td><td style="text-align:right;font-weight:800;font-family:monospace">' . htmlspecialchars($tracking) . '</td></tr>' : '') . '
+                </table>
+            </div>
+            ' . ($url !== '' ? '<div style="text-align:center;margin-bottom:24px"><a href="' . htmlspecialchars($url) . '" style="display:inline-block;background:#8b5cf6;color:#fff;text-decoration:none;font-weight:800;padding:13px 28px;border-radius:8px">Track your parcel</a></div>' : '') . '
+            <p style="color:#6b7280;font-size:14px;line-height:1.7;margin:0">
+                Tracking can take a few hours to start updating after the carrier collects the parcel.
+            </p>';
+            return ['subject' => 'Your order has shipped — ' . $v('order_number'), 'body' => $body];
+        }
+
+        if ($slug === 'refund-notification') {
+            $body = '
+            <div style="text-align:center;margin-bottom:28px">
+                <div style="font-size:48px;margin-bottom:8px">&#128184;</div>
+                <h1 style="font-size:26px;font-weight:900;margin:0 0 6px">Your refund has been issued</h1>
+                <p style="color:#6b7280;margin:0;font-size:15px">Order ' . htmlspecialchars($v('order_number')) . '</p>
+            </div>
+            <div style="background:#faf8f6;border-radius:10px;padding:20px;margin-bottom:24px">
+                <table style="width:100%;font-size:14px">
+                    <tr><td style="color:#6b7280;padding:6px 0">Refund amount</td><td style="text-align:right;font-weight:900;font-family:monospace;font-size:20px">' . htmlspecialchars($v('refund_amount')) . '</td></tr>
+                    <tr><td style="color:#6b7280;padding:6px 0">Refund ID</td><td style="text-align:right;font-weight:800;font-family:monospace;color:#8b5cf6">' . htmlspecialchars($v('refund_id')) . '</td></tr>
+                    <tr><td style="color:#6b7280;padding:6px 0">Date</td><td style="text-align:right;font-weight:700">' . htmlspecialchars($v('refund_date')) . '</td></tr>
+                    <tr><td style="color:#6b7280;padding:6px 0">Time</td><td style="text-align:right;font-weight:700">' . htmlspecialchars($v('refund_time')) . '</td></tr>
+                    <tr><td style="color:#6b7280;padding:6px 0">Refunded to</td><td style="text-align:right;font-weight:700">' . htmlspecialchars($v('refund_method')) . '</td></tr>
+                </table>
+            </div>
+            <p style="font-size:14px;line-height:1.75;margin:0 0 18px">
+                It usually appears on your statement within 5 to 10 working days, depending on your bank.
+                Quote refund ID <strong style="font-family:monospace">' . htmlspecialchars($v('refund_id')) . '</strong> if you need to ask us about it.
+            </p>
+            <p style="font-size:14px;line-height:1.75;color:#6b7280;margin:0">Thank you for shopping with ' . htmlspecialchars($store) . '.</p>';
+            return ['subject' => 'Refund issued — ' . $v('order_number'), 'body' => $body];
+        }
+
+        if ($slug === 'welcome') {
+            $body = '
+            <div style="text-align:center;margin-bottom:28px">
+                <div style="font-size:48px;margin-bottom:8px">👋</div>
+                <h1 style="font-size:26px;font-weight:900;margin:0 0 6px">Welcome to ' . htmlspecialchars($store) . '</h1>
+            </div>
+            <p style="font-size:15px;line-height:1.7;margin:0 0 20px">
+                Hello ' . htmlspecialchars($v('customer_name', 'there')) . ', your account is ready. You can now check out faster
+                and follow your orders from one place.
+            </p>
+            <div style="text-align:center">
+                <a href="' . htmlspecialchars($v('store_url', View::url(''))) . '" style="display:inline-block;background:#8b5cf6;color:#fff;text-decoration:none;font-weight:800;padding:13px 28px;border-radius:8px">Start shopping</a>
+            </div>';
+            return ['subject' => 'Welcome to ' . $store, 'body' => $body];
+        }
+
+        return null;
+    }
+
+    /**
+     * Refund confirmation.
+     *
+     * Sent whenever money goes back to the customer, so they have the
+     * reference, the amount and the date in writing. Banks can take several
+     * days to show the credit, and this is what they quote when they ask.
+     */
+    public static function sendRefundConfirmation(array $order, array $refund): bool
+    {
+        $email = trim((string) ($order['customer_email'] ?? ''));
+        if ($email === '') return false;
+
+        $currencyCode = $order['currency'] ?: (Database::setting('general', 'currency') ?: 'INR');
+        $issuedAt = !empty($refund['created_at']) ? strtotime($refund['created_at']) : time();
+
+        $method = !empty($refund['is_manual'])
+            ? 'Sent by ' . self::storeName() . ' directly'
+            : 'Your original payment method'
+              . (!empty($refund['gateway_code']) ? ' via ' . ucfirst((string) $refund['gateway_code']) : '');
+
+        $vars = [
+            '{{store_name}}'    => self::storeName(),
+            '{{store_url}}'     => View::url(''),
+            '{{customer_name}}' => self::orderCustomerName($order),
+            '{{customer_email}}'=> $email,
+            '{{order_number}}'  => $order['order_number'],
+            '{{refund_amount}}' => CurrencyService::format((float) $refund['amount'], $currencyCode),
+            '{{refund_id}}'     => $refund['refund_ref'],
+            '{{refund_date}}'   => date('M j, Y', $issuedAt),
+            '{{refund_time}}'   => date('g:i A', $issuedAt),
+            '{{refund_method}}' => $method,
+        ];
+
+        return self::sendFromTemplate('refund-notification', $email, $vars);
     }
 
     /**

@@ -7,7 +7,13 @@ class EmailTemplateController
 {
     public function __construct()
     {
-        try { Database::query("SELECT 1 FROM wk_email_templates LIMIT 1"); }
+        // Seeding used to sit only in the catch below, which meant it never ran:
+        // schema.sql creates this table at install, so the query always
+        // succeeded and the store was left with no templates.
+        try {
+            $count = (int) Database::fetchValue("SELECT COUNT(*) FROM wk_email_templates");
+            if ($count === 0) self::seedDefaults();
+        }
         catch (\Exception $e) {
             Database::connect()->exec("CREATE TABLE IF NOT EXISTS wk_email_templates (
                 id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, slug VARCHAR(50) NOT NULL UNIQUE,
@@ -231,6 +237,24 @@ class EmailTemplateController
                 '{{order_discount}}'=>'Discount', '{{order_total}}'=>'Grand total',
                 '{{shipping_address}}'=>'Shipping address block', '{{billing_address}}'=>'Billing address block',
                 '{{payment_method}}'=>'Payment gateway', '{{payment_status}}'=>'Payment status', '{{invoice_number}}'=>'Invoice number',
+            ]),
+            'refund-notification' => array_merge($common, [
+                '{{order_number}}'=>'Order number', '{{refund_amount}}'=>'Amount refunded',
+                '{{refund_id}}'=>'Refund reference', '{{refund_date}}'=>'Date issued',
+                '{{refund_time}}'=>'Time issued', '{{refund_method}}'=>'Where the money went',
+            ]),
+            'payment-receipt' => array_merge($common, [
+                '{{order_number}}'=>'Order number', '{{amount_paid}}'=>'Amount paid',
+                '{{payment_date}}'=>'Date paid', '{{payment_method}}'=>'Payment gateway',
+                '{{transaction_id}}'=>'Gateway transaction ID', '{{invoice_url}}'=>'Invoice link',
+            ]),
+            'order-pending' => array_merge($common, [
+                '{{order_number}}'=>'Order number', '{{order_total}}'=>'Amount due',
+                '{{order_date}}'=>'Date placed', '{{order_url}}'=>'Link to finish paying',
+            ]),
+            'order-cancelled' => array_merge($common, [
+                '{{order_number}}'=>'Order number', '{{order_total}}'=>'Order total',
+                '{{cancelled_date}}'=>'Date cancelled', '{{cancel_reason}}'=>'Reason given',
             ]),
             'shipping-notification' => array_merge($common, [
                 '{{order_number}}'=>'Order number', '{{carrier_name}}'=>'Carrier', '{{tracking_number}}'=>'Tracking #', '{{tracking_url}}'=>'Track URL',

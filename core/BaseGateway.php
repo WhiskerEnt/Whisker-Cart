@@ -65,6 +65,35 @@ abstract class BaseGateway implements PaymentGatewayInterface
         return ['status' => $status, 'body' => $body, 'error' => $error];
     }
 
+    /**
+     * Shape a gateway refund reply into the form RefundService expects.
+     *
+     * The case that matters is a call that never completed — a timeout or a
+     * dropped connection. The gateway may well have processed the refund, so
+     * reporting failure invites a retry that refunds a second time. Those come
+     * back as 'unknown', which stops the process and asks a human to check.
+     */
+    protected function refundUnknown(string $why): array
+    {
+        return [
+            'success'   => false,
+            'status'    => 'unknown',
+            'refund_id' => null,
+            'message'   => 'Could not confirm the refund with the gateway (' . $why . '). '
+                         . 'Check the gateway dashboard before trying again.',
+        ];
+    }
+
+    protected function refundFailed(string $message): array
+    {
+        return ['success' => false, 'status' => 'failed', 'refund_id' => null, 'message' => $message];
+    }
+
+    protected function refundOk(?string $refundId, string $status = 'completed', string $message = ''): array
+    {
+        return ['success' => true, 'status' => $status, 'refund_id' => $refundId, 'message' => $message];
+    }
+
     protected function logTransaction(int $orderId, array $data): int
     {
         // Redact sensitive keys before logging

@@ -156,15 +156,47 @@ class CurrencyService
     }
 
     /**
+     * Currencies with no minor unit. An amount in these is already whole:
+     * ¥5000 is five thousand yen, not fifty.
+     */
+    private const ZERO_DECIMAL = [
+        'JPY', 'KRW', 'IDR', 'VND', 'CLP', 'ISK', 'BIF', 'DJF',
+        'GNF', 'KMF', 'MGA', 'PYG', 'RWF', 'UGX', 'VUV', 'XAF', 'XOF', 'XPF',
+    ];
+
+    public static function decimals(string $currencyCode): int
+    {
+        return in_array(strtoupper($currencyCode), self::ZERO_DECIMAL, true) ? 0 : 2;
+    }
+
+    /**
+     * Convert a display amount into the smallest unit a gateway charges in.
+     *
+     * Two things go wrong if this is done inline as (int)($amount * 100):
+     * binary floating point makes 0.29 * 100 come out as 28.999…, which
+     * truncates to 28; and zero-decimal currencies have no hundredths, so
+     * multiplying at all sends a hundred times too much.
+     */
+    public static function toMinorUnits(float $amount, string $currencyCode): int
+    {
+        return self::decimals($currencyCode) === 0
+            ? (int) round($amount)
+            : (int) round($amount * 100);
+    }
+
+    public static function fromMinorUnits(int $minor, string $currencyCode): float
+    {
+        return self::decimals($currencyCode) === 0 ? (float) $minor : $minor / 100;
+    }
+
+    /**
      * Format price in a specific currency
      */
     public static function format(float $amount, string $currencyCode): string
     {
         $symbol = self::symbol($currencyCode);
-        $code = strtoupper($currencyCode);
 
-        // No decimals for JPY, KRW, IDR
-        if (in_array($code, ['JPY', 'KRW', 'IDR'])) {
+        if (self::decimals($currencyCode) === 0) {
             return $symbol . number_format(round($amount), 0);
         }
 

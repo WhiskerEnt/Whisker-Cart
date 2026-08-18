@@ -2,7 +2,7 @@
 namespace App\Controllers\Admin;
 
 use Core\{Request, View, Database, Response, Session};
-use App\Services\EmailService;
+use App\Services\{EmailService, RefundService, CurrencyService};
 
 class OrderController
 {
@@ -35,13 +35,29 @@ class OrderController
 
         $currency = Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='currency_symbol'") ?: '₹';
 
+        // The refunds table arrives with a migration, so a store mid-update
+        // still renders its orders.
+        $refunds = [];
+        $refundable = 0.0;
+        $refundBlocked = false;
+        try {
+            $refunds       = RefundService::forOrder((int) $order['id']);
+            $refundable    = RefundService::refundableAmount($order);
+            $refundBlocked = RefundService::hasUnresolved((int) $order['id']);
+        } catch (\Exception $e) {
+            $refunds = [];
+        }
+
         View::render('admin/orders/show', [
-            'pageTitle'    => 'Order ' . $order['order_number'],
-            'order'        => $order,
-            'items'        => $items,
-            'transactions' => $transactions,
-            'carriers'     => $carriers,
-            'currency'     => $currency,
+            'pageTitle'     => 'Order ' . $order['order_number'],
+            'order'         => $order,
+            'items'         => $items,
+            'transactions'  => $transactions,
+            'carriers'      => $carriers,
+            'currency'      => $currency,
+            'refunds'       => $refunds,
+            'refundable'    => $refundable,
+            'refundBlocked' => $refundBlocked,
         ], 'admin/layouts/main');
     }
 
@@ -93,6 +109,29 @@ class OrderController
 
         Session::flash('success', 'Order status updated to ' . ucfirst($status));
         Response::redirect(View::url('admin/orders/' . $params['id']));
+    }
+
+    public function refund(Request $request, array $params = []): void
+    {
+        $back = View::url('admin/orders/' . (int) $params['id']);
+
+        if (!Session::verifyCsrf($request->input('wk_csrf'))) {
+            Session::flash('error', 'Session expired. Please try again.');
+            Response::redirect($back);
+            return;
+        }
+
+        $order = Database::fetch("SELECT * FROM wk_orders WHERE id=?", [$params['id']]);
+        if (!$order) { Response::notFound(); return; }
+
+        $amount = (float) str_replace(',', '', (string) $request->input('amount'));
+        $reason = trim((string) $request->input('reason'));
+        $manual = $request->input('manual') === '1';
+
+        $result = RefundService::issue($order, $amount, $reason, Session::adminId(), $manual);
+
+        Session::flash($result['success'] ? 'success' : 'error', $result['message']);
+        Response::redirect($back);
     }
 
     public function updateShipping(Request $request, array $params = []): void

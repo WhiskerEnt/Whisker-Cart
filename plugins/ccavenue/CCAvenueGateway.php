@@ -35,8 +35,11 @@ class CCAvenueGateway extends \Core\BaseGateway
         return ['success' => true, 'message' => 'All CCAvenue details are filled in. CCAvenue cannot be verified without a real transaction — place a test order to confirm.'];
     }
 
-    public function refund(string $paymentId, float $amount): array {
-        return ['success'=>false, 'message'=>'Refund via CCAvenue dashboard'];
+    public function refund(string $paymentId, float $amount, array $options = []): array {
+        return $this->refundFailed(
+            'CCAvenue refunds are issued from the CCAvenue merchant panel. '
+            . 'Refund there, then record it here as a manual refund.'
+        );
     }
     public function getPublicConfig(): array { return []; }
 

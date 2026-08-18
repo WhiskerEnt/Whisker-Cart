@@ -62,10 +62,39 @@ class StripeGateway extends \Core\BaseGateway
         return ['success' => false, 'message' => 'Stripe returned HTTP ' . $r['status'] . '.'];
     }
 
-    public function refund(string $paymentId, float $amount): array
+    public function refund(string $paymentId, float $amount, array $options = []): array
     {
-        $r = $this->api('/refunds', ['payment_intent'=>$paymentId, 'amount'=>(int)($amount*100)]);
-        return ['success'=>isset($r['id']), 'refund_id'=>$r['id']??null];
+        $currency = $options['currency'] ?? 'USD';
+        $payload = [
+            'payment_intent' => $paymentId,
+            'amount'         => \App\Services\CurrencyService::toMinorUnits($amount, $currency),
+        ];
+        // Stripe only accepts these three; anything else is kept for our own record.
+        if (in_array($options['reason'] ?? '', ['duplicate', 'fraudulent', 'requested_by_customer'], true)) {
+            $payload['reason'] = $options['reason'];
+        }
+
+        // Replaying a request with the same key returns the original refund
+        // instead of making a second one, which is what makes a retry safe.
+        $headers = [];
+        if (!empty($options['idempotency_key'])) {
+            $headers[] = 'Idempotency-Key: ' . $options['idempotency_key'];
+        }
+
+        $r = $this->api('/refunds', $payload, 'POST', $headers);
+
+        if ($this->lastTransportError !== '') {
+            return $this->refundUnknown($this->lastTransportError);
+        }
+        if (isset($r['id'])) {
+            // 'pending' happens on some payment methods; the webhook settles it.
+            $status = ($r['status'] ?? 'succeeded') === 'succeeded' ? 'completed' : 'pending';
+            return $this->refundOk($r['id'], $status, 'Stripe refund ' . ($r['status'] ?? ''));
+        }
+        if ($this->lastHttp >= 500 || $this->lastHttp === 0) {
+            return $this->refundUnknown('Stripe returned HTTP ' . $this->lastHttp);
+        }
+        return $this->refundFailed($r['error']['message'] ?? 'Stripe rejected the refund.');
     }
 
     public function getPublicConfig(): array { return ['publishable_key'=>$this->cfg('publishable_key')]; }
@@ -138,12 +167,16 @@ class StripeGateway extends \Core\BaseGateway
         \Core\Response::json(['status' => 'ok']);
     }
 
-    private function api(string $ep, array $data=[], string $method='POST'): array
+    /** HTTP status and transport error of the last api() call. */
+    private int $lastHttp = 0;
+    private string $lastTransportError = '';
+
+    private function api(string $ep, array $data=[], string $method='POST', array $headers=[]): array
     {
         $ch = curl_init('https://api.stripe.com/v1' . $ep);
         $opts = [
             CURLOPT_RETURNTRANSFER => 1,
-            CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $this->cfg('secret_key')],
+            CURLOPT_HTTPHEADER => array_merge(['Authorization: Bearer ' . $this->cfg('secret_key')], $headers),
             CURLOPT_TIMEOUT => 30,
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_SSL_VERIFYHOST => 2,
@@ -152,8 +185,10 @@ class StripeGateway extends \Core\BaseGateway
         curl_setopt_array($ch, $opts);
         $body = curl_exec($ch);
         $err = curl_error($ch);
+        $this->lastHttp = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $this->lastTransportError = $err;
         curl_close($ch);
         if ($err) return ['error' => $err];
-        return json_decode($body, true) ?? [];
+        return json_decode((string) $body, true) ?? [];
     }
 }
