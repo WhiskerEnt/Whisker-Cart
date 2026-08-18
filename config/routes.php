@@ -146,6 +146,7 @@ $router->group(['prefix' => '/admin', 'middleware' => ['auth', 'csrf']], functio
     $r->get('/gateways',                 [GatewayController::class, 'index']);
     $r->post('/gateways/toggle',         [GatewayController::class, 'toggle']);
     $r->post('/gateways/configure',      [GatewayController::class, 'configure']);
+    $r->post('/gateways/test/{code}',      [GatewayController::class, 'test']);
 
     // Settings
     $r->get('/settings',                 [SettingsController::class, 'index']);

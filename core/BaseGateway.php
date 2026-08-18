@@ -26,6 +26,45 @@ abstract class BaseGateway implements PaymentGatewayInterface
         return $this->config[$key] ?? '';
     }
 
+    /**
+     * Check the saved credentials against the provider.
+     *
+     * Gateways override this with a cheap authenticated call. The default
+     * reports that the gateway cannot be checked automatically, so a provider
+     * without a suitable endpoint does not look broken.
+     *
+     * @return array{success:bool, message:string}
+     */
+    public function testConnection(): array
+    {
+        return ['success' => false, 'message' => 'This gateway cannot be checked automatically. Verify the details in your provider dashboard.'];
+    }
+
+    /**
+     * Small HTTP helper for credential checks.
+     *
+     * @return array{status:int, body:string, error:string}
+     */
+    protected function probe(string $url, array $headers = [], ?string $basicAuth = null): array
+    {
+        $ch = curl_init($url);
+        $opts = [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 12,
+            CURLOPT_CONNECTTIMEOUT => 8,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+        ];
+        if ($headers) $opts[CURLOPT_HTTPHEADER] = $headers;
+        if ($basicAuth !== null) $opts[CURLOPT_USERPWD] = $basicAuth;
+        curl_setopt_array($ch, $opts);
+        $body   = (string) curl_exec($ch);
+        $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error  = curl_error($ch);
+        curl_close($ch);
+        return ['status' => $status, 'body' => $body, 'error' => $error];
+    }
+
     protected function logTransaction(int $orderId, array $data): int
     {
         // Redact sensitive keys before logging

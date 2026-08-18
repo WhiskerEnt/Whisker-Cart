@@ -29,6 +29,20 @@ class NowPaymentsGateway extends \Core\BaseGateway
         return ['success'=>$ok, 'payment_id'=>$p['payment_id']??null];
     }
 
+    public function testConnection(): array
+    {
+        $key = $this->cfg('api_key');
+        if ($key === '') return ['success' => false, 'message' => 'No API key saved.'];
+
+        $up = $this->probe('https://api.nowpayments.io/v1/status');
+        if ($up['status'] !== 200) return ['success' => false, 'message' => 'NOWPayments API is not reachable right now.'];
+
+        $r = $this->probe('https://api.nowpayments.io/v1/balance', ['x-api-key: ' . $key]);
+        if ($r['status'] === 200) return ['success' => true, 'message' => 'Connected to NOWPayments.'];
+        if ($r['status'] === 401 || $r['status'] === 403) return ['success' => false, 'message' => 'NOWPayments rejected the API key.'];
+        return ['success' => false, 'message' => 'NOWPayments returned HTTP ' . $r['status'] . '.'];
+    }
+
     public function refund(string $paymentId, float $amount): array {
         return ['success'=>false, 'message'=>'Crypto refunds handled manually'];
     }

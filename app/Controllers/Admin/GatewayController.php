@@ -38,6 +38,30 @@ class GatewayController
         Response::redirect(View::url('admin/gateways'));
     }
 
+    /**
+     * Check a gateway's saved credentials against the provider and report back.
+     */
+    public function test(Request $request, array $params = []): void
+    {
+        $code = preg_replace('/[^a-z0-9_]/', '', (string)($params['code'] ?? ''));
+        $gw = Database::fetch("SELECT gateway_code FROM wk_payment_gateways WHERE gateway_code=?", [$code]);
+        if (!$gw) { Response::json(['success' => false, 'message' => 'Unknown gateway.'], 404); return; }
+
+        try {
+            $gateway = \Core\PluginManager::loadGateway($code);
+            if (!$gateway) { Response::json(['success' => false, 'message' => 'Gateway plugin could not be loaded.']); return; }
+            $result = $gateway->testConnection();
+        } catch (\Throwable $e) {
+            Response::json(['success' => false, 'message' => 'Test failed to run.']);
+            return;
+        }
+
+        Response::json([
+            'success' => (bool)($result['success'] ?? false),
+            'message' => (string)($result['message'] ?? ''),
+        ]);
+    }
+
     public function configure(Request $request, array $params = []): void
     {
         if (!Session::verifyCsrf($request->input('wk_csrf'))) {

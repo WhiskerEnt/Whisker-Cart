@@ -91,6 +91,25 @@ Upload it to any ₹99/month shared hosting, run the 6-step installer, and you h
 - **Low stock email alerts** — daily notification when products hit ≤5 stock
 
 ### Payments
+
+**Setting up a gateway.** Open **Admin → Payment Gateways**, expand **Configure** on the gateway you want, paste its credentials, and press **Test connection** — Whisker calls the provider and tells you whether the keys are accepted before you take a single order. Tick **Test Mode** while you are trying things out; the test credentials are stored separately from the live ones.
+
+**Webhook URL.** Each gateway card shows the exact URL to paste into the provider's dashboard, with a copy button:
+
+```
+https://yourstore.com/webhook/{gateway}/callback
+```
+
+| Gateway | Where the keys live | What to subscribe to |
+|---|---|---|
+| **Stripe** | Developers → API keys (or the Workbench panel) | Add a webhook endpoint for `checkout.session.completed`; paste the `whsec_…` signing secret into Whisker |
+| **Razorpay** | Account & Settings → API Keys | Settings → Webhooks, subscribe to `payment.captured`, and use the same secret in both places |
+| **CCAvenue** | Merchant panel → Settings → API Keys | Set the URL above as your Response URL |
+| **NOWPayments** | Settings → API keys | Settings → IPN — set the URL above as the callback and paste the IPN secret |
+
+Whisker refuses to process a webhook when its secret is missing, rather than trusting an unsigned request, so payments will not be confirmed until the secret is saved.
+
+
 - **Razorpay** — UPI, Cards, Netbanking (webhook signature verified)
 - **Stripe** — 150+ countries (webhook signature + replay protection)
 - **CCAvenue** — Indian payment gateway

@@ -25,6 +25,16 @@ class CCAvenueGateway extends \Core\BaseGateway
         return ['success'=>$ok, 'payment_id'=>$d['tracking_id']??null, 'order_id'=>$d['order_id']??null, 'amount'=>$d['amount']??null];
     }
 
+    public function testConnection(): array
+    {
+        foreach ([['merchant_id', 'Merchant ID'], ['access_code', 'Access code'], ['working_key', 'Working key']] as [$k, $label]) {
+            if ($this->cfg($k) === '') return ['success' => false, 'message' => $label . ' is missing.'];
+        }
+        // CCAvenue offers no endpoint to verify credentials without a live
+        // transaction, so this confirms completeness rather than validity.
+        return ['success' => true, 'message' => 'All CCAvenue details are filled in. CCAvenue cannot be verified without a real transaction — place a test order to confirm.'];
+    }
+
     public function refund(string $paymentId, float $amount): array {
         return ['success'=>false, 'message'=>'Refund via CCAvenue dashboard'];
     }

@@ -47,6 +47,21 @@ class StripeGateway extends \Core\BaseGateway
         return $result;
     }
 
+    public function testConnection(): array
+    {
+        $key = $this->cfg('secret_key');
+        if ($key === '') return ['success' => false, 'message' => 'No secret key saved.'];
+
+        $r = $this->probe('https://api.stripe.com/v1/balance', ['Authorization: Bearer ' . $key]);
+        if ($r['error'] !== '') return ['success' => false, 'message' => 'Could not reach Stripe: ' . $r['error']];
+        if ($r['status'] === 200) {
+            $live = str_starts_with($key, 'sk_live_');
+            return ['success' => true, 'message' => 'Connected to Stripe (' . ($live ? 'live' : 'test') . ' key).'];
+        }
+        if ($r['status'] === 401) return ['success' => false, 'message' => 'Stripe rejected the secret key.'];
+        return ['success' => false, 'message' => 'Stripe returned HTTP ' . $r['status'] . '.'];
+    }
+
     public function refund(string $paymentId, float $amount): array
     {
         $r = $this->api('/refunds', ['payment_intent'=>$paymentId, 'amount'=>(int)($amount*100)]);

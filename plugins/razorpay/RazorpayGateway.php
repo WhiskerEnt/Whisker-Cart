@@ -27,6 +27,22 @@ class RazorpayGateway extends \Core\BaseGateway
         return ['success'=>$ok, 'payment_id'=>$p['razorpay_payment_id']??null];
     }
 
+    public function testConnection(): array
+    {
+        $id     = $this->cfg('key_id');
+        $secret = $this->cfg('key_secret');
+        if ($id === '' || $secret === '') return ['success' => false, 'message' => 'Key ID and key secret are both required.'];
+
+        $r = $this->probe('https://api.razorpay.com/v1/payments?count=1', [], $id . ':' . $secret);
+        if ($r['error'] !== '') return ['success' => false, 'message' => 'Could not reach Razorpay: ' . $r['error']];
+        if ($r['status'] === 200) {
+            $live = str_starts_with($id, 'rzp_live_');
+            return ['success' => true, 'message' => 'Connected to Razorpay (' . ($live ? 'live' : 'test') . ' key).'];
+        }
+        if ($r['status'] === 401) return ['success' => false, 'message' => 'Razorpay rejected the key ID or secret.'];
+        return ['success' => false, 'message' => 'Razorpay returned HTTP ' . $r['status'] . '.'];
+    }
+
     public function refund(string $paymentId, float $amount): array
     {
         $r = $this->api("/payments/{$paymentId}/refund", ['amount'=>(int)($amount*100)]);
