@@ -10,7 +10,7 @@ Beautiful storefront. Powerful admin panel. Built-in AI chatbot. Zero monthly fe
 
 🌐 **[Live Demo](https://whisker.lohit.me)** · 📖 **[Documentation](https://github.com/WhiskerEnt/Whisker-Cart/wiki)** · 📧 **[mail@lohit.me](mailto:mail@lohit.me)**
 
-> **v1.4.0 — releasing 22 August 2026.** A large release. It adds **refunds from the admin panel** (gateway-backed, with a reference and a receipt email), **reviews and ratings**, **customer questions and answers**, **shipping zones**, **shipping destination control**, **cookie consent**, **guest order tracking**, **instant product search**, and **pickup point / locker delivery** — plus an opt-in multi-currency switcher, admin-managed branding, and a rebuilt order confirmation page. Recommended for all installs.
+> **v1.4.0 — released 22 August 2026.** A large release. It adds **refunds from the admin panel** (gateway-backed, with a reference and a receipt email), **reviews and ratings**, **customer questions and answers**, **shipping zones**, **shipping destination control**, **cookie consent**, **guest order tracking**, **instant product search**, and **pickup point / locker delivery** — plus an opt-in multi-currency switcher, admin-managed branding, and a rebuilt order confirmation page. Recommended for all installs.
 
 ---
 
