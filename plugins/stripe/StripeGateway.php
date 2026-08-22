@@ -21,22 +21,87 @@ class StripeGateway extends \Core\BaseGateway
 
     public function verifyPayment(array $p): array
     {
-        $session = $this->api('/checkout/sessions/'.$p['session_id'], [], 'GET');
-        $ok = ($session['payment_status']??'') === 'paid';
-        return ['success'=>$ok, 'payment_id'=>$session['payment_intent']??null];
+        $sessionId = trim((string)($p['session_id'] ?? ''));
+        if ($sessionId === '') return ['success'=>false, 'message'=>'Missing session id'];
+
+        $session = $this->api('/checkout/sessions/'.$sessionId, [], 'GET');
+        if (($session['payment_status'] ?? '') !== 'paid') {
+            return ['success'=>false, 'message'=>'Session not paid'];
+        }
+
+        // Bind the session to this order: createOrder() stamps
+        // metadata.order_id, so a session can only confirm the order it was
+        // created for.
+        $claimedOrderId = (int)($p['order_id'] ?? 0);
+        $sessionOrderId = (int)($session['metadata']['order_id'] ?? 0);
+        if ($claimedOrderId <= 0 || $sessionOrderId <= 0 || $sessionOrderId !== $claimedOrderId) {
+            return ['success'=>false, 'message'=>'Payment session does not belong to this order'];
+        }
+
+        $result = ['success'=>true, 'payment_id'=>$session['payment_intent'] ?? null];
+        // Report the amount actually paid so markOrderPaid() can run its
+        // amount-mismatch check.
+        if (isset($session['amount_total'])) {
+            $result['amount'] = (float)$session['amount_total'] / 100;
+        }
+        return $result;
     }
 
-    public function refund(string $paymentId, float $amount): array
+    public function testConnection(): array
     {
-        $r = $this->api('/refunds', ['payment_intent'=>$paymentId, 'amount'=>(int)($amount*100)]);
-        return ['success'=>isset($r['id']), 'refund_id'=>$r['id']??null];
+        $key = $this->cfg('secret_key');
+        if ($key === '') return ['success' => false, 'message' => 'No secret key saved.'];
+
+        $r = $this->probe('https://api.stripe.com/v1/balance', ['Authorization: Bearer ' . $key]);
+        if ($r['error'] !== '') return ['success' => false, 'message' => 'Could not reach Stripe: ' . $r['error']];
+        if ($r['status'] === 200) {
+            $live = str_starts_with($key, 'sk_live_');
+            return ['success' => true, 'message' => 'Connected to Stripe (' . ($live ? 'live' : 'test') . ' key).'];
+        }
+        if ($r['status'] === 401) return ['success' => false, 'message' => 'Stripe rejected the secret key.'];
+        return ['success' => false, 'message' => 'Stripe returned HTTP ' . $r['status'] . '.'];
+    }
+
+    public function refund(string $paymentId, float $amount, array $options = []): array
+    {
+        $currency = $options['currency'] ?? 'USD';
+        $payload = [
+            'payment_intent' => $paymentId,
+            'amount'         => \App\Services\CurrencyService::toMinorUnits($amount, $currency),
+        ];
+        // Stripe only accepts these three; anything else is kept for our own record.
+        if (in_array($options['reason'] ?? '', ['duplicate', 'fraudulent', 'requested_by_customer'], true)) {
+            $payload['reason'] = $options['reason'];
+        }
+
+        // Replaying a request with the same key returns the original refund
+        // instead of making a second one, which is what makes a retry safe.
+        $headers = [];
+        if (!empty($options['idempotency_key'])) {
+            $headers[] = 'Idempotency-Key: ' . $options['idempotency_key'];
+        }
+
+        $r = $this->api('/refunds', $payload, 'POST', $headers);
+
+        if ($this->lastTransportError !== '') {
+            return $this->refundUnknown($this->lastTransportError);
+        }
+        if (isset($r['id'])) {
+            // 'pending' happens on some payment methods; the webhook settles it.
+            $status = ($r['status'] ?? 'succeeded') === 'succeeded' ? 'completed' : 'pending';
+            return $this->refundOk($r['id'], $status, 'Stripe refund ' . ($r['status'] ?? ''));
+        }
+        if ($this->lastHttp >= 500 || $this->lastHttp === 0) {
+            return $this->refundUnknown('Stripe returned HTTP ' . $this->lastHttp);
+        }
+        return $this->refundFailed($r['error']['message'] ?? 'Stripe rejected the refund.');
     }
 
     public function getPublicConfig(): array { return ['publishable_key'=>$this->cfg('publishable_key')]; }
 
     public function webhook(\Core\Request $request): void
     {
-        // L6: rate-limit by source IP. See RazorpayGateway::webhook comment.
+        // Rate-limit by source IP. See RazorpayGateway::webhook comment.
         if (!\Core\RateLimiter::attempt('webhook_stripe', $request->ip(), 300, 300)) {
             \Core\Response::json(['error' => 'Rate limited'], 429);
             return;
@@ -102,12 +167,16 @@ class StripeGateway extends \Core\BaseGateway
         \Core\Response::json(['status' => 'ok']);
     }
 
-    private function api(string $ep, array $data=[], string $method='POST'): array
+    /** HTTP status and transport error of the last api() call. */
+    private int $lastHttp = 0;
+    private string $lastTransportError = '';
+
+    private function api(string $ep, array $data=[], string $method='POST', array $headers=[]): array
     {
         $ch = curl_init('https://api.stripe.com/v1' . $ep);
         $opts = [
             CURLOPT_RETURNTRANSFER => 1,
-            CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $this->cfg('secret_key')],
+            CURLOPT_HTTPHEADER => array_merge(['Authorization: Bearer ' . $this->cfg('secret_key')], $headers),
             CURLOPT_TIMEOUT => 30,
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_SSL_VERIFYHOST => 2,
@@ -116,8 +185,10 @@ class StripeGateway extends \Core\BaseGateway
         curl_setopt_array($ch, $opts);
         $body = curl_exec($ch);
         $err = curl_error($ch);
+        $this->lastHttp = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $this->lastTransportError = $err;
         curl_close($ch);
         if ($err) return ['error' => $err];
-        return json_decode($body, true) ?? [];
+        return json_decode((string) $body, true) ?? [];
     }
 }

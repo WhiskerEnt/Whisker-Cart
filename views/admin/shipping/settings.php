@@ -8,10 +8,142 @@ try { $carriers = \Core\Database::fetchAll("SELECT * FROM wk_shipping_carriers W
 ?>
 <div style="display:flex;gap:12px;margin-bottom:24px">
     <a href="<?= $url('admin/shipping') ?>" class="wk-btn wk-btn-secondary">🚚 Manage Carriers</a>
+    <a href="<?= $url('admin/shipping/zones') ?>" class="wk-btn wk-btn-secondary">🌍 Shipping Zones</a>
 </div>
 
 <form method="POST" action="<?= $url('admin/shipping/settings/update') ?>">
     <?= \Core\Session::csrfField() ?>
+<?php
+// Where the store posts to. Most shops only ever need "my own country",
+// so that is the first and default answer rather than a country checklist.
+$CS          = \App\Services\CountryService::class;
+$shipMode    = $s['shipping']['ship_mode'] ?? 'domestic';
+$shipPicked  = array_filter(array_map('trim', explode(',', (string) ($s['shipping']['ship_countries'] ?? ''))));
+$storeCode   = $CS::storeCountry();
+$allCountries = $CS::all();
+?>
+<div class="wk-card" style="max-width:900px;margin-bottom:20px">
+    <div class="wk-card-header">
+        <h2>🌍 Shipping Destinations</h2>
+        <span style="font-size:12px;color:var(--wk-text-muted);font-weight:600" id="destCount"></span>
+    </div>
+    <div class="wk-card-body">
+        <p style="font-size:12px;color:var(--wk-text-muted);margin-bottom:16px;line-height:1.6">
+            Checkout only offers the countries you post to, and refuses any other even if the form is edited.
+            Billing addresses are not restricted — a customer can pay from anywhere.
+        </p>
+
+        <div class="wk-ship-modes">
+            <?php
+            $modes = [
+                'domestic' => ['Domestic only', 'Ship within ' . $CS::name($storeCode) . ' only'],
+                'selected' => ['Selected countries', 'Pick the countries you post to'],
+                'all'      => ['Everywhere', 'Offer every country at checkout'],
+            ];
+            foreach ($modes as $key => [$label, $hint]): ?>
+                <label class="wk-ship-mode<?= $shipMode === $key ? ' is-active' : '' ?>">
+                    <input type="radio" name="shipping_ship_mode" value="<?= $key ?>" <?= $shipMode === $key ? 'checked' : '' ?>>
+                    <span class="wk-ship-mode-label"><?= htmlspecialchars($label) ?></span>
+                    <span class="wk-ship-mode-hint"><?= htmlspecialchars($hint) ?></span>
+                </label>
+            <?php endforeach; ?>
+        </div>
+
+        <?php if (!\App\Services\CountryService::exists((string) ($s['general']['store_country'] ?? ''))): ?>
+            <div style="background:var(--wk-bg);border-radius:var(--radius-sm);padding:11px 13px;font-size:12px;color:var(--wk-text-muted);margin-top:14px;line-height:1.6">
+                Your store country is not set, so domestic shipping assumes <strong><?= htmlspecialchars($CS::name($storeCode)) ?></strong>.
+                Set it under <a href="<?= $url('admin/settings') ?>" style="color:var(--wk-purple);font-weight:700">Settings → Store Location</a>.
+            </div>
+        <?php endif; ?>
+
+        <div id="countryPicker" style="margin-top:20px;<?= $shipMode === 'selected' ? '' : 'display:none' ?>">
+            <div class="wk-ship-picker-bar">
+                <input type="search" id="countrySearch" class="wk-input" placeholder="Search countries..." autocomplete="off" style="flex:1;min-width:180px">
+                <button type="button" class="wk-btn wk-btn-secondary wk-btn-sm" data-pick="eu">EU</button>
+                <button type="button" class="wk-btn wk-btn-secondary wk-btn-sm" data-pick="all">All</button>
+                <button type="button" class="wk-btn wk-btn-secondary wk-btn-sm" data-pick="none">None</button>
+            </div>
+            <div class="wk-country-grid" id="countryGrid">
+                <?php foreach ($allCountries as $code => $name):
+                    $on = in_array($code, $shipPicked, true); ?>
+                    <label class="wk-country<?= $on ? ' is-on' : '' ?>" data-name="<?= htmlspecialchars(strtolower($name)) ?>" data-code="<?= htmlspecialchars(strtolower($code)) ?>">
+                        <input type="checkbox" name="ship_country[]" value="<?= htmlspecialchars($code) ?>" <?= $on ? 'checked' : '' ?>>
+                        <span><?= htmlspecialchars($name) ?></span>
+                    </label>
+                <?php endforeach; ?>
+            </div>
+            <p id="countryNoMatch" style="font-size:12px;color:var(--wk-text-muted);margin:12px 0 0;display:none">No country matches that search.</p>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    var picker = document.getElementById('countryPicker');
+    if (!picker) return;
+    var grid    = document.getElementById('countryGrid');
+    var search  = document.getElementById('countrySearch');
+    var count   = document.getElementById('destCount');
+    var noMatch = document.getElementById('countryNoMatch');
+    var rows    = [].slice.call(grid.querySelectorAll('.wk-country'));
+    var EU      = <?= json_encode(\App\Services\CountryService::EU) ?>;
+
+    function refreshCount() {
+        var mode = document.querySelector('[name=shipping_ship_mode]:checked');
+        if (!mode) return;
+        if (mode.value === 'all')      { count.textContent = 'Every country'; return; }
+        if (mode.value === 'domestic') { count.textContent = <?= json_encode($CS::name($storeCode)) ?>; return; }
+        var n = rows.filter(function (r) { return r.querySelector('input').checked; }).length;
+        count.textContent = n + (n === 1 ? ' country' : ' countries');
+    }
+
+    document.querySelectorAll('[name=shipping_ship_mode]').forEach(function (radio) {
+        radio.addEventListener('change', function () {
+            picker.style.display = radio.value === 'selected' ? '' : 'none';
+            document.querySelectorAll('.wk-ship-mode').forEach(function (l) {
+                l.classList.toggle('is-active', l.querySelector('input').checked);
+            });
+            refreshCount();
+        });
+    });
+
+    grid.addEventListener('change', function (e) {
+        if (e.target.type !== 'checkbox') return;
+        e.target.closest('.wk-country').classList.toggle('is-on', e.target.checked);
+        refreshCount();
+    });
+
+    search.addEventListener('input', function () {
+        var q = search.value.trim().toLowerCase();
+        var shown = 0;
+        rows.forEach(function (r) {
+            var hit = q === '' || r.dataset.name.indexOf(q) > -1 || r.dataset.code === q;
+            r.style.display = hit ? '' : 'none';
+            if (hit) shown++;
+        });
+        noMatch.style.display = shown === 0 ? '' : 'none';
+    });
+
+    document.querySelectorAll('[data-pick]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var what = btn.getAttribute('data-pick');
+            rows.forEach(function (r) {
+                var box = r.querySelector('input');
+                // Only touch what the search is currently showing, so a filtered
+                // "All" does what it looks like it does.
+                if (r.style.display === 'none') return;
+                box.checked = what === 'all' ? true
+                            : what === 'none' ? false
+                            : EU.indexOf(box.value) > -1;
+                r.classList.toggle('is-on', box.checked);
+            });
+            refreshCount();
+        });
+    });
+
+    refreshCount();
+})();
+</script>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:900px">
         <div>
             <div class="wk-card">

@@ -5,24 +5,23 @@ $baseCurrency = \App\Services\CurrencyService::baseCurrency();
 $displayCurrency = $_SESSION['wk_display_currency'] ?? $baseCurrency;
 $baseSymbol = \App\Services\CurrencyService::baseSymbol();
 
-$showPrice = function($amount) use ($baseSymbol, $baseCurrency, $displayCurrency) {
-    $base = $baseSymbol . number_format($amount, 2);
-    if ($displayCurrency === $baseCurrency) return $base;
-    $converted = \App\Services\CurrencyService::convert($amount, $baseCurrency, $displayCurrency);
-    return \App\Services\CurrencyService::format($converted, $displayCurrency)
-         . ' <span style="font-size:11px;color:var(--wk-muted);font-weight:500">(' . $base . ')</span>';
-};
+// Show prices in the visitor's chosen currency only (no base-currency clutter).
+$showPrice = fn($amount) => \App\Services\CurrencyService::displayPrice((float) $amount);
 $price = $showPrice;
 
-// Build current URL params for sort/pagination links
+// Build current URL params for sort/pagination links. On a search results page
+// these must carry the query and target the search route so paging and sorting
+// stay within the results.
 $currentParams = [];
+$isSearch = !empty($searchQuery ?? '');
+if ($isSearch) $currentParams['q'] = $searchQuery;
 if (!empty($currentCategory)) $currentParams['category'] = $currentCategory['slug'];
 if ($sort !== 'newest') $currentParams['sort'] = $sort;
 
-$buildUrl = function($overrides = []) use ($url, $currentParams) {
+$buildUrl = function($overrides = []) use ($url, $currentParams, $isSearch) {
     $params = array_merge($currentParams, $overrides);
     $qs = http_build_query($params);
-    return $url('shop') . ($qs ? '?' . $qs : '');
+    return $url($isSearch ? 'search' : 'shop') . ($qs ? '?' . $qs : '');
 };
 ?>
 
@@ -100,6 +99,7 @@ $buildUrl = function($overrides = []) use ($url, $currentParams) {
                             <div class="wk-product-cat"><?= $e($p['category_name']) ?></div>
                         <?php endif; ?>
                         <div class="wk-product-name"><?= $e($p['name']) ?></div>
+                        <?= \App\Services\ReviewService::cardRatingHtml((int) $p['id']) ?>
                         <div class="wk-product-price">
                             <span class="current"><?= $price($prc) ?></span>
                             <?php if ($hasSale): ?><span class="original"><?= $price($p['price']) ?></span><?php endif; ?>

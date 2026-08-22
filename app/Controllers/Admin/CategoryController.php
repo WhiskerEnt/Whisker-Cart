@@ -46,11 +46,10 @@ class CategoryController
             return;
         }
 
-        // M24: parent_id must be 0/null OR reference an existing top-level
-        // category. Whisker's category UI is a flat 2-level structure
-        // (parent ⟶ child, no grandchildren), so the parent itself must be
-        // top-level. This also prevents cycles and orphans by construction
-        // — you can never pick a child as your parent.
+        // parent_id must be 0/null or reference an existing top-level
+        // category. Categories are a flat 2-level structure (parent → child,
+        // no grandchildren), which prevents cycles and orphans by
+        // construction — a child can never be picked as a parent.
         $parentId = $this->validParentId($request->input('parent_id'), null);
         if ($parentId === false) {
             Session::flash('error', 'Selected parent category is invalid.');
@@ -108,9 +107,9 @@ class CategoryController
             return;
         }
 
-        // M24: parent_id must be a valid top-level category id, and must
-        // not be the row itself (self-parent). Passing the current id lets
-        // validParentId() reject the self-cycle case.
+        // parent_id must be a valid top-level category id and must not be
+        // the row itself; passing the current id lets validParentId()
+        // reject the self-cycle case.
         $parentId = $this->validParentId($request->input('parent_id'), (int)$params['id']);
         if ($parentId === false) {
             Session::flash('error', 'Selected parent category is invalid.');

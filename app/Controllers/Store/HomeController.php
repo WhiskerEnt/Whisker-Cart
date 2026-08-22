@@ -9,16 +9,8 @@ class HomeController
 
     public function index(Request $request, array $params = []): void
     {
-        // Handle currency switch
-        $switchCurrency = $request->query('currency');
-        if ($switchCurrency) {
-            $allowed = array_keys(\App\Services\CurrencyService::currencies());
-            if (in_array(strtoupper($switchCurrency), $allowed)) {
-                Session::set('wk_display_currency', strtoupper($switchCurrency));
-            }
-            \Core\Response::redirect(\Core\View::url(''));
-            return;
-        }
+        // Currency switching is handled globally in index.php so it works on
+        // every page and returns the visitor to where they were.
 
         $featured = Database::fetchAll(
             "SELECT p.*, c.name AS category_name,

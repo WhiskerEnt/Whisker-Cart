@@ -22,11 +22,9 @@ class AuthController
 
     public function login(Request $request, array $params = []): void
     {
-        // M8: order matters. We check CSRF FIRST, then input validation, and
-        // only then consume a rate-limit slot. The old order (RateLimiter →
-        // Validator → CSRF) burned rate-limit slots on expired CSRF tokens
-        // and missing fields — users with a stale form could lock themselves
-        // out without ever submitting valid credentials.
+        // Order matters: CSRF first, then input validation, then the rate
+        // limiter — so rate-limit slots are consumed only by well-formed
+        // auth attempts, not stale forms or missing fields.
         if (!Session::verifyCsrf($request->input('wk_csrf'))) {
             Session::flash('error', 'Session expired. Please try again.');
             Response::redirect(View::url('admin/login'));
@@ -133,7 +131,7 @@ class AuthController
                     ]);
                 } catch (\Exception $e) {
                     // Fallback: table might not exist yet on old installs.
-                    // M23: store ONLY the SHA-256 hash, never the raw token.
+                    // Store only the SHA-256 hash, never the raw token.
                     Database::query(
                         "INSERT INTO wk_settings (setting_group, setting_key, setting_value) VALUES ('admin_reset_tokens', ?, ?)
                          ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)",
@@ -141,10 +139,8 @@ class AuthController
                     );
                 }
 
-                // Finding 25: match the same HTTPS detection Session::start
-                // uses — a bare isset() treats the value 'off' as truthy and
-                // would build an https:// URL on a plain-HTTP request, while
-                // !empty(...) && !== 'off' is the correct PHP idiom.
+                // Same HTTPS detection as Session::start: $_SERVER['HTTPS']
+                // can hold the value 'off', so check both presence and value.
                 $isHttps = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
                 $resetUrl = ($isHttps ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? '') . View::url('admin/reset-password') . '?token=' . $token . '&id=' . $admin['id'];
 
@@ -221,9 +217,8 @@ class AuthController
 
     private static function validateResetToken(int $id, string $token): bool
     {
-        // L23: reject empty tokens explicitly. hash_equals('','') returns
-        // true, and downstream rows with malformed/missing token data would
-        // otherwise let an empty submitted token through.
+        // Reject empty tokens explicitly: hash_equals('','') returns true,
+        // so rows with missing token data must never match an empty input.
         if ($token === '') return false;
         $tokenHash = hash('sha256', $token);
 
@@ -236,11 +231,9 @@ class AuthController
             if ($row) return true;
         } catch (\Exception $e) {}
 
-        // Fallback: old wk_settings storage (for installs that haven't migrated
-        // yet). M23: compare the stored hash against the hash of the submitted
-        // token, never the raw token. Accept legacy rows that still hold a raw
-        // token by hashing them on read — works for installs that pre-date
-        // the M23 fix.
+        // Fallback: old wk_settings storage for installs that haven't
+        // migrated yet. Comparison is always hash-to-hash; legacy rows that
+        // still hold a raw token are hashed on read.
         try {
             $old = Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='admin_reset_tokens' AND setting_key=?", ['token_' . $id]);
             if ($old) {

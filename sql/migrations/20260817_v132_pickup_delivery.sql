@@ -40,6 +40,11 @@ INSERT INTO wk_settings (setting_group, setting_key, setting_value)
 VALUES ('shipping', 'pickup_fee', '')
 ON DUPLICATE KEY UPDATE setting_value = setting_value;
 
+-- Multi-currency is opt-in; default off so existing stores keep single-currency.
+INSERT INTO wk_settings (setting_group, setting_key, setting_value)
+VALUES ('general', 'multi_currency', '0')
+ON DUPLICATE KEY UPDATE setting_value = setting_value;
+
 -- Heal stores that picked a non-INR currency before v1.3.2: the installer
 -- used to save the currency code but never the symbol, leaving the seeded ₹.
 -- Only touches rows where the symbol is still the stale default.

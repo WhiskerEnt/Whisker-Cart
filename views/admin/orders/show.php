@@ -46,13 +46,19 @@ $s=$sm[$o['status']]??['info','?'];
 
         <!-- Addresses -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+            <?php
+            // Addresses store the ISO code; a customer service rep reading this
+            // page wants "India", not "IN".
+            $country = fn($code) => $code !== '' ? \App\Services\CountryService::name((string) $code) : '';
+            ?>
             <div class="wk-card">
                 <div class="wk-card-header"><h2>📍 Billing Address</h2></div>
                 <div class="wk-card-body" style="font-size:14px;line-height:1.8">
                     <strong><?= $e($billing['name']??'') ?></strong><br>
                     <?= $e($billing['line1']??'') ?><br>
+                    <?php if (!empty($billing['line2'])): ?><?= $e($billing['line2']) ?><br><?php endif; ?>
                     <?= $e(($billing['city']??'').', '.($billing['state']??'').' '.($billing['zip']??'')) ?><br>
-                    <?= $e($billing['country']??'') ?>
+                    <?= $e($country($billing['country'] ?? '')) ?>
                 </div>
             </div>
             <?php $isPickup = !empty($shipping_addr['pickup']); ?>
@@ -63,7 +69,8 @@ $s=$sm[$o['status']]??['info','?'];
                     <strong><?= $e($shipping_addr['name']??'') ?></strong><br>
                     <?= $e($shipping_addr['line1']??'') ?><br>
                     <?php if (!empty($shipping_addr['line2'])): ?><?= $e($shipping_addr['line2']) ?><br><?php endif; ?>
-                    <?= $e(($shipping_addr['city']??'').', '.($shipping_addr['state']??'').' '.($shipping_addr['zip']??'')) ?>
+                    <?= $e(($shipping_addr['city']??'').', '.($shipping_addr['state']??'').' '.($shipping_addr['zip']??'')) ?><br>
+                    <?= $e($country($shipping_addr['country'] ?? '')) ?>
                     <?php if ($isPickup && !empty($shipping_addr['opening_hours'])): ?>
                         <br><span style="color:var(--wk-text-muted);font-size:13px">🕐 <?= $e($shipping_addr['opening_hours']) ?></span>
                     <?php endif; ?>
@@ -141,6 +148,126 @@ $s=$sm[$o['status']]??['info','?'];
             </div>
         </div>
 
+        <!-- Refunds -->
+        <?php
+        $curCode  = $o['currency'] ?: 'INR';
+        $money    = fn($v) => \App\Services\CurrencyService::format((float) $v, $curCode);
+        $refunded = array_sum(array_map(
+            fn($r) => in_array($r['status'], ['completed','pending','unknown'], true) ? (float) $r['amount'] : 0,
+            $refunds ?? []
+        ));
+        $gwName        = $o['payment_gateway'] ?: '';
+        $apiRefundable = in_array($gwName, ['stripe','razorpay'], true);
+        // An unpaid order has nothing to send back, so the panel stays away
+        // rather than offering a form that would be refused.
+        $orderWasPaid  = in_array($o['payment_status'] ?? '', ['captured','authorized','partially_refunded','refunded'], true);
+        ?>
+        <?php if ($orderWasPaid || $refunds): ?>
+        <div class="wk-card">
+            <div class="wk-card-header"><h2>Refunds</h2></div>
+            <div class="wk-card-body">
+                <?php if ($refunds): ?>
+                <div style="margin-bottom:16px">
+                    <?php foreach ($refunds as $r):
+                        $tone = ['completed'=>'var(--wk-green)','pending'=>'var(--wk-yellow)',
+                                 'unknown'=>'var(--wk-red)','failed'=>'var(--wk-text-muted)'][$r['status']] ?? 'var(--wk-text-muted)';
+                    ?>
+                    <div style="padding:10px 0;border-bottom:1px solid var(--wk-border)">
+                        <div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline">
+                            <code style="font-size:12px;font-weight:700"><?= $e($r['refund_ref']) ?></code>
+                            <strong style="font-family:var(--font-mono)"><?= $e($money($r['amount'])) ?></strong>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;gap:10px;margin-top:3px">
+                            <span style="font-size:11px;font-weight:800;color:<?= $tone ?>;text-transform:uppercase">
+                                <?= $e($r['status']) ?><?= $r['is_manual'] ? ' &middot; by hand' : '' ?>
+                            </span>
+                            <span style="font-size:11px;color:var(--wk-text-muted)"><?= $e(date('j M Y, H:i', strtotime($r['created_at']))) ?></span>
+                        </div>
+                        <?php if ($r['gateway_refund_id']): ?>
+                            <div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">
+                                Gateway ID <code><?= $e($r['gateway_refund_id']) ?></code>
+                            </div>
+                        <?php endif; ?>
+                        <?php if ($r['reason']): ?>
+                            <div style="font-size:12px;margin-top:4px"><?= $e($r['reason']) ?></div>
+                        <?php endif; ?>
+                        <?php if ($r['message'] && $r['status'] !== 'completed'): ?>
+                            <div style="font-size:11px;color:<?= $tone ?>;margin-top:4px"><?= $e($r['message']) ?></div>
+                        <?php endif; ?>
+                    </div>
+                    <?php endforeach; ?>
+                    <div style="display:flex;justify-content:space-between;padding-top:10px;font-size:13px;font-weight:800">
+                        <span>Refunded</span><span style="font-family:var(--font-mono)"><?= $e($money($refunded)) ?></span>
+                    </div>
+                </div>
+                <?php endif; ?>
+
+                <?php if (!empty($refundBlocked)): ?>
+                    <div style="background:#fee2e2;color:var(--wk-red);border-radius:var(--radius-sm);padding:12px 14px;font-size:12px;line-height:1.6">
+                        <strong>An earlier refund was never confirmed.</strong>
+                        The money may already have reached the customer. Check the gateway dashboard,
+                        then resolve that refund before sending another.
+                    </div>
+                <?php elseif (($refundable ?? 0) <= 0): ?>
+                    <p style="font-size:13px;color:var(--wk-text-muted);margin:0">
+                        <?= $refunds ? 'This order is fully refunded.' : 'Nothing left to refund on this order.' ?>
+                    </p>
+                <?php else: ?>
+                    <form method="POST" action="<?= $url('admin/orders/refund/'.$o['id']) ?>" id="refundForm">
+                        <?= \Core\Session::csrfField() ?>
+                        <div class="wk-form-group">
+                            <label>Amount <span style="font-weight:500;color:var(--wk-text-muted)">(up to <?= $e($money($refundable)) ?>)</span></label>
+                            <input type="number" name="amount" class="wk-input" step="0.01" min="0.01"
+                                   max="<?= $e(number_format((float) $refundable, 2, '.', '')) ?>"
+                                   value="<?= $e(number_format((float) $refundable, 2, '.', '')) ?>" required>
+                        </div>
+                        <div class="wk-form-group">
+                            <label>Reason <span style="font-weight:500;color:var(--wk-text-muted)">(for your records)</span></label>
+                            <input type="text" name="reason" class="wk-input" maxlength="255" placeholder="Returned damaged">
+                        </div>
+                        <?php if (!$apiRefundable): ?>
+                            <input type="hidden" name="manual" value="1">
+                            <div style="background:var(--wk-bg);border-radius:var(--radius-sm);padding:11px 13px;font-size:12px;color:var(--wk-text-muted);margin-bottom:12px;line-height:1.6">
+                                <?php if ($gwName === 'nowpayments'): ?>
+                                    Crypto payments cannot be reversed automatically. Send the refund from your wallet first, then record it here.
+                                <?php elseif ($gwName === 'ccavenue'): ?>
+                                    CCAvenue refunds are issued from the CCAvenue panel. Refund there first, then record it here.
+                                <?php else: ?>
+                                    No gateway payment is attached to this order, so this is recorded as a refund you made by hand.
+                                <?php endif; ?>
+                            </div>
+                        <?php else: ?>
+                            <label style="display:flex;align-items:flex-start;gap:8px;font-size:12px;margin-bottom:12px;cursor:pointer;line-height:1.5">
+                                <input type="checkbox" name="manual" value="1" style="margin-top:2px">
+                                <span>I already refunded this by hand &mdash; record it without contacting <?= $e(ucfirst($gwName)) ?>.</span>
+                            </label>
+                        <?php endif; ?>
+                        <button type="submit" class="wk-btn wk-btn-primary" style="width:100%;justify-content:center">
+                            Refund <?= $e($money($refundable)) ?>
+                        </button>
+                    </form>
+                <?php endif; ?>
+            </div>
+        </div>
+        <?php endif; ?>
+
+        <div class="wk-modal" id="refundModal" hidden>
+            <div class="wk-modal-backdrop" data-refund-cancel></div>
+            <div class="wk-modal-box" role="dialog" aria-modal="true" aria-labelledby="refundModalTitle">
+                <h3 class="wk-modal-title" id="refundModalTitle">Send this refund?</h3>
+                <p class="wk-modal-text" id="refundModalText"></p>
+                <dl class="wk-modal-facts">
+                    <div><dt>Amount</dt><dd id="refundModalAmount"></dd></div>
+                    <div><dt>Order</dt><dd><?= $e($o['order_number']) ?></dd></div>
+                    <div><dt>Customer</dt><dd><?= $e($o['customer_email'] ?? '') ?></dd></div>
+                </dl>
+                <div class="wk-modal-actions">
+                    <button type="button" class="wk-btn wk-btn-secondary" data-refund-cancel>Cancel</button>
+                    <button type="button" class="wk-btn wk-btn-primary" id="refundModalConfirm">Send refund</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Status Update -->
         <div class="wk-card">
             <div class="wk-card-header"><h2>Update Status</h2></div>
@@ -160,6 +287,83 @@ $s=$sm[$o['status']]??['info','?'];
 </div>
 
 <script>
+(function () {
+    var form = document.getElementById('refundForm');
+    if (!form) return;
+
+    var amount  = form.querySelector('[name=amount]');
+    var manual  = form.querySelector('[name=manual][type=checkbox]');
+    var button  = form.querySelector('button[type=submit]');
+    var symbol  = button.textContent.trim().replace(/^Refund\s*/, '').replace(/[0-9.,\s]/g, '');
+    var modal   = document.getElementById('refundModal');
+    var box     = modal.querySelector('.wk-modal-box');
+    var title   = document.getElementById('refundModalTitle');
+    var text    = document.getElementById('refundModalText');
+    var shown   = document.getElementById('refundModalAmount');
+    var confirm = document.getElementById('refundModalConfirm');
+    var lastFocus = null;
+    var approved = false;
+
+    function money(v) { return symbol + (isNaN(v) ? '0.00' : v.toFixed(2)); }
+
+    amount.addEventListener('input', function () {
+        button.textContent = 'Refund ' + money(parseFloat(amount.value || '0'));
+    });
+
+    function open() {
+        var byHand = manual && manual.checked;
+        var v = parseFloat(amount.value || '0');
+        title.textContent = byHand ? 'Record this refund?' : 'Send this refund?';
+        text.textContent  = byHand
+            ? 'This only writes the refund down. No payment gateway is contacted.'
+            : 'The money leaves your account straight away and cannot be undone from here.';
+        shown.textContent = money(v);
+        confirm.textContent = byHand ? 'Record refund' : 'Send refund';
+
+        lastFocus = document.activeElement;
+        modal.hidden = false;
+        requestAnimationFrame(function () { modal.classList.add('is-open'); });
+        confirm.focus();
+        document.addEventListener('keydown', onKey);
+    }
+
+    function close() {
+        modal.classList.remove('is-open');
+        document.removeEventListener('keydown', onKey);
+        setTimeout(function () { modal.hidden = true; }, 180);
+        if (lastFocus) lastFocus.focus();
+    }
+
+    function onKey(e) {
+        if (e.key === 'Escape') { close(); return; }
+        if (e.key !== 'Tab') return;
+        // Keep focus inside the dialog while it is open.
+        var focusable = box.querySelectorAll('button');
+        var first = focusable[0], last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+
+    // Money leaving the account deserves a deliberate second action.
+    form.addEventListener('submit', function (e) {
+        if (approved) return;
+        e.preventDefault();
+        open();
+    });
+
+    confirm.addEventListener('click', function () {
+        approved = true;
+        close();
+        button.disabled = true;
+        button.textContent = (manual && manual.checked) ? 'Recording...' : 'Refunding...';
+        form.submit();
+    });
+
+    modal.querySelectorAll('[data-refund-cancel]').forEach(function (el) {
+        el.addEventListener('click', close);
+    });
+})();
+
 document.getElementById('carrierSelect').addEventListener('change', function() {
     document.getElementById('newCarrierBox').style.display = this.value === '__new__' ? 'block' : 'none';
 });

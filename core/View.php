@@ -70,11 +70,26 @@ class View
     }
 
     /**
-     * Helper: asset URL.
+     * Helper: asset URL, with a version query for cache-busting.
+     *
+     * Appending ?v=<version> changes the URL on each release so returning
+     * visitors fetch updated CSS/JS instead of stale cached copies. (Apache
+     * ignores the query for static files, so the same asset is served.)
      */
     public static function asset(string $path): string
     {
-        return self::url('assets/' . ltrim($path, '/'));
+        $rel = ltrim($path, '/');
+        $url = self::url('assets/' . $rel);
+
+        // Key the cache on the file's own modification time so an edited
+        // stylesheet or script reaches browsers immediately, including
+        // between releases when the version string has not moved.
+        $file = dirname(__DIR__) . '/assets/' . $rel;
+        $stamp = is_file($file) ? (string) filemtime($file) : '';
+        if ($stamp === '') {
+            $stamp = defined('WK_VERSION') ? (string) WK_VERSION : '';
+        }
+        return $stamp !== '' ? $url . '?v=' . rawurlencode($stamp) : $url;
     }
 
     /**
@@ -86,12 +101,22 @@ class View
     }
 
     /**
+     * Build a URL slug from a title.
+     *
+     * Lowercases before filtering — the character class only permits a-z, so
+     * filtering first would strip every capital letter.
+     */
+    public static function slug(string $value): string
+    {
+        return trim(preg_replace('/[^a-z0-9]+/', '-', strtolower($value)), '-');
+    }
+
+    /**
      * Helper: format price.
      *
      * When no symbol is passed, the store's configured currency symbol is
-     * used. Views must not hardcode a fallback symbol — a store configured
-     * for EUR was showing ₹ on every call site that relied on the old
-     * hardcoded default.
+     * used. Views must not hardcode a fallback symbol so non-default
+     * currencies display correctly on every call site.
      */
     public static function price(float $amount, ?string $symbol = null): string
     {

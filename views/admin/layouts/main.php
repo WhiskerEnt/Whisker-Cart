@@ -88,6 +88,8 @@ $currentPath = (new \Core\Request())->path();
                 try { $abandonedCount = (int)\Core\Database::fetchValue("SELECT COUNT(DISTINCT c.id) FROM wk_carts c JOIN wk_cart_items ci ON ci.cart_id=c.id WHERE c.status='active' AND c.created_at < DATE_SUB(NOW(), INTERVAL 1 HOUR)"); } catch(\Exception $e) {}
                 $openTickets = 0;
                 try { $openTickets = (int)\Core\Database::fetchValue("SELECT COUNT(*) FROM wk_tickets WHERE status IN ('open','in_progress')"); } catch(\Exception $e) {}
+                $pendingReviews = \App\Services\ReviewService::pendingCount();
+                $pendingQuestions = \App\Services\QuestionService::pendingCount();
                 $navItems = [
                     ['/admin', '/admin/dashboard', 'Dashboard', '📊', null],
                     ['/admin/orders', null, 'Orders', '🛍️', $pendingOrders > 0 ? $pendingOrders : null],
@@ -95,6 +97,8 @@ $currentPath = (new \Core\Request())->path();
                     ['/admin/abandoned-carts', null, 'Abandoned Carts', '🛒', $abandonedCount > 0 ? $abandonedCount : null],
                     ['/admin/products', null, 'Products', '📦', null],
                     ['/admin/customers', null, 'Customers', '👥', null],
+                    ['/admin/reviews', null, 'Reviews', '⭐', $pendingReviews > 0 ? $pendingReviews : null],
+                    ['/admin/questions', null, 'Questions', '💬', $pendingQuestions > 0 ? $pendingQuestions : null],
                 ];
                 foreach ($navItems as [$href, $alt, $label, $icon, $badge]):
                     $isActive = $currentPath === $href || $currentPath === $alt;
@@ -118,6 +122,7 @@ $currentPath = (new \Core\Request())->path();
                     ['/admin/categories', 'Categories', '📂'],
                     ['/admin/shipping', 'Shipping Carriers', '🚚'],
                     ['/admin/shipping/settings', 'Shipping Rates', '📦'],
+                    ['/admin/shipping/zones', 'Shipping Zones', '🌍'],
                 ];
                 foreach ($commerceItems as [$href, $label, $icon]):
                     $isActive = $currentPath === $href;

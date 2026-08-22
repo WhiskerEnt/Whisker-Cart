@@ -21,25 +21,26 @@ class SettingsController
             Response::redirect(View::url('admin/settings'));
             return;
         }
-        // Every field the settings form posts MUST be listed here — anything
-        // missing is silently dropped on save. (Bug fix: store_logo, logo_url's
-        // form field, homepage_style, store_country/state, business info and
-        // min_order were all posted by the form but absent from this list, so
-        // "Save Settings" threw them away without any error.)
+        // Allowlist of settings this form may write. Any field added to
+        // views/admin/settings.php must be listed here to be saved.
         $fields = [
             'general' => [
-                'site_name','site_tagline','base_url','logo_url','store_theme','homepage_style',
+                'site_name','site_tagline','base_url','logo_url','favicon_url','loader_url','store_theme','homepage_style',
                 'hero_title','hero_subtitle','hero_cta',
-                'chatbot_name','chatbot_enabled','contact_email','currency','currency_symbol','timezone',
+                'chatbot_name','chatbot_enabled','contact_email','currency','currency_symbol','multi_currency','timezone',
                 'store_phone','store_address','store_tax_id','store_logo','store_country','store_state',
                 'disable_update_check',
             ],
             'checkout'=> ['guest_checkout','tax_rate','min_order'],
             'email'   => ['from_email','from_name','smtp_host','smtp_port','smtp_user','smtp_pass'],
+            'privacy' => ['cookie_consent','cookie_title','cookie_text','cookie_policy_url','cookie_analytics','cookie_marketing','cookie_version'],
         ];
+        // Secret fields render empty, so an empty submission means "unchanged".
+        $secretKeys = ['email_smtp_pass'];
         foreach ($fields as $group => $keys) {
             foreach ($keys as $key) {
                 $val = $request->input("{$group}_{$key}");
+                if (in_array("{$group}_{$key}", $secretKeys, true) && trim((string)$val) === '') continue;
                 if ($val !== null) {
                     Database::query(
                         "INSERT INTO wk_settings (setting_group,setting_key,setting_value) VALUES(?,?,?)
@@ -50,10 +51,8 @@ class SettingsController
             }
         }
 
-        // If a currency was chosen but the symbol field was left blank, derive
-        // the symbol from the currency code. Otherwise the seeded '₹' (or an
-        // emptied value) sticks and every price in the store shows the wrong
-        // symbol — the exact "picked EUR, still see ₹" bug.
+        // Derive the symbol from the currency code when the symbol field is
+        // left blank, so the two never fall out of sync.
         $postedCurrency = strtoupper(trim((string)($request->input('general_currency') ?? '')));
         $postedSymbol   = trim((string)($request->input('general_currency_symbol') ?? ''));
         if ($postedCurrency !== '' && $postedSymbol === '') {
@@ -63,10 +62,8 @@ class SettingsController
                 [\App\Services\CurrencyService::symbol($postedCurrency)]
             );
         }
-        // M10/M14: drop the request-scoped settings cache so any later call
-        // to Database::setting() in this request sees the new values. Without
-        // this, code that read a setting earlier in the request (e.g. via a
-        // shared service) would still see the pre-update value.
+        // Drop the request-scoped settings cache so any later call to
+        // Database::setting() in this request sees the new values.
         Database::clearSettingsCache();
 
         Session::flash('success','Settings saved!');
@@ -86,28 +83,26 @@ class SettingsController
             return;
         }
 
-        // Finding 19: even though this endpoint is admin-only, the parameters
-        // (host, port) are admin-controlled — and an SSRF here lets a
-        // compromised admin session probe internal services on the same
-        // network (RDS, Redis, internal admin panels, cloud metadata at
-        // 169.254.169.254, etc.) and read SMTP banners for fingerprinting.
-        // Restrict to (a) standard SMTP ports and (b) hosts that are not
-        // private/loopback/link-local. Public SMTP providers all sit on the
-        // standard ports so this doesn't break legitimate use.
+        // Restrict to standard SMTP ports and public hosts so this endpoint
+        // can only reach legitimate SMTP providers, never internal services.
         $allowedPorts = [25, 465, 587, 2525];
         if (!in_array($port, $allowedPorts, true)) {
             Response::json(['success' => false, 'message' => 'Only standard SMTP ports allowed: ' . implode(', ', $allowedPorts)]);
             return;
         }
-        if (!self::isPublicSmtpHost($host)) {
+        $safeIp = self::resolveSafeSmtpIp($host);
+        if ($safeIp === null) {
             Response::json(['success' => false, 'message' => 'Host is not a valid public SMTP endpoint. Loopback, private, link-local, and cloud-metadata addresses are blocked.']);
             return;
         }
+        // Dial the address that was validated. The hostname is kept for TLS
+        // SNI so certificate handling still sees the name the admin entered.
+        $dial = self::smtpDialTarget($safeIp);
 
         if ($action === 'test_connection') {
             try {
-                $ctx = stream_context_create(['ssl' => ['verify_peer' => false, 'verify_peer_name' => false]]);
-                $conn = @stream_socket_client("tcp://{$host}:{$port}", $errno, $errstr, 10, STREAM_CLIENT_CONNECT, $ctx);
+                $ctx = stream_context_create(['ssl' => ['verify_peer' => false, 'verify_peer_name' => false, 'peer_name' => $host]]);
+                $conn = @stream_socket_client("tcp://{$dial}:{$port}", $errno, $errstr, 10, STREAM_CLIENT_CONNECT, $ctx);
                 if (!$conn) {
                     Response::json(['success' => false, 'message' => "Cannot connect to {$host}:{$port} — {$errstr}"]);
                     return;
@@ -222,12 +217,8 @@ class SettingsController
         // Verify current password
         $adminId = Session::adminId();
 
-        // Finding 20: rate-limit current-password attempts. A stolen admin
-        // session cookie is the realistic attack here — if the attacker has
-        // the cookie, /admin/settings opens for them and they can try to
-        // change the password (which would lock the real admin out). Without
-        // a limit they can grind current_password offline-fast. 5 wrong
-        // attempts per admin per 15 minutes is the same window as login.
+        // Rate-limit current-password verification: 5 wrong attempts per
+        // admin per 15 minutes, the same window as login.
         $rlKey = 'admin_pwchange_' . $adminId;
         if (!\Core\RateLimiter::attempt($rlKey, (string)$adminId, 5, 900)) {
             $wait = (int)ceil(\Core\RateLimiter::remainingSeconds($rlKey, (string)$adminId, 900) / 60);
@@ -256,25 +247,27 @@ class SettingsController
     }
 
     /**
-     * Finding 19: returns true if $host is a public, non-special-use SMTP
-     * endpoint. Rejects loopback, RFC1918 private, link-local (including
-     * 169.254.169.254 cloud metadata), broadcast, and IPv6 equivalents.
-     * Hostnames are resolved to their IPv4 record and the IP checked too —
-     * a clever admin can't bypass with a public DNS name that resolves to
-     * 127.0.0.1.
+     * Resolve $host and return the single IP the caller should connect to, or
+     * null if the host is not a usable public SMTP endpoint.
+     *
+     * The caller must dial the returned IP literal rather than the hostname.
+     * Connecting by name would re-resolve it, and a low-TTL or round-robin
+     * record could answer with a private address the second time — so the
+     * address that was checked must also be the address that is dialled.
+     *
+     * Rejects loopback, RFC1918 private, link-local, broadcast and the IPv6
+     * equivalents. Every resolved address must pass, not just the first.
      */
-    private static function isPublicSmtpHost(string $host): bool
+    private static function resolveSafeSmtpIp(string $host): ?string
     {
         $host = strtolower(trim($host));
-        if ($host === '' || strlen($host) > 253) return false;
+        if ($host === '' || strlen($host) > 253) return null;
 
         // Explicit rejects for hostname-form references to localhost.
         $denyNames = ['localhost', 'localhost.localdomain', 'ip6-localhost', 'ip6-loopback'];
-        if (in_array($host, $denyNames, true)) return false;
+        if (in_array($host, $denyNames, true)) return null;
 
         // Resolve hostname → IPs. If it's already an IP, gethostbynamel returns it.
-        // We check ALL A records so an attacker can't pad with a public IP and a
-        // private one.
         $ips = @gethostbynamel($host);
         if (!$ips) {
             // Could be IPv6-only; try DNS lookup for both.
@@ -285,7 +278,7 @@ class SettingsController
                 if (!empty($r['ipv6'])) $ips[] = $r['ipv6'];
             }
         }
-        if (!$ips) return false; // unresolvable → reject
+        if (!$ips) return null; // unresolvable → reject
 
         foreach ($ips as $ip) {
             if (!filter_var(
@@ -296,9 +289,17 @@ class SettingsController
                 // The flags reject: private (10/8, 172.16/12, 192.168/16, fc00::/7),
                 // reserved (loopback, link-local, multicast, unspecified, broadcast,
                 // documentation, 169.254/16 incl. cloud metadata).
-                return false;
+                return null;
             }
         }
-        return true;
+        return $ips[0];
+    }
+
+    /**
+     * Wrap an IP for use in a stream URL — IPv6 literals need brackets.
+     */
+    private static function smtpDialTarget(string $ip): string
+    {
+        return str_contains($ip, ':') ? '[' . $ip . ']' : $ip;
     }
 }

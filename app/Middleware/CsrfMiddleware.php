@@ -18,9 +18,9 @@ class CsrfMiddleware
     {
         if (!$request->isPost()) return true;
 
-        // Get token from form field, header, or JSON body. M20: fetch() calls
-        // that send Content-Type: application/json don't populate $_POST, so
-        // we need to look inside the parsed JSON for wk_csrf as well.
+        // Token may arrive via form field, header, or JSON body: requests with
+        // Content-Type: application/json don't populate $_POST, so the parsed
+        // JSON body is checked for wk_csrf as well.
         $token = $request->input('wk_csrf')
               ?? $request->server('HTTP_X_CSRF_TOKEN');
 
@@ -47,11 +47,8 @@ class CsrfMiddleware
             }
 
             Session::flash('error', 'Your session expired. Please try again.');
-            // M2: HTTP_REFERER is attacker-controlled. Following it blindly
-            // gives them an open-redirect primitive — `<form action="/some-post-endpoint"
-            // method="POST">` with Referer set to `https://evil.com` would,
-            // on CSRF failure, redirect the victim off-site for phishing.
-            // Only honor Referer when it points back to our own origin.
+            // HTTP_REFERER is client-supplied; only follow it when it points
+            // back to our own origin to avoid acting as an open redirect.
             $referer = (string)$request->server('HTTP_REFERER', '');
             Response::redirect(self::sameOriginRedirect($referer));
             return false;

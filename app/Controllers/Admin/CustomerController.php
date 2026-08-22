@@ -21,7 +21,7 @@ class CustomerController
     }
 
     /**
-     * M32: GDPR "right to erasure" handler.
+     * GDPR "right to erasure" handler.
      *
      * We pseudonymize rather than hard-delete because:
      *   - Tax authorities require retention of order records (typically 7+ years)

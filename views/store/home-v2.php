@@ -5,23 +5,11 @@ $baseCurrency = \App\Services\CurrencyService::baseCurrency();
 $displayCurrency = $_SESSION['wk_display_currency'] ?? $baseCurrency;
 $baseSymbol = \App\Services\CurrencyService::baseSymbol();
 
-$showPrice = function($amount) use ($baseSymbol, $baseCurrency, $displayCurrency) {
-    $base = $baseSymbol . number_format($amount, 2);
-    if ($displayCurrency === $baseCurrency) return $base;
-    $converted = \App\Services\CurrencyService::convert($amount, $baseCurrency, $displayCurrency);
-    return \App\Services\CurrencyService::format($converted, $displayCurrency)
-         . ' <span style="font-size:11px;color:rgba(255,255,255,.6);font-weight:500">(' . $base . ')</span>';
-};
+// Show prices in the visitor's chosen currency only (no base-currency clutter).
+$showPrice = fn($amount) => \App\Services\CurrencyService::displayPrice((float) $amount);
 $price = $showPrice;
-
-$showPriceNormal = function($amount) use ($baseSymbol, $baseCurrency, $displayCurrency) {
-    $base = $baseSymbol . number_format($amount, 2);
-    if ($displayCurrency === $baseCurrency) return $base;
-    $converted = \App\Services\CurrencyService::convert($amount, $baseCurrency, $displayCurrency);
-    return \App\Services\CurrencyService::format($converted, $displayCurrency)
-         . ' <span style="font-size:11px;color:var(--wk-muted);font-weight:500">(' . $base . ')</span>';
-};
-$priceNormal = $showPriceNormal;
+$showPriceNormal = $showPrice;
+$priceNormal = $showPrice;
 
 $carouselProducts = array_values(array_filter($products, fn($p) => $p['is_featured']));
 $gridProducts = $products;
@@ -197,6 +185,7 @@ $gridProducts = $products;
                     <div class="wk-product-info" onclick="window.location='<?= $url('product/'.urlencode($p['slug'])) ?>'" style="cursor:pointer">
                         <?php if ($p['category_name'] ?? null): ?><div class="wk-product-cat"><?= $e($p['category_name']) ?></div><?php endif; ?>
                         <div class="wk-product-name"><?= $e($p['name']) ?></div>
+                        <?= \App\Services\ReviewService::cardRatingHtml((int) $p['id']) ?>
                         <div class="wk-product-price">
                             <span class="current"><?= $priceNormal($prc) ?></span>
                             <?php if ($hasSale): ?><span class="original"><?= $priceNormal($p['price']) ?></span><?php endif; ?>

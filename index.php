@@ -62,6 +62,24 @@ if (WK_DEBUG) {
 $router  = new \Core\Router();
 $request = new \Core\Request();
 
+// ── Display-currency switch (global) ─────────────
+// The storefront switcher appends ?currency=XXX to the CURRENT page. Handle
+// it here for every route so switching currency keeps the visitor on the
+// page they're on (product, shop, category, …) instead of bouncing them to
+// the homepage, then redirect to the same URL with the param stripped.
+$currencySwitch = $request->query('currency');
+if ($currencySwitch !== null && $request->isGet() && !$request->isAjax()) {
+    $allowed = array_keys(\App\Services\CurrencyService::currencies());
+    if (in_array(strtoupper((string)$currencySwitch), $allowed, true)) {
+        \Core\Session::set('wk_display_currency', strtoupper((string)$currencySwitch));
+    }
+    $rest = $_GET;
+    unset($rest['currency']);
+    $target = \Core\View::url(ltrim($request->path(), '/'));
+    if (!empty($rest)) $target .= '?' . http_build_query($rest);
+    \Core\Response::redirect($target);
+}
+
 // Register middleware
 $router->registerMiddleware('auth',  \App\Middleware\AuthMiddleware::class);
 $router->registerMiddleware('csrf',  \App\Middleware\CsrfMiddleware::class);

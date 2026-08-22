@@ -18,7 +18,7 @@ class SettingsWhitelistTest extends TestCase
         $view       = (string) file_get_contents(WK_ROOT . '/views/admin/settings.php');
 
         $whitelist = [];
-        foreach (['general', 'checkout', 'email'] as $group) {
+        foreach (['general', 'checkout', 'email', 'privacy'] as $group) {
             $this->assertSame(
                 1,
                 preg_match("/'{$group}'\s*=>\s*\[(.*?)\]/s", $controller, $m),

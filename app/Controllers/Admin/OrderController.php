@@ -2,7 +2,7 @@
 namespace App\Controllers\Admin;
 
 use Core\{Request, View, Database, Response, Session};
-use App\Services\EmailService;
+use App\Services\{EmailService, RefundService, CurrencyService};
 
 class OrderController
 {
@@ -35,13 +35,29 @@ class OrderController
 
         $currency = Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='currency_symbol'") ?: '₹';
 
+        // The refunds table arrives with a migration, so a store mid-update
+        // still renders its orders.
+        $refunds = [];
+        $refundable = 0.0;
+        $refundBlocked = false;
+        try {
+            $refunds       = RefundService::forOrder((int) $order['id']);
+            $refundable    = RefundService::refundableAmount($order);
+            $refundBlocked = RefundService::hasUnresolved((int) $order['id']);
+        } catch (\Exception $e) {
+            $refunds = [];
+        }
+
         View::render('admin/orders/show', [
-            'pageTitle'    => 'Order ' . $order['order_number'],
-            'order'        => $order,
-            'items'        => $items,
-            'transactions' => $transactions,
-            'carriers'     => $carriers,
-            'currency'     => $currency,
+            'pageTitle'     => 'Order ' . $order['order_number'],
+            'order'         => $order,
+            'items'         => $items,
+            'transactions'  => $transactions,
+            'carriers'      => $carriers,
+            'currency'      => $currency,
+            'refunds'       => $refunds,
+            'refundable'    => $refundable,
+            'refundBlocked' => $refundBlocked,
         ], 'admin/layouts/main');
     }
 
@@ -53,17 +69,10 @@ class OrderController
             return;
         }
 
-        // Finding 27: validate status against the writable status set before
-        // writing. Same pattern as Finding 13 on tickets — without a whitelist,
-        // an admin (or anyone riding the admin session) can write arbitrary
-        // strings to wk_orders.status, breaking the storefront UI's status
-        // emoji map, the email status labels, and the cron that matches
-        // on these literal values.
-        //
-        // Keep this list in sync with the wk_orders.status ENUM in
-        // sql/schema.sql. 'payment_failed' was added in migration
-        // 20260520_v122 because CheckoutController writes that value when
-        // gateway init fails and DashboardController's sweep reads it.
+        // Whitelist the status before writing: these literal values drive the
+        // storefront status map, email labels, and cron matching. Keep in sync
+        // with the wk_orders.status ENUM in sql/schema.sql ('payment_failed'
+        // is written by CheckoutController when gateway init fails).
         $status = (string)$request->input('status');
         $allowedStatuses = [
             'pending', 'processing', 'paid', 'shipped',
@@ -75,6 +84,20 @@ class OrderController
             return;
         }
         Database::update('wk_orders', ['status' => $status], 'id=?', [$params['id']]);
+
+        // Marking an order paid, shipped or delivered by hand is a statement
+        // that the money arrived — often by bank transfer or cash, which no
+        // gateway ever saw. Without this, payment_status stays 'pending' and
+        // everything keyed off it (refunds, review eligibility) treats a
+        // delivered order as unpaid. Only promoted from the not-yet-paid
+        // states, so a refunded or failed payment is left alone.
+        if (in_array($status, ['paid', 'shipped', 'delivered'], true)) {
+            Database::query(
+                "UPDATE wk_orders SET payment_status='captured'
+                  WHERE id=? AND payment_status IN ('pending','authorized')",
+                [$params['id']]
+            );
+        }
 
         // Send status update email to customer
         $order = Database::fetch("SELECT * FROM wk_orders WHERE id=?", [$params['id']]);
@@ -100,6 +123,29 @@ class OrderController
 
         Session::flash('success', 'Order status updated to ' . ucfirst($status));
         Response::redirect(View::url('admin/orders/' . $params['id']));
+    }
+
+    public function refund(Request $request, array $params = []): void
+    {
+        $back = View::url('admin/orders/' . (int) $params['id']);
+
+        if (!Session::verifyCsrf($request->input('wk_csrf'))) {
+            Session::flash('error', 'Session expired. Please try again.');
+            Response::redirect($back);
+            return;
+        }
+
+        $order = Database::fetch("SELECT * FROM wk_orders WHERE id=?", [$params['id']]);
+        if (!$order) { Response::notFound(); return; }
+
+        $amount = (float) str_replace(',', '', (string) $request->input('amount'));
+        $reason = trim((string) $request->input('reason'));
+        $manual = $request->input('manual') === '1';
+
+        $result = RefundService::issue($order, $amount, $reason, Session::adminId(), $manual);
+
+        Session::flash($result['success'] ? 'success' : 'error', $result['message']);
+        Response::redirect($back);
     }
 
     public function updateShipping(Request $request, array $params = []): void

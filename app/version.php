@@ -31,4 +31,4 @@
  *     Records the version at FIRST install (audit trail). Never updated.
  */
 
-return '1.3.2';
+return '1.4.0';

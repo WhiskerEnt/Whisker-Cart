@@ -128,7 +128,7 @@ img { max-width: 100%; display: block; }
 .wk-header-inner {
     max-width: var(--max-w); margin: 0 auto; padding: 10px 24px; min-height: 68px;
     display: flex; align-items: center; justify-content: space-between;
-    flex-wrap: wrap; gap: 8px 24px;
+    flex-wrap: wrap; gap: 8px 20px;
 }
 .wk-logo { display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 900; flex-shrink: 0; }
 .wk-logo-text {
@@ -136,7 +136,7 @@ img { max-width: 100%; display: block; }
     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     white-space: nowrap;
 }
-.wk-header-nav { display: flex; align-items: center; gap: 8px 22px; flex-wrap: wrap; flex: 1; justify-content: center; min-width: 0; }
+.wk-header-nav { display: flex; align-items: center; gap: 6px 20px; flex-wrap: wrap; flex: 1 1 0; justify-content: center; min-width: 0; overflow: hidden; }
 /* Each nav label stays on one line — long names wrap as whole items, never mid-label. */
 .wk-header-nav > a, .wk-nav-dropdown-trigger { font-size: 14px; font-weight: 700; color: var(--wk-muted); transition: color .2s; text-decoration: none; white-space: nowrap; }
 .wk-header-nav > a:hover, .wk-nav-dropdown-trigger:hover { color: var(--wk-purple); }
@@ -233,6 +233,12 @@ img { max-width: 100%; display: block; }
     transition: all .3s cubic-bezier(.25,.8,.25,1);
     cursor: pointer;
     animation: cardReveal .5s ease backwards;
+    /* Flex column so the Add-to-Cart button pins to the bottom. Without this,
+       a card with a shorter body (e.g. a product with no sale/strikethrough
+       line) leaves the empty grid-stretch space BELOW the button, so its
+       button sits higher than its row-mates. */
+    display: flex;
+    flex-direction: column;
 }
 .wk-product-card:nth-child(1) { animation-delay: .05s; }
 .wk-product-card:nth-child(2) { animation-delay: .1s; }
@@ -252,6 +258,7 @@ img { max-width: 100%; display: block; }
 .wk-product-img {
     aspect-ratio: 4/3; background: var(--wk-bg);
     overflow: hidden; position: relative;
+    flex-shrink: 0; /* keep the 4/3 image from squishing in the flex column */
 }
 .wk-product-img img { width: 100%; height: 100%; object-fit: cover; transition: transform .5s; }
 .wk-product-card:hover .wk-product-img img { transform: scale(1.08); }
@@ -281,6 +288,9 @@ img { max-width: 100%; display: block; }
     letter-spacing: .5px; text-transform: uppercase;
     cursor: pointer; transition: all .2s;
 }
+/* Pin the button to the bottom of the card (flex column) so every card in a
+   row lines its button up regardless of body height. */
+.wk-product-card .wk-add-btn { margin-top: auto; }
 .wk-add-btn:hover { background: var(--wk-purple); }
 .wk-add-btn.added {
     background: var(--wk-green);
@@ -627,3 +637,358 @@ img { max-width: 100%; display: block; }
     .wk-hero h1 { font-size: 28px; }
 }
 @media (max-width: 480px) { .wk-product-grid { grid-template-columns: 1fr; } }
+/* ── Header search ─────────────────────────────── */
+.wk-search { position: relative; flex: 0 1 240px; min-width: 140px; }
+.wk-search-icon {
+    position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
+    width: 15px; height: 15px; color: var(--wk-muted); pointer-events: none;
+    transition: color .2s;
+}
+.wk-search-input {
+    width: 100%; padding: 9px 14px 9px 36px;
+    font-family: var(--font); font-size: 13px; font-weight: 600;
+    color: var(--wk-text); background: var(--wk-bg);
+    border: 2px solid var(--wk-border); border-radius: 999px;
+    outline: none; transition: border-color .2s, box-shadow .2s, background .2s;
+    -webkit-appearance: none; appearance: none;
+}
+.wk-search-input::placeholder { color: var(--wk-muted); font-weight: 600; }
+.wk-search-input::-webkit-search-cancel-button { -webkit-appearance: none; }
+.wk-search-input:focus {
+    border-color: var(--wk-purple); background: var(--wk-surface);
+    box-shadow: 0 0 0 4px var(--wk-purple-soft);
+}
+.wk-search-input:focus + .wk-search-icon,
+.wk-search:focus-within .wk-search-icon { color: var(--wk-purple); }
+/* The nav "Search" link is redundant once the box is present. */
+.wk-search-link { display: none !important; }
+
+.wk-search-panel {
+    position: absolute; top: calc(100% + 10px); left: 0; right: 0; z-index: 300;
+    background: var(--wk-surface); border: 2px solid var(--wk-border);
+    border-radius: var(--radius); box-shadow: 0 12px 40px rgba(0,0,0,.10);
+    overflow: hidden; max-height: 70vh; overflow-y: auto;
+}
+.wk-search-row {
+    display: flex; align-items: center; gap: 12px; padding: 10px 14px;
+    cursor: pointer; text-decoration: none; color: var(--wk-text);
+    border-bottom: 1px solid var(--wk-border); transition: background .15s;
+}
+.wk-search-row:last-of-type { border-bottom: none; }
+.wk-search-row:hover, .wk-search-row.active { background: var(--wk-purple-soft); }
+.wk-search-thumb {
+    width: 42px; height: 42px; border-radius: var(--radius-sm); object-fit: cover;
+    background: var(--wk-bg); flex-shrink: 0;
+}
+.wk-search-info { flex: 1; min-width: 0; }
+.wk-search-name {
+    font-size: 13px; font-weight: 800; line-height: 1.3;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.wk-search-name mark { background: transparent; color: var(--wk-purple); font-weight: 900; }
+.wk-search-meta {
+    font-size: 11px; color: var(--wk-muted); font-weight: 700;
+    text-transform: uppercase; letter-spacing: .3px;
+}
+.wk-search-price {
+    font-size: 13px; font-weight: 800; font-family: var(--font-mono);
+    white-space: nowrap; color: var(--wk-text);
+}
+.wk-search-oos { color: var(--wk-red); }
+.wk-search-foot {
+    display: block; padding: 11px 14px; text-align: center;
+    font-size: 12px; font-weight: 800; color: var(--wk-purple);
+    text-decoration: none; background: var(--wk-bg);
+    border-top: 1px solid var(--wk-border);
+}
+.wk-search-foot:hover { background: var(--wk-purple-soft); }
+.wk-search-empty {
+    padding: 20px 14px; text-align: center; font-size: 13px;
+    color: var(--wk-muted); font-weight: 600;
+}
+
+@media (max-width: 900px) {
+    .wk-search { order: 3; flex: 1 1 100%; min-width: 0; }
+}
+
+/* ── Order status icon ─────────────────────────── */
+/* The ring sweeps in, then the mark draws itself. Colour comes from the
+   state class so success, waiting and failure share one shape system. */
+.wk-status { width: 84px; height: 84px; display: block; margin: 0 auto; }
+.wk-status-ring,
+.wk-status-mark {
+    fill: none; stroke-width: 3;
+    stroke-linecap: round; stroke-linejoin: round;
+}
+.wk-status-ring {
+    stroke-dasharray: 151; stroke-dashoffset: 151;
+    animation: wkRing .55s cubic-bezier(.65,0,.45,1) forwards;
+}
+.wk-status-mark {
+    stroke-dasharray: 48; stroke-dashoffset: 48;
+    animation: wkMark .3s cubic-bezier(.65,0,.45,1) .5s forwards;
+}
+.wk-status-mark-2 { animation-delay: .68s; }
+
+.wk-status-ok   .wk-status-ring, .wk-status-ok   .wk-status-mark { stroke: var(--wk-green); }
+.wk-status-wait .wk-status-ring, .wk-status-wait .wk-status-mark { stroke: var(--wk-yellow); }
+.wk-status-bad  .wk-status-ring, .wk-status-bad  .wk-status-mark { stroke: var(--wk-red); }
+
+@keyframes wkRing { to { stroke-dashoffset: 0; } }
+@keyframes wkMark { to { stroke-dashoffset: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+    .wk-status-ring, .wk-status-mark { animation: none; stroke-dashoffset: 0; }
+}
+
+/* ── Cookie consent ────────────────────────────────────────────── */
+.wk-cookie {
+    position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 900;
+    background: var(--wk-surface); border: 2px solid var(--wk-border);
+    border-radius: var(--radius); box-shadow: 0 12px 40px rgba(0,0,0,.14);
+    max-height: min(52vh, 420px); overflow-y: auto;
+    opacity: 0; transform: translateY(14px); pointer-events: none;
+    transition: opacity .26s ease, transform .26s ease;
+}
+.wk-cookie.is-open { opacity: 1; transform: translateY(0); pointer-events: auto; }
+/* The inner wrapper stacks: the message row, then the preferences panel.
+   .wk-cookie-main does the horizontal layout within the first row. */
+.wk-cookie-inner { max-width: 1180px; margin: 0 auto; padding: 16px 20px; }
+.wk-cookie-main { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.wk-cookie-copy { flex: 1 1 320px; min-width: 0; }
+.wk-cookie-title { font-size: 14px; font-weight: 900; margin: 0 0 3px; }
+.wk-cookie-text { font-size: 13px; line-height: 1.55; color: var(--wk-muted); margin: 0; }
+.wk-cookie-link { color: var(--wk-purple); font-weight: 700; text-decoration: underline; }
+.wk-cookie-actions { display: flex; gap: 10px; flex: 0 0 auto; }
+.wk-cookie-btn {
+    font: inherit; font-size: 13px; font-weight: 800; cursor: pointer;
+    padding: 10px 18px; border-radius: var(--radius-sm);
+    border: 2px solid var(--wk-border); background: var(--wk-surface);
+    color: var(--wk-text); transition: border-color .15s ease, background .15s ease;
+}
+.wk-cookie-btn:hover { border-color: var(--wk-text); }
+.wk-cookie-btn-accept { background: var(--wk-purple); border-color: var(--wk-purple); color: #fff; }
+.wk-cookie-btn-accept:hover { filter: brightness(1.08); border-color: var(--wk-purple); }
+.wk-cookie-btn:focus-visible { outline: 3px solid var(--wk-purple); outline-offset: 2px; }
+/* Category preferences, revealed by Customise */
+.wk-cookie-prefs {
+    margin-top: 14px; padding-top: 14px; border-top: 2px solid var(--wk-border);
+}
+/* Categories sit side by side so opening Customise costs one short row,
+   not half the viewport. */
+.wk-cookie-cats {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 12px 28px; align-items: start;
+}
+.wk-cookie-cat-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.wk-cookie-cat-name { font-size: 13px; font-weight: 800; }
+.wk-cookie-cat-desc { font-size: 11.5px; line-height: 1.45; color: var(--wk-muted); margin: 2px 0 0; }
+.wk-cookie-always {
+    font-size: 11px; font-weight: 800; color: var(--wk-green);
+    background: var(--wk-green-soft); padding: 3px 9px; border-radius: 999px;
+}
+.wk-cookie-switch { position: relative; display: inline-block; width: 40px; height: 22px; flex: 0 0 auto; cursor: pointer; }
+.wk-cookie-switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.wk-cookie-slider {
+    position: absolute; inset: 0; background: var(--wk-border); border-radius: 999px;
+    transition: background .18s ease; pointer-events: none;
+}
+.wk-cookie-slider::before {
+    content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px;
+    background: #fff; border-radius: 50%; transition: transform .18s ease;
+}
+.wk-cookie-switch input:checked + .wk-cookie-slider { background: var(--wk-purple); }
+.wk-cookie-switch input:checked + .wk-cookie-slider::before { transform: translateX(18px); }
+.wk-cookie-switch input:focus-visible + .wk-cookie-slider { outline: 3px solid var(--wk-purple); outline-offset: 2px; }
+.wk-cookie-prefs-foot { display: flex; justify-content: flex-end; margin-top: 12px; }
+
+@media (max-width: 560px) {
+    .wk-cookie-inner { padding: 14px 16px; gap: 14px; }
+    .wk-cookie-prefs-foot .wk-cookie-btn { width: 100%; }
+    .wk-cookie-actions { width: 100%; }
+    .wk-cookie-btn { flex: 1 1 0; padding: 11px 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .wk-cookie { transition: none; transform: none; }
+    .wk-cookie-slider, .wk-cookie-slider::before { transition: none; }
+}
+
+/* ── Ratings & reviews ─────────────────────────────────────────────── */
+/* Half stars are done by clipping a filled star over an empty one, so any
+   average renders exactly without needing half-star glyphs. */
+.wk-stars { display: inline-flex; gap: 1px; line-height: 1; white-space: nowrap; }
+.wk-star { position: relative; display: inline-block; }
+.wk-star-off { color: var(--wk-border); }
+.wk-star-on {
+    position: absolute; left: 0; top: 0; overflow: hidden;
+    color: var(--wk-yellow); white-space: nowrap;
+}
+
+.wk-rating-line {
+    display: inline-flex; align-items: center; gap: 8px; margin-bottom: 14px;
+    text-decoration: none; color: inherit;
+}
+.wk-rating-line:hover .wk-rating-line-text { text-decoration: underline; }
+.wk-rating-line-text { font-size: 13px; font-weight: 700; color: var(--wk-muted); }
+
+.wk-reviews { margin-top: 60px; padding-top: 36px; border-top: 2px solid var(--wk-border); scroll-margin-top: 90px; }
+.wk-reviews-heading { font-size: 22px; font-weight: 900; margin: 0 0 22px; }
+.wk-reviews-empty { color: var(--wk-muted); font-size: 14px; margin: 0 0 24px; }
+
+.wk-reviews-summary {
+    display: grid; grid-template-columns: auto 1fr; gap: 32px; align-items: center;
+    background: var(--wk-surface); border: 2px solid var(--wk-border);
+    border-radius: var(--radius); padding: 22px 26px; margin-bottom: 28px;
+}
+.wk-reviews-score { text-align: center; }
+.wk-reviews-avg { font-size: 40px; font-weight: 900; line-height: 1; font-family: var(--font-mono); }
+.wk-reviews-count { font-size: 12px; color: var(--wk-muted); margin-top: 6px; font-weight: 700; }
+.wk-reviews-bars { display: grid; gap: 6px; min-width: 0; }
+.wk-reviews-bar { display: grid; grid-template-columns: 30px 1fr 28px; gap: 10px; align-items: center; font-size: 12px; }
+.wk-reviews-bar-label { color: var(--wk-muted); font-weight: 700; }
+.wk-reviews-bar-track { height: 7px; background: var(--wk-bg); border-radius: 99px; overflow: hidden; }
+.wk-reviews-bar-fill { display: block; height: 100%; background: var(--wk-yellow); border-radius: 99px; }
+.wk-reviews-bar-n { color: var(--wk-muted); font-family: var(--font-mono); text-align: right; }
+
+.wk-review-list { list-style: none; margin: 0 0 32px; padding: 0; display: grid; gap: 22px; }
+.wk-review { padding-bottom: 22px; border-bottom: 1px solid var(--wk-border); }
+.wk-review:last-child { border-bottom: 0; padding-bottom: 0; }
+.wk-review-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.wk-review-title { font-size: 15px; font-weight: 800; }
+.wk-review-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--wk-muted); margin-top: 6px; }
+.wk-review-author { font-weight: 800; color: var(--wk-text); }
+.wk-review-verified { color: var(--wk-green); font-weight: 800; background: var(--wk-green-soft); padding: 2px 8px; border-radius: 99px; }
+.wk-review-body { font-size: 14px; line-height: 1.75; margin: 10px 0 0; white-space: pre-line; }
+.wk-review-reply {
+    margin: 12px 0 0; padding: 12px 14px; background: var(--wk-bg);
+    border-left: 3px solid var(--wk-purple); border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+.wk-review-reply-who { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--wk-purple); }
+.wk-review-reply p { font-size: 13px; line-height: 1.7; margin: 4px 0 0; white-space: pre-line; }
+
+.wk-review-form-wrap {
+    background: var(--wk-surface); border: 2px solid var(--wk-border);
+    border-radius: var(--radius); padding: 18px 22px;
+}
+.wk-review-form-toggle { font-size: 15px; font-weight: 800; cursor: pointer; }
+.wk-review-note { font-size: 12.5px; color: var(--wk-muted); line-height: 1.6; margin: 12px 0 0; }
+.wk-review-form { margin-top: 18px; display: grid; gap: 16px; }
+.wk-review-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+.wk-review-form label, .wk-review-field { display: grid; gap: 5px; font-size: 13px; font-weight: 700; }
+.wk-review-form label em { font-weight: 500; color: var(--wk-muted); font-style: normal; }
+.wk-review-form small { font-size: 11px; font-weight: 500; color: var(--wk-muted); }
+.wk-review-form input[type=text], .wk-review-form input[type=email], .wk-review-form textarea {
+    font: inherit; font-weight: 500; padding: 11px 13px;
+    border: 2px solid var(--wk-border); border-radius: var(--radius-sm);
+    background: var(--wk-bg); color: var(--wk-text); width: 100%;
+}
+.wk-review-form textarea { resize: vertical; min-height: 96px; }
+.wk-review-form input:focus, .wk-review-form textarea:focus { outline: none; border-color: var(--wk-purple); }
+/* The storefront has no generic .wk-btn — that is an admin class — so the
+   submit button carries its own styling in the store's button language. */
+.wk-review-submit {
+    justify-self: start; padding: 13px 30px; border: none; border-radius: var(--radius-sm);
+    background: linear-gradient(135deg, var(--wk-purple), var(--wk-pink));
+    color: #fff; font-family: var(--font); font-size: 14px; font-weight: 800; cursor: pointer;
+    box-shadow: 0 4px 15px rgba(139,92,246,.25); transition: transform .2s, box-shadow .2s;
+}
+.wk-review-submit:hover { transform: translateY(-1px); box-shadow: 0 6px 25px rgba(139,92,246,.35); }
+.wk-review-submit:focus-visible { outline: 3px solid var(--wk-purple); outline-offset: 3px; }
+.wk-review-submit:disabled { opacity: .6; cursor: default; transform: none; box-shadow: none; }
+
+/* Inline field feedback */
+.wk-review-form input.is-bad { border-color: var(--wk-red); }
+.wk-review-form input.is-ok  { border-color: var(--wk-green); }
+.wk-review-form small.is-bad { color: var(--wk-red); font-weight: 700; }
+.wk-review-form small.is-ok  { color: var(--wk-green); font-weight: 700; }
+
+@media (prefers-reduced-motion: reduce) {
+    .wk-review-submit { transition: none; }
+    .wk-review-submit:hover { transform: none; }
+}
+
+/* Star picker. Rendered 5..1 so a CSS sibling selector can light up the
+   hovered star and everything before it. */
+.wk-rating-input { border: 0; padding: 0; margin: 0; display: flex; flex-direction: row-reverse; justify-content: flex-end; gap: 2px; }
+.wk-rating-input legend { font-size: 13px; font-weight: 700; margin-bottom: 5px; float: left; width: 100%; }
+.wk-rating-input input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.wk-rating-input label { font-size: 30px; line-height: 1; cursor: pointer; color: var(--wk-border); transition: color .12s ease; }
+.wk-rating-input label:hover,
+.wk-rating-input label:hover ~ label,
+.wk-rating-input input:checked ~ label { color: var(--wk-yellow); }
+.wk-rating-input input:focus-visible + label { outline: 3px solid var(--wk-purple); outline-offset: 2px; border-radius: 4px; }
+.wk-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Stars on a product card */
+.wk-card-rating { display: flex; align-items: center; gap: 5px; margin: 4px 0 2px; font-size: 11px; color: var(--wk-muted); font-weight: 700; }
+
+@media (max-width: 560px) {
+    .wk-reviews-summary { grid-template-columns: 1fr; gap: 20px; padding: 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .wk-rating-input label { transition: none; }
+}
+
+/* Rating an item straight from the customer's order */
+.wk-order-rate summary {
+    font-size: 12.5px; font-weight: 800; color: var(--wk-purple); cursor: pointer;
+    display: inline-block; padding: 4px 0;
+}
+.wk-order-rate-form { display: grid; gap: 10px; margin-top: 10px; max-width: 460px; }
+.wk-order-rate-form input[type=text], .wk-order-rate-form textarea {
+    font: inherit; font-size: 13px; padding: 9px 11px;
+    border: 2px solid var(--wk-border); border-radius: var(--radius-sm);
+    background: var(--wk-bg); color: var(--wk-text); width: 100%;
+}
+.wk-order-rate-form textarea { resize: vertical; }
+.wk-order-rate-form input:focus, .wk-order-rate-form textarea:focus { outline: none; border-color: var(--wk-purple); }
+.wk-order-rate-form .wk-rating-input label { font-size: 24px; }
+.wk-order-rate-form .wk-review-submit { padding: 10px 22px; font-size: 13px; }
+.wk-order-rate-note { font-size: 12px; color: var(--wk-muted); margin: 0; line-height: 1.55; }
+
+/* ── Questions & answers ───────────────────────────────────────────── */
+.wk-qa { margin-top: 48px; padding-top: 36px; border-top: 2px solid var(--wk-border); scroll-margin-top: 90px; }
+.wk-qa-heading { font-size: 22px; font-weight: 900; margin: 0 0 22px; display: flex; align-items: center; gap: 10px; }
+.wk-qa-count {
+    font-size: 12px; font-weight: 800; color: var(--wk-purple);
+    background: var(--wk-purple-soft); padding: 3px 10px; border-radius: 99px;
+}
+.wk-qa-empty { color: var(--wk-muted); font-size: 14px; margin: 0 0 24px; }
+
+.wk-qa-list { list-style: none; margin: 0 0 28px; padding: 0; display: grid; gap: 20px; }
+.wk-qa-item { padding-bottom: 20px; border-bottom: 1px solid var(--wk-border); }
+.wk-qa-item:last-child { border-bottom: 0; padding-bottom: 0; }
+.wk-qa-q, .wk-qa-a { display: flex; gap: 12px; align-items: flex-start; }
+.wk-qa-a { margin-top: 12px; }
+.wk-qa-marker {
+    flex: 0 0 auto; width: 24px; height: 24px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 900; font-family: var(--font-mono);
+    background: var(--wk-bg); color: var(--wk-muted);
+}
+.wk-qa-marker-a { background: var(--wk-purple); color: #fff; }
+.wk-qa-text { font-size: 14px; line-height: 1.7; margin: 0; white-space: pre-line; }
+.wk-qa-q .wk-qa-text { font-weight: 700; }
+.wk-qa-meta { font-size: 11.5px; color: var(--wk-muted); margin: 4px 0 0; display: flex; gap: 8px; flex-wrap: wrap; }
+
+.wk-qa-form-wrap {
+    background: var(--wk-surface); border: 2px solid var(--wk-border);
+    border-radius: var(--radius); padding: 18px 22px;
+}
+.wk-qa-form-toggle { font-size: 15px; font-weight: 800; cursor: pointer; }
+.wk-qa-note { font-size: 12.5px; color: var(--wk-muted); line-height: 1.6; margin: 12px 0 0; }
+.wk-qa-form { margin-top: 18px; display: grid; gap: 16px; }
+.wk-qa-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+.wk-qa-form label, .wk-qa-field { display: grid; gap: 5px; font-size: 13px; font-weight: 700; }
+.wk-qa-form small { font-size: 11px; font-weight: 500; color: var(--wk-muted); }
+.wk-qa-form input[type=text], .wk-qa-form input[type=email], .wk-qa-form textarea {
+    font: inherit; font-weight: 500; padding: 11px 13px;
+    border: 2px solid var(--wk-border); border-radius: var(--radius-sm);
+    background: var(--wk-bg); color: var(--wk-text); width: 100%;
+}
+.wk-qa-form textarea { resize: vertical; min-height: 80px; }
+.wk-qa-form input:focus, .wk-qa-form textarea:focus { outline: none; border-color: var(--wk-purple); }
+.wk-qa-form input.is-bad { border-color: var(--wk-red); }
+.wk-qa-form input.is-ok  { border-color: var(--wk-green); }
+.wk-qa-form small.is-bad { color: var(--wk-red); font-weight: 700; }
+.wk-qa-form small.is-ok  { color: var(--wk-green); font-weight: 700; }

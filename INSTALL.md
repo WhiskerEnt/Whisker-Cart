@@ -1,4 +1,4 @@
-# Whisker v1.0.0 — Installation Guide
+# Whisker — Installation Guide
 
 ## Quick Install (5 minutes)
 
@@ -16,6 +16,32 @@
 3. **Run Installer** — Visit `https://yourdomain.com/install/` and follow the wizard
 
 4. **Done!** — Access your admin panel at `https://yourdomain.com/admin`
+
+
+## The Installer, Step by Step
+
+| Step | What it asks |
+|---|---|
+| 1. Requirements | Checks PHP version, extensions and folder permissions |
+| 2. Database | Host, database name, username, password |
+| 3. Your Store | Store name, URL, currency, timezone, currency switcher, **cookie banner** |
+| 4. Admin Account | Your login |
+| 5. Payment Gateway | Optional — set one up now or skip |
+| 6. Complete | Delete the `install/` folder when prompted |
+
+### Cookie banner
+
+Step 3 asks whether to show a cookie banner. Turn it on if you sell to the
+EU or UK, where asking before setting optional cookies is required. Choosing
+a European timezone switches it on for you; you can always change it back.
+
+Shoppers see Reject optional, Customise and Accept all with equal weight,
+and Customise lets them grant analytics and marketing separately. Cookies
+needed for the cart, sign-in and checkout are never optional.
+
+Everything about the banner — wording, policy link, which categories to
+offer — lives in **Settings → Privacy** afterwards. Raise the policy version
+there whenever your cookie policy changes and everyone is asked again.
 
 
 ## Server Requirements

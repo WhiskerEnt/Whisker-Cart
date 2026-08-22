@@ -69,7 +69,9 @@ const editor = document.getElementById('editor');
 const hidden = document.getElementById('bodyHidden');
 const sourceView = document.getElementById('sourceView');
 let sourceMode = false;
-document.querySelector('form').addEventListener('submit', function() {
+// Scope to this editor's own form — the layout renders other forms first, so a
+// document-wide selector would bind to the wrong one.
+hidden.closest('form').addEventListener('submit', function() {
     if (sourceMode) editor.innerHTML = sourceView.value;
     hidden.value = editor.innerHTML;
 });

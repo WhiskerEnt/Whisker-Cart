@@ -92,7 +92,9 @@
 <script>
 const editor = document.getElementById('editor'), hidden = document.getElementById('bodyHidden'), sourceView = document.getElementById('sourceView');
 let sourceMode = false;
-document.querySelector('form').addEventListener('submit', function() { if(sourceMode) editor.innerHTML=sourceView.value; hidden.value=editor.innerHTML; });
+// Scope to this editor's own form — the layout renders other forms first, so a
+// document-wide selector would bind to the wrong one.
+hidden.closest('form').addEventListener('submit', function() { if(sourceMode) editor.innerHTML=sourceView.value; hidden.value=editor.innerHTML; });
 function execCmd(c,v){document.execCommand(c,false,v||null);editor.focus();}
 function insertVariable(v){if(sourceMode){sourceView.value+=v;return;}const s=document.createElement('span');s.style.cssText='background:#ede9fe;color:#8b5cf6;padding:1px 4px;border-radius:3px;font-family:monospace;font-size:12px;font-weight:700';s.textContent=v;const sel=window.getSelection();if(sel.rangeCount){const r=sel.getRangeAt(0);r.deleteContents();r.insertNode(s);r.setStartAfter(s);sel.removeAllRanges();sel.addRange(r);}else editor.appendChild(s);editor.focus();}
 function insertLink(){const u=prompt('URL:','https://');if(u)execCmd('createLink',u);}

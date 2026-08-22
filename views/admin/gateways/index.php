@@ -94,17 +94,67 @@ $fields = [
                     </label>
                 </div>
 
-                <?php foreach ($fields[$code] ?? [] as [$key, $label, $type]): ?>
+                <?php foreach ($fields[$code] ?? [] as [$key, $label, $type]):
+                    // Stored secrets are never rendered back into the page.
+                    // Secret fields show empty; submitting empty keeps the
+                    // saved value (see GatewayController::configure).
+                    $isSecret = ($type === 'password');
+                    $hasStored = ($config[$key] ?? '') !== '';
+                ?>
                 <div class="wk-form-group">
                     <label><?= $label ?></label>
                     <input type="<?= $type ?>" name="cfg_<?= $key ?>" class="wk-input"
-                           value="<?= $e($config[$key] ?? '') ?>" placeholder="Enter <?= strtolower($label) ?>" autocomplete="off">
+                           value="<?= $isSecret ? '' : $e($config[$key] ?? '') ?>"
+                           placeholder="<?= $isSecret && $hasStored ? '•••••••• (saved — leave blank to keep)' : 'Enter ' . strtolower($label) ?>" autocomplete="off">
                 </div>
                 <?php endforeach; ?>
 
-                <div style="background:var(--wk-blue-soft);border-radius:var(--radius-sm);padding:10px 14px;font-size:11px;color:var(--wk-blue);margin-bottom:16px">
-                    <strong>Webhook URL:</strong><br>
-                    <code style="font-family:var(--font-mono);font-size:11px"><?= $url('webhook/'.$code) ?></code>
+                <?php
+                // Setup notes per provider. The webhook path must match the
+                // route the plugin registers: /webhook/{code}/callback.
+                $hookUrl = $url('webhook/' . $code . '/callback');
+                $setup = [
+                    'stripe' => [
+                        'keys'   => 'Stripe Dashboard → Developers → API keys. With Workbench on, use the Workbench panel.',
+                        'hook'   => 'Add an endpoint under Workbench → Webhooks (or Developers → Webhooks), subscribe to <strong>checkout.session.completed</strong>, then paste the signing secret (starts <code>whsec_</code>) below.',
+                    ],
+                    'razorpay' => [
+                        'keys'   => 'Razorpay Dashboard → Account &amp; Settings → API Keys.',
+                        'hook'   => 'Settings → Webhooks → Add New Webhook, subscribe to <strong>payment.captured</strong>, and set a secret you also paste below.',
+                    ],
+                    'ccavenue' => [
+                        'keys'   => 'CCAvenue merchant panel → Settings → API Keys (merchant ID, access code, working key).',
+                        'hook'   => 'Set this as your Response URL in the CCAvenue panel. CCAvenue posts the encrypted response back to it.',
+                    ],
+                    'nowpayments' => [
+                        'keys'   => 'NOWPayments Dashboard → Settings → API keys.',
+                        'hook'   => 'Settings → IPN, set this as the callback URL and paste the IPN secret below.',
+                    ],
+                ][$code] ?? null;
+                ?>
+                <?php if ($setup): ?>
+                <div style="background:var(--wk-bg);border:1px solid var(--wk-border);border-radius:var(--radius-sm);padding:12px 14px;font-size:12px;color:var(--wk-text-muted);margin-bottom:14px;line-height:1.6">
+                    <div style="font-weight:800;color:var(--wk-text);margin-bottom:4px">Setup</div>
+                    <div style="margin-bottom:6px"><strong>Keys:</strong> <?= $setup['keys'] ?></div>
+                    <div><strong>Webhook:</strong> <?= $setup['hook'] ?></div>
+                </div>
+                <?php endif; ?>
+
+                <div style="background:var(--wk-blue-soft);border-radius:var(--radius-sm);padding:12px 14px;font-size:11px;color:var(--wk-blue);margin-bottom:16px">
+                    <div style="font-weight:800;margin-bottom:6px">Webhook URL — paste this into <?= ucfirst($code) ?></div>
+                    <div style="display:flex;gap:8px;align-items:stretch">
+                        <input type="text" readonly value="<?= $e($hookUrl) ?>" id="hook-<?= $e($code) ?>"
+                               onclick="this.select()"
+                               style="flex:1;min-width:0;font-family:var(--font-mono);font-size:11px;padding:7px 9px;border:1px solid var(--wk-border);border-radius:6px;background:var(--wk-surface);color:var(--wk-text)">
+                        <button type="button" class="wk-btn wk-btn-secondary wk-btn-sm" style="white-space:nowrap"
+                                onclick="wkCopyHook('hook-<?= $e($code) ?>', this)">Copy</button>
+                    </div>
+                </div>
+
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+                    <button type="button" class="wk-btn wk-btn-secondary wk-btn-sm"
+                            onclick="wkTestGateway('<?= $e($code) ?>', this)">Test connection</button>
+                    <span id="gwtest-<?= $e($code) ?>" style="font-size:12px;font-weight:700"></span>
                 </div>
 
                 <button type="submit" class="wk-btn wk-btn-primary" style="width:100%;justify-content:center">Save <?= $e($gw['display_name']) ?> Settings</button>
@@ -113,3 +163,38 @@ $fields = [
     </div>
     <?php endforeach; ?>
 </div>
+
+<script>
+const WK_ADMIN_BASE = '<?= $url('') ?>';
+const WK_ADMIN_CSRF = '<?= \Core\Session::csrfToken() ?>';
+function wkCopyHook(id, btn) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.select();
+    var done = function () { var t = btn.textContent; btn.textContent = 'Copied'; setTimeout(function(){ btn.textContent = t; }, 1400); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(el.value).then(done, function(){ document.execCommand('copy'); done(); });
+    } else { document.execCommand('copy'); done(); }
+}
+
+function wkTestGateway(code, btn) {
+    var out = document.getElementById('gwtest-' + code);
+    var label = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Testing...';
+    out.textContent = ''; out.style.color = '';
+    fetch(WK_ADMIN_BASE + 'admin/gateways/test/' + encodeURIComponent(code), {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': WK_ADMIN_CSRF, 'Accept': 'application/json' }
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+        out.textContent = (d.success ? '✓ ' : '✗ ') + (d.message || '');
+        out.style.color = d.success ? 'var(--wk-green)' : 'var(--wk-red)';
+    })
+    .catch(function () {
+        out.textContent = '✗ Could not run the test.';
+        out.style.color = 'var(--wk-red)';
+    })
+    .finally(function () { btn.disabled = false; btn.textContent = label; });
+}
+</script>

@@ -26,6 +26,74 @@ abstract class BaseGateway implements PaymentGatewayInterface
         return $this->config[$key] ?? '';
     }
 
+    /**
+     * Check the saved credentials against the provider.
+     *
+     * Gateways override this with a cheap authenticated call. The default
+     * reports that the gateway cannot be checked automatically, so a provider
+     * without a suitable endpoint does not look broken.
+     *
+     * @return array{success:bool, message:string}
+     */
+    public function testConnection(): array
+    {
+        return ['success' => false, 'message' => 'This gateway cannot be checked automatically. Verify the details in your provider dashboard.'];
+    }
+
+    /**
+     * Small HTTP helper for credential checks.
+     *
+     * @return array{status:int, body:string, error:string}
+     */
+    protected function probe(string $url, array $headers = [], ?string $basicAuth = null): array
+    {
+        $ch = curl_init($url);
+        $opts = [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 12,
+            CURLOPT_CONNECTTIMEOUT => 8,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+        ];
+        if ($headers) $opts[CURLOPT_HTTPHEADER] = $headers;
+        if ($basicAuth !== null) $opts[CURLOPT_USERPWD] = $basicAuth;
+        curl_setopt_array($ch, $opts);
+        $body   = (string) curl_exec($ch);
+        $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error  = curl_error($ch);
+        curl_close($ch);
+        return ['status' => $status, 'body' => $body, 'error' => $error];
+    }
+
+    /**
+     * Shape a gateway refund reply into the form RefundService expects.
+     *
+     * The case that matters is a call that never completed — a timeout or a
+     * dropped connection. The gateway may well have processed the refund, so
+     * reporting failure invites a retry that refunds a second time. Those come
+     * back as 'unknown', which stops the process and asks a human to check.
+     */
+    protected function refundUnknown(string $why): array
+    {
+        return [
+            'success'   => false,
+            'status'    => 'unknown',
+            'refund_id' => null,
+            'message'   => 'Could not confirm the refund with the gateway (' . $why . '). '
+                         . 'Check the gateway dashboard before trying again.',
+        ];
+    }
+
+    protected function refundFailed(string $message): array
+    {
+        return ['success' => false, 'status' => 'failed', 'refund_id' => null, 'message' => $message];
+    }
+
+    protected function refundOk(?string $refundId, string $status = 'completed', string $message = ''): array
+    {
+        return ['success' => true, 'status' => $status, 'refund_id' => $refundId, 'message' => $message];
+    }
+
     protected function logTransaction(int $orderId, array $data): int
     {
         // Redact sensitive keys before logging
@@ -95,12 +163,9 @@ abstract class BaseGateway implements PaymentGatewayInterface
             }
         }
 
-        // Finding 5: previously this was a plain UPDATE that left a race
-        // window between the SELECT-based idempotency check and the write.
-        // Concurrent webhook + verify-callback could both reach this point
-        // and both run the UPDATE. End-state was the same (idempotent
-        // values), but the conditional UPDATE makes "only one writer wins"
-        // a property of the schema, not of timing luck.
+        // Conditional UPDATE so concurrent webhook + verify-callback writers
+        // cannot both capture the order — "only one writer wins" is enforced
+        // by the WHERE clause, not by timing.
         $affected = Database::query(
             "UPDATE wk_orders
                 SET payment_status  = 'captured',

@@ -2,7 +2,7 @@
 
 <!-- Tab Navigation -->
 <div style="display:flex;gap:6px;margin-bottom:24px;border-bottom:2px solid var(--wk-border);padding-bottom:0;flex-wrap:wrap">
-    <?php $tabs = ['store'=>'🏪 Store','appearance'=>'🎨 Appearance','checkout'=>'🛒 Checkout & Tax','email'=>'📧 Email','system'=>'⚙️ System'];
+    <?php $tabs = ['store'=>'🏪 Store','appearance'=>'🎨 Appearance','checkout'=>'🛒 Checkout & Tax','privacy'=>'🍪 Privacy','email'=>'📧 Email','system'=>'⚙️ System'];
     foreach ($tabs as $key => $label): ?>
     <button onclick="switchTab('<?= $key ?>')" id="tab-btn-<?= $key ?>" style="padding:10px 20px;border:none;background:transparent;font-weight:700;font-size:13px;color:var(--wk-text-muted);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .2s;font-family:inherit"><?= $label ?></button>
     <?php endforeach; ?>
@@ -20,6 +20,10 @@
                     <div class="wk-form-group"><label>Store Name</label><input type="text" name="general_site_name" class="wk-input" value="<?= $v('general','site_name') ?>"></div>
                     <div class="wk-form-group"><label>Tagline</label><input type="text" name="general_site_tagline" class="wk-input" value="<?= $v('general','site_tagline') ?>"></div>
                     <div class="wk-form-group"><label>Shop Logo URL</label><input type="text" name="general_logo_url" class="wk-input" value="<?= $v('general','logo_url') ?>" placeholder="/storage/uploads/logo.png or https://yourstore.com/logo.png"><div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">Shown in the storefront header and emails. Use a full URL or a relative path. Tip: on an https:// shop, an http:// logo URL is blocked by browsers — use a relative path or https. Leave empty to show the store name.</div></div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+                        <div class="wk-form-group"><label>Favicon URL</label><input type="text" name="general_favicon_url" class="wk-input" value="<?= $v('general','favicon_url') ?>" placeholder="/storage/uploads/favicon.png"><div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">Browser tab icon (.png, .svg, or .ico). Leave empty for the default.</div></div>
+                        <div class="wk-form-group"><label>Loading Icon URL</label><input type="text" name="general_loader_url" class="wk-input" value="<?= $v('general','loader_url') ?>" placeholder="/storage/uploads/loader.png"><div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">Shown on the page loader. Leave empty for the default.</div></div>
+                    </div>
                     <div class="wk-form-group"><label>Store URL</label><input type="url" name="general_base_url" class="wk-input" value="<?= $v('general','base_url') ?>"><div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">Used in sitemaps and SEO tags. The primary URL lives in config/config.php.</div></div>
                     <?php $wkCurrencies = \App\Services\CurrencyService::currencies();
                           $curCurrency = $s['general']['currency'] ?? 'INR'; ?>
@@ -36,14 +40,21 @@
                         </div>
                         <div class="wk-form-group"><label>Currency Symbol</label><input type="text" name="general_currency_symbol" id="wkCurrencySymbol" class="wk-input" value="<?= $v('general','currency_symbol') ?>" placeholder="₹"><div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">Auto-fills when you change the currency</div></div>
                     </div>
+                    <div class="wk-form-group"><label>Multi-Currency</label>
+                        <select name="general_multi_currency" class="wk-select">
+                            <option value="0" <?= ($s['general']['multi_currency'] ?? '0')!=='1'?'selected':'' ?>>Off — sell in your store currency only</option>
+                            <option value="1" <?= ($s['general']['multi_currency'] ?? '0')==='1'?'selected':'' ?>>On — let customers pick a currency</option>
+                        </select>
+                        <div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">When on, shoppers choose from the currencies your active payment gateways can charge, and pay in that currency. Off keeps everything in your store currency.</div>
+                    </div>
                     <div class="wk-form-group"><label>Timezone</label><input type="text" name="general_timezone" class="wk-input" value="<?= $v('general','timezone') ?>"></div>
-                    <div class="wk-form-group"><label>Contact Form Email</label><input type="email" name="general_contact_email" class="wk-input" value="<?= $v('general','contact_email') ?>" placeholder="support@yourstore.com"></div>
+                    <div class="wk-form-group"><label>Contact Email</label><input type="email" name="general_contact_email" class="wk-input" value="<?= $v('general','contact_email') ?>" placeholder="support@yourstore.com"><div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">Receives contact-form messages and is shown in the storefront footer.</div></div>
                 </div>
             </div>
             <div class="wk-card">
                 <div class="wk-card-header"><h2>Business Info (Invoices)</h2></div>
                 <div class="wk-card-body">
-                    <div class="wk-form-group"><label>Store Phone</label><input type="text" name="general_store_phone" class="wk-input" value="<?= $v('general','store_phone') ?>" placeholder="+91 98765 43210"></div>
+                    <div class="wk-form-group"><label>Store Phone</label><input type="text" name="general_store_phone" class="wk-input" value="<?= $v('general','store_phone') ?>" placeholder="+91 98765 43210"><div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">Shown on invoices and in the storefront footer.</div></div>
                     <div class="wk-form-group"><label>Store Address</label><textarea name="general_store_address" class="wk-input" rows="3" placeholder="123 Main Street&#10;City, State 560001&#10;Country"><?= $v('general','store_address') ?></textarea></div>
                     <div class="wk-form-group"><label>GSTIN / VAT / Tax ID</label><input type="text" name="general_store_tax_id" class="wk-input" value="<?= $v('general','store_tax_id') ?>" placeholder="e.g. 29ABCDE1234F1Z5"><div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">Shown on invoices</div></div>
                     <div class="wk-form-group"><label>Store Logo URL</label><input type="text" name="general_store_logo" class="wk-input" value="<?= $v('general','store_logo') ?>" placeholder="https://yourstore.com/logo.png"><div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">Shown on invoices</div></div>
@@ -182,6 +193,70 @@
         </div>
     </div>
 
+    <!-- Cookie consent lives with the other storefront policy controls -->
+    <div class="settings-tab" id="tab-privacy" style="display:none">
+        <div class="wk-card">
+            <div class="wk-card-header"><h2>🍪 Cookie Consent</h2></div>
+            <div class="wk-card-body">
+                <p style="font-size:12px;color:var(--wk-text-muted);margin-bottom:16px;line-height:1.6">
+                    Shows a banner asking shoppers to accept or reject cookies. Required in the EU, UK and a growing
+                    number of other regions. Accept and Reject are shown with equal prominence, which those rules require.
+                </p>
+                <div class="wk-form-group">
+                    <label>Banner</label>
+                    <select name="privacy_cookie_consent" class="wk-select">
+                        <option value="0" <?= ($s['privacy']['cookie_consent'] ?? '0')!=='1'?'selected':'' ?>>Off — do not show a cookie banner</option>
+                        <option value="1" <?= ($s['privacy']['cookie_consent'] ?? '0')==='1'?'selected':'' ?>>On — ask shoppers before setting optional cookies</option>
+                    </select>
+                </div>
+                <div class="wk-form-group">
+                    <label>Heading</label>
+                    <input type="text" name="privacy_cookie_title" class="wk-input" value="<?= $v('privacy','cookie_title') ?>" placeholder="We use cookies">
+                </div>
+                <div class="wk-form-group">
+                    <label>Message</label>
+                    <textarea name="privacy_cookie_text" class="wk-input" rows="3" placeholder="Explain briefly what you use cookies for."><?= $v('privacy','cookie_text') ?></textarea>
+                </div>
+                <div class="wk-form-group">
+                    <label>Policy Link <span style="font-weight:500;color:var(--wk-text-muted)">(optional)</span></label>
+                    <input type="url" name="privacy_cookie_policy_url" class="wk-input" value="<?= $v('privacy','cookie_policy_url') ?>" placeholder="https://yourstore.com/page/privacy-policy">
+                    <div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">Adds a “Read our policy” link to the banner.</div>
+                </div>
+
+                <div style="border-top:1px solid var(--wk-border);margin:20px 0 16px;padding-top:16px">
+                    <div style="font-weight:800;font-size:13px;margin-bottom:4px">Categories</div>
+                    <p style="font-size:12px;color:var(--wk-text-muted);margin-bottom:14px;line-height:1.6">
+                        Shoppers can grant these individually under “Customise”. Only offer a category you actually
+                        use — asking about ads you do not run just adds friction. Cookies needed for the cart,
+                        sign-in and checkout are always allowed and are not listed here.
+                    </p>
+                    <div class="wk-form-group">
+                        <label>Analytics</label>
+                        <select name="privacy_cookie_analytics" class="wk-select">
+                            <option value="1" <?= ($s['privacy']['cookie_analytics'] ?? '1')==='1'?'selected':'' ?>>Offer — you use analytics or visitor tracking</option>
+                            <option value="0" <?= ($s['privacy']['cookie_analytics'] ?? '1')==='0'?'selected':'' ?>>Do not offer</option>
+                        </select>
+                    </div>
+                    <div class="wk-form-group">
+                        <label>Marketing</label>
+                        <select name="privacy_cookie_marketing" class="wk-select">
+                            <option value="0" <?= ($s['privacy']['cookie_marketing'] ?? '0')!=='1'?'selected':'' ?>>Do not offer</option>
+                            <option value="1" <?= ($s['privacy']['cookie_marketing'] ?? '0')==='1'?'selected':'' ?>>Offer — you run ad or remarketing pixels</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="wk-form-group">
+                    <label>Policy Version</label>
+                    <input type="number" name="privacy_cookie_version" class="wk-input" min="1" step="1" value="<?= $v('privacy','cookie_version') ?: '1' ?>" style="max-width:140px">
+                    <div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">
+                        Raise this number when your cookie policy changes. Everyone who already answered is asked again.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- TAB: Email -->
     <div class="settings-tab" id="tab-email" style="display:none">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
@@ -199,7 +274,8 @@
                     <div class="wk-form-group"><label>SMTP Host</label><input type="text" name="email_smtp_host" id="smtpHost" class="wk-input" value="<?= $v('email','smtp_host') ?>" placeholder="smtp.gmail.com"></div>
                     <div class="wk-form-group"><label>SMTP Port</label><input type="number" name="email_smtp_port" id="smtpPort" class="wk-input" value="<?= $v('email','smtp_port') ?>" placeholder="587"></div>
                     <div class="wk-form-group"><label>SMTP Username</label><input type="text" name="email_smtp_user" id="smtpUser" class="wk-input" value="<?= $v('email','smtp_user') ?>"></div>
-                    <div class="wk-form-group"><label>SMTP Password</label><input type="password" name="email_smtp_pass" id="smtpPass" class="wk-input" value="<?= $v('email','smtp_pass') ?>"></div>
+                    <?php $hasSmtpPass = ($s['email']['smtp_pass'] ?? '') !== ''; ?>
+                    <div class="wk-form-group"><label>SMTP Password</label><input type="password" name="email_smtp_pass" id="smtpPass" class="wk-input" value="" placeholder="<?= $hasSmtpPass ? '•••••••• (saved — leave blank to keep)' : '' ?>"><div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">Never shown for security. Leave blank to keep the saved password.</div></div>
                     <div style="display:flex;gap:8px;flex-wrap:wrap">
                         <button type="button" onclick="testSmtpConnection()" id="testConnBtn" class="wk-btn wk-btn-secondary" style="justify-content:center">🔌 Test Connection</button>
                         <button type="button" onclick="sendTestEmail()" id="testEmailBtn" class="wk-btn wk-btn-secondary" style="justify-content:center">📧 Send Test Email</button>

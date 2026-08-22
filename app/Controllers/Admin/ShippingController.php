@@ -62,8 +62,8 @@ class ShippingController
             return;
         }
 
-        // L16: structured validation. The carrier `code` is intentionally
-        // optional but, if present, must look like a short identifier.
+        // The carrier `code` is intentionally optional but, if present,
+        // must look like a short identifier.
         $v = new Validator($request->all(), [
             'name' => 'required|min:2|max:100',
             'code' => 'max:50',
@@ -74,8 +74,8 @@ class ShippingController
             return;
         }
         $name = trim($request->input('name') ?? '');
-        // M26 follow-up: reject javascript: et al on the tracking-URL
-        // template before it can land in any <a href> at display time.
+        // The tracking-URL template is rendered into <a href> at display
+        // time, so only http(s) or relative URLs are accepted.
         $trackingTemplate = trim($request->input('tracking_url_template') ?? '');
         if ($trackingTemplate !== '' && !View::isSafeUrl($trackingTemplate)) {
             Session::flash('error', 'Tracking URL template must be http(s) or a relative path.');
@@ -102,8 +102,7 @@ class ShippingController
             return;
         }
 
-        // L16: same validation as store(). Without this, admin can clear the
-        // name field and trigger a 500 on the NOT NULL constraint.
+        // Same validation as store(); name is NOT NULL in the schema.
         $v = new Validator($request->all(), [
             'name' => 'required|min:2|max:100',
             'code' => 'max:50',
@@ -164,7 +163,7 @@ class ShippingController
             return;
         }
 
-        $fields = ['method','flat_rate','flat_rate_below','free_threshold','per_item','per_item_cap','weight_base','weight_per_kg','pickup_enabled','pickup_fee'];
+        $fields = ['method','flat_rate','flat_rate_below','free_threshold','per_item','per_item_cap','weight_base','weight_per_kg','pickup_enabled','pickup_fee','ship_mode'];
         foreach ($fields as $key) {
             $val = $request->input('shipping_' . $key);
             if ($val !== null) {
@@ -174,6 +173,24 @@ class ShippingController
                     [$key, trim($val)]
                 );
             }
+        }
+
+        // Chosen destinations. Stored as one comma-separated list of ISO codes,
+        // validated here so nothing outside the known set is written. Only
+        // rewritten when the form actually carried the picker, so saving from
+        // another mode does not wipe a list the shopkeeper built earlier.
+        if ($request->input('shipping_ship_mode') === \App\Services\CountryService::MODE_SELECTED) {
+            $picked = (array) ($request->all()['ship_country'] ?? []);
+            $codes = [];
+            foreach ($picked as $code) {
+                $code = strtoupper(trim((string) $code));
+                if (\App\Services\CountryService::exists($code)) $codes[$code] = true;
+            }
+            Database::query(
+                "INSERT INTO wk_settings (setting_group,setting_key,setting_value) VALUES('shipping','ship_countries',?)
+                 ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value)",
+                [implode(',', array_keys($codes))]
+            );
         }
 
         // Carrier-specific rates
@@ -195,11 +212,115 @@ class ShippingController
              ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value)",
             [$flat]
         );
-        // M10/M14: invalidate request-scoped settings cache.
+        // Invalidate the request-scoped settings cache.
         Database::clearSettingsCache();
 
         Session::flash('success', 'Shipping settings saved!');
         Response::redirect(View::url('admin/shipping/settings'));
+    }
+
+    // ── Shipping zones ───────────────────────────────────────────────
+
+    public function zones(Request $request, array $params = []): void
+    {
+        View::render('admin/shipping/zones', [
+            'pageTitle' => 'Shipping Zones',
+            'zones'     => \App\Services\ShippingZoneService::all(),
+        ], 'admin/layouts/main');
+    }
+
+    public function zoneStore(Request $request, array $params = []): void
+    {
+        if (!$this->zoneGuard($request)) return;
+        $data = $this->zoneInput($request);
+        if (is_string($data)) {
+            Session::flash('error', $data);
+            Response::redirect(View::url('admin/shipping/zones'));
+            return;
+        }
+        Database::insert('wk_shipping_zones', $data);
+        \App\Services\ShippingZoneService::clearCache();
+        Session::flash('success', 'Zone created.');
+        Response::redirect(View::url('admin/shipping/zones'));
+    }
+
+    public function zoneUpdate(Request $request, array $params = []): void
+    {
+        if (!$this->zoneGuard($request)) return;
+        $data = $this->zoneInput($request);
+        if (is_string($data)) {
+            Session::flash('error', $data);
+            Response::redirect(View::url('admin/shipping/zones'));
+            return;
+        }
+        Database::update('wk_shipping_zones', $data, 'id = ?', [(int) $params['id']]);
+        \App\Services\ShippingZoneService::clearCache();
+        Session::flash('success', 'Zone saved.');
+        Response::redirect(View::url('admin/shipping/zones'));
+    }
+
+    public function zoneDelete(Request $request, array $params = []): void
+    {
+        if (!$this->zoneGuard($request)) return;
+        Database::delete('wk_shipping_zones', 'id = ?', [(int) $params['id']]);
+        \App\Services\ShippingZoneService::clearCache();
+        Session::flash('success', 'Zone deleted. Those countries now use your store-wide rates.');
+        Response::redirect(View::url('admin/shipping/zones'));
+    }
+
+    private function zoneGuard(Request $request): bool
+    {
+        if (Session::verifyCsrf($request->input('wk_csrf'))) return true;
+        Session::flash('error', 'Session expired. Please try again.');
+        Response::redirect(View::url('admin/shipping/zones'));
+        return false;
+    }
+
+    /**
+     * Validate a zone form.
+     *
+     * @return array|string the row to write, or the reason it cannot be written
+     */
+    private function zoneInput(Request $request)
+    {
+        $name = trim((string) $request->input('name'));
+        if ($name === '' || mb_strlen($name) > 80) {
+            return 'Give the zone a name.';
+        }
+
+        // Only known ISO codes are stored, whatever the form posted.
+        $codes = [];
+        foreach ((array) ($request->all()['countries'] ?? []) as $code) {
+            $code = strtoupper(trim((string) $code));
+            if (\App\Services\CountryService::exists($code)) $codes[$code] = true;
+        }
+        if (!$codes) {
+            return 'Choose at least one country for the zone — an empty zone would never apply to anything.';
+        }
+
+        $method = (string) $request->input('method');
+        if (!in_array($method, ['flat', 'free', 'free_above', 'per_item', 'weight'], true)) {
+            $method = 'flat';
+        }
+
+        $num = fn($key) => round(max(0, (float) str_replace(',', '', (string) $request->input($key))), 2);
+        $cap = trim((string) $request->input('per_item_cap'));
+
+        return [
+            'name'            => mb_substr($name, 0, 80),
+            'countries'       => implode(',', array_keys($codes)),
+            'method'          => $method,
+            'flat_rate'       => $num('flat_rate'),
+            'flat_rate_below' => $num('flat_rate_below'),
+            'free_threshold'  => $num('free_threshold'),
+            'per_item'        => $num('per_item'),
+            // Blank means no cap, which is not the same as a cap of zero.
+            'per_item_cap'    => $cap === '' ? null : round(max(0, (float) $cap), 2),
+            'weight_base'     => $num('weight_base'),
+            'weight_per_kg'   => $num('weight_per_kg'),
+            'is_active'       => $request->input('is_active') === '0' ? 0 : 1,
+            'sort_order'      => (int) $request->input('sort_order'),
+        ];
     }
 
     // ── Pickup points (lockers / collection points) ──────────────────

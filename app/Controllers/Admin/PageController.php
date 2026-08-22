@@ -40,7 +40,7 @@ class PageController
         if (!Session::verifyCsrf($request->input('wk_csrf'))) {
             Session::flash('error','Session expired.'); Response::redirect(View::url('admin/pages/edit/'.$params['id'])); return;
         }
-        // L16: input validation. Empty title would write garbage to nav.
+        // Title is required — it renders directly in nav and page listings.
         $v = new Validator($request->all(), [
             'title' => 'required|min:2|max:200',
         ]);
@@ -71,10 +71,8 @@ class PageController
         if (!Session::verifyCsrf($request->input('wk_csrf'))) {
             Session::flash('error','Session expired.'); Response::redirect(View::url('admin/pages/create')); return;
         }
-        // L16: validate title before slugify. If title is all non-alphanumeric,
-        // slug ends up '' and the row would fail the UNIQUE constraint on the
-        // first save (since seed defaults already include an empty-slug clash
-        // risk on edge cases).
+        // Validate the title before slugifying: an all-non-alphanumeric title
+        // would produce an empty slug and violate the UNIQUE constraint.
         $v = new Validator($request->all(), [
             'title' => 'required|min:2|max:200',
         ]);
@@ -82,7 +80,7 @@ class PageController
             Session::flash('error', $v->firstError());
             Response::redirect(View::url('admin/pages/create')); return;
         }
-        $slug = trim(strtolower(preg_replace('/[^a-z0-9]+/','-',$request->clean('title'))),'-');
+        $slug = View::slug($request->clean('title'));
         if ($slug === '') {
             Session::flash('error', 'Page title must contain at least 2 alphanumeric characters.');
             Response::redirect(View::url('admin/pages/create')); return;

@@ -3,6 +3,16 @@ $url = fn($p) => \Core\View::url($p);
 $e = fn($v) => \Core\View::e($v);
 $siteName = \Core\Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='site_name'") ?: 'Whisker Store';
 $logoUrl = \Core\Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='logo_url'");
+// Admin-managed branding + footer contact (all optional; sensible fallbacks).
+$faviconUrl  = \Core\Database::setting('general', 'favicon_url');
+$loaderUrl   = \Core\Database::setting('general', 'loader_url');
+$footerPhone = \Core\Database::setting('general', 'store_phone');
+$footerEmail = \Core\Database::setting('general', 'contact_email');
+$multiCurrency = \App\Services\CurrencyService::multiCurrencyEnabled();
+// Currencies to offer come from what active gateways can charge; only show the
+// switcher when there's a real choice beyond the base currency.
+$switcherCurrencies = $multiCurrency ? \App\Services\CurrencyService::gatewayCurrencies() : [];
+$showSwitcher = count($switcherCurrencies) > 1;
 
 // Load parent categories with their children
 $allCats = \Core\Database::fetchAll("SELECT id, name, slug, parent_id FROM wk_categories WHERE is_active=1 ORDER BY sort_order, name");
@@ -40,10 +50,14 @@ $currentSymbol = $currentCurrency === $baseCurrency
     <?php if (!empty($seoMeta)): ?>
     <?= $seoMeta ?>
     <?php else: ?>
-    <title><?= $e($pageTitle ?? $siteName) ?></title>
+    <title><?= $e(\App\Services\SeoService::buildTitle($pageTitle ?? null)) ?></title>
     <?php endif; ?>
     <?= $productSchema ?? '' ?>
+    <?php if ($faviconUrl): ?>
+    <link rel="icon" href="<?= \Core\View::safeUrl($faviconUrl, true) ?>">
+    <?php else: ?>
     <link rel="icon" type="image/svg+xml" href="<?= \Core\View::asset('img/favicon.svg') ?>">
+    <?php endif; ?>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?= \Core\View::asset('css/store.css') ?>">
@@ -53,6 +67,9 @@ $currentSymbol = $currentCurrency === $baseCurrency
 
 <!-- Page Loader -->
 <div class="wk-page-loader">
+    <?php if ($loaderUrl): ?>
+    <img src="<?= \Core\View::safeUrl($loaderUrl, true) ?>" alt="<?= $e($siteName) ?>" style="width:48px;height:48px;object-fit:contain">
+    <?php else: ?>
     <svg width="40" height="40" viewBox="0 0 56 56" fill="none">
         <circle cx="28" cy="28" r="26" fill="#faf8f6" stroke="url(#pl)" stroke-width="2"/>
         <path d="M16 10 L12 22 L22 18Z" fill="#8b5cf6"/><path d="M40 10 L44 22 L34 18Z" fill="#ec4899"/>
@@ -60,6 +77,7 @@ $currentSymbol = $currentCurrency === $baseCurrency
         <ellipse cx="28" cy="31" rx="2" ry="1.5" fill="#f472b6"/>
         <defs><linearGradient id="pl" x1="0" y1="0" x2="56" y2="56"><stop offset="0%" stop-color="#8b5cf6"/><stop offset="100%" stop-color="#ec4899"/></linearGradient></defs>
     </svg>
+    <?php endif; ?>
     <div class="wk-loader-bar"></div>
 </div>
 
@@ -84,7 +102,7 @@ $currentSymbol = $currentCurrency === $baseCurrency
         <nav class="wk-header-nav">
             <a href="<?= $url('') ?>">Home</a>
             <a href="<?= $url('shop') ?>">Shop All</a>
-            <?php foreach (array_slice($parentCats, 0, 6) as $cat):
+            <?php foreach (array_slice($parentCats, 0, 14) as $cat):
                 $children = $childMap[$cat['id']] ?? [];
             ?>
                 <?php if (!empty($children)): ?>
@@ -101,19 +119,49 @@ $currentSymbol = $currentCurrency === $baseCurrency
                 <a href="<?= $url('category/' . $cat['slug']) ?>"><?= $e($cat['name']) ?></a>
                 <?php endif; ?>
             <?php endforeach; ?>
-            <a href="<?= $url('search') ?>">Search</a>
+            <a href="<?= $url('search') ?>" class="wk-search-link">Search</a>
+            <div class="wk-nav-dropdown wk-nav-more" id="wkNavMore" hidden>
+                <span class="wk-nav-dropdown-trigger">More <span style="font-size:9px;opacity:.5">▼</span></span>
+                <div class="wk-nav-dropdown-menu" id="wkNavMoreMenu"></div>
+            </div>
         </nav>
 
+        <div class="wk-search" role="search">
+            <svg class="wk-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
+                <circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="21" y2="21"></line>
+            </svg>
+            <input type="search" class="wk-search-input" id="wkSearchInput"
+                   placeholder="Search products&hellip;" autocomplete="off"
+                   aria-label="Search products" aria-expanded="false"
+                   aria-controls="wkSearchResults" role="combobox">
+            <div class="wk-search-panel" id="wkSearchResults" role="listbox" hidden></div>
+        </div>
+
         <div style="display:flex;align-items:center;gap:12px;flex-shrink:0">
-            <?php
-            // Always offer the store's own currency in the switcher, first.
-            $activeCurrencies = array_values(array_unique(array_merge([$baseCurrency], ['INR','USD','EUR','GBP','AUD','CAD','JPY','SGD','AED'])));
-            ?>
-            <select onchange="window.location='<?= $url('') ?>?currency='+this.value" style="padding:6px 10px;border:2px solid var(--wk-border);border-radius:6px;font-family:var(--font);font-size:12px;font-weight:700;background:var(--wk-surface);cursor:pointer;color:var(--wk-text)">
-                <?php foreach ($activeCurrencies as $cc): ?>
+            <?php if ($showSwitcher): ?>
+            <select onchange="wkSwitchCurrency(this.value)" style="padding:6px 10px;border:2px solid var(--wk-border);border-radius:6px;font-family:var(--font);font-size:12px;font-weight:700;background:var(--wk-surface);cursor:pointer;color:var(--wk-text)">
+                <?php foreach ($switcherCurrencies as $cc): ?>
                     <option value="<?= $cc ?>" <?= $cc === $currentCurrency ? 'selected' : '' ?>><?= \App\Services\CurrencyService::symbol($cc) ?> <?= $cc ?></option>
                 <?php endforeach; ?>
             </select>
+            <script>
+            // Must be a named function, NOT an inline onchange body: inline
+            // event handlers run with `document` in their scope chain, and
+            // `document.URL` is a string — so a bare `new URL(...)` inside an
+            // onchange resolves URL to that string and throws
+            // "URL is not a constructor". In a normal function scope URL is the
+            // constructor. Build the target with plain string ops anyway, so
+            // the switch never depends on the URL API at all.
+            function wkSwitchCurrency(v) {
+                var path = window.location.pathname;
+                var parts = window.location.search.replace(/^\?/, '').split('&').filter(function (s) {
+                    return s && s.slice(0, 9) !== 'currency=';
+                });
+                parts.push('currency=' + encodeURIComponent(v));
+                window.location.href = path + '?' + parts.join('&');
+            }
+            </script>
+            <?php endif; ?>
 
             <?php if ($isLoggedIn): ?>
                 <div style="position:relative" id="accountMenu">
@@ -184,11 +232,25 @@ $currentSymbol = $currentCurrency === $baseCurrency
             <?php endforeach; ?>
             <a href="<?= $url('contact') ?>" style="font-weight:700;color:rgba(255,255,255,.7)">Contact</a>
         </div>
+        <?php if ($footerPhone || $footerEmail): ?>
+        <div style="display:flex;justify-content:center;gap:24px;flex-wrap:wrap;font-size:13px;color:rgba(255,255,255,.7);font-weight:600">
+            <?php if ($footerPhone): ?>
+                <a href="tel:<?= $e(preg_replace('/[^0-9+]/', '', $footerPhone)) ?>" style="color:rgba(255,255,255,.7)">📞 <?= $e($footerPhone) ?></a>
+            <?php endif; ?>
+            <?php if ($footerEmail): ?>
+                <a href="mailto:<?= $e($footerEmail) ?>" style="color:rgba(255,255,255,.7)">✉️ <?= $e($footerEmail) ?></a>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
         <div style="display:flex;justify-content:center;gap:24px;flex-wrap:wrap;font-size:12px">
             <a href="<?= $url('page/terms-and-conditions') ?>" style="color:rgba(255,255,255,.5)">Terms & Conditions</a>
             <a href="<?= $url('page/privacy-policy') ?>" style="color:rgba(255,255,255,.5)">Privacy Policy</a>
             <a href="<?= $url('page/refund-policy') ?>" style="color:rgba(255,255,255,.5)">Refund Policy</a>
             <a href="<?= $url('page/exchange-policy') ?>" style="color:rgba(255,255,255,.5)">Exchange Policy</a>
+            <a href="<?= $url('track') ?>" style="color:rgba(255,255,255,.5)">Track Order</a>
+            <?php if (\Core\Database::setting('privacy', 'cookie_consent', '0') === '1'): ?>
+                <a href="#" onclick="if(window.WhiskerConsent){WhiskerConsent.reopen();}return false;" style="color:rgba(255,255,255,.5)">Cookie Settings</a>
+            <?php endif; ?>
             <?php if ($isLoggedIn): ?>
                 <a href="<?= $url('account') ?>" style="color:rgba(255,255,255,.5)">My Account</a>
             <?php else: ?>
@@ -330,5 +392,6 @@ async function sendChat(override) {
 }
 </script>
 <?php endif; ?>
+<?php require __DIR__ . '/../partials/cookie-consent.php'; ?>
 </body>
 </html>

@@ -1,4 +1,4 @@
-![Version](https://img.shields.io/badge/version-1.3.2-8b5cf6?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-1.4.0-8b5cf6?style=for-the-badge)
 ![License](https://img.shields.io/badge/license-Whisker%20Free-f59e0b?style=for-the-badge)
 ![PHP](https://img.shields.io/badge/PHP-8.0+-777BB4?style=for-the-badge&logo=php&logoColor=white)
 ![MySQL](https://img.shields.io/badge/MySQL-5.7+-4479A1?style=for-the-badge&logo=mysql&logoColor=white)
@@ -10,7 +10,7 @@ Beautiful storefront. Powerful admin panel. Built-in AI chatbot. Zero monthly fe
 
 🌐 **[Live Demo](https://whisker.lohit.me)** · 📖 **[Documentation](https://github.com/WhiskerEnt/Whisker-Cart/wiki)** · 📧 **[mail@lohit.me](mailto:mail@lohit.me)**
 
-> **Current release: v1.3.2.** &nbsp;·&nbsp; **v1.4.0 lands 22 August 2026** — the features below marked as new are part of it. A large release. It adds **refunds from the admin panel** (gateway-backed, with a reference and a receipt email), **reviews and ratings**, **customer questions and answers**, **shipping zones**, **shipping destination control**, **cookie consent**, **guest order tracking**, **instant product search**, and **pickup point / locker delivery** — plus an opt-in multi-currency switcher, admin-managed branding, and a rebuilt order confirmation page. Recommended for all installs.
+> **v1.4.0 — released 22 August 2026.** A large release. It adds **refunds from the admin panel** (gateway-backed, with a reference and a receipt email), **reviews and ratings**, **customer questions and answers**, **shipping zones**, **shipping destination control**, **cookie consent**, **guest order tracking**, **instant product search**, and **pickup point / locker delivery** — plus an opt-in multi-currency switcher, admin-managed branding, and a rebuilt order confirmation page. Recommended for all installs.
 
 ---
 
@@ -272,5 +272,5 @@ Whisker Free Edition is released under the Whisker Free License v1.0. Free to us
 
 ---
 
-**🐱 Whisker v1.3.2** · Built by Lohit T
+**🐱 Whisker v1.4.0** · Built by Lohit T
 📧 [mail@lohit.me](mailto:mail@lohit.me)

@@ -18,8 +18,13 @@ $router->get('/shop',               [HomeController::class, 'shop']);
 $router->get('/product/{slug}',      [ProductController::class, 'show']);
 $router->get('/category/{slug}',     [ProductController::class, 'category']);
 $router->get('/search',              [ProductController::class, 'search']);
+$router->get('/search/suggest',      [ProductController::class, 'suggest']);
 
-// Cart (AJAX) — L1: CSRF-gated on all state-changing endpoints.
+// Guest order tracking (order number + email, no account needed)
+$router->get('/track',               [\App\Controllers\Store\TrackController::class, 'show']);
+$router->post('/track',              [\App\Controllers\Store\TrackController::class, 'lookup'], ['csrf']);
+
+// Cart (AJAX) — CSRF-gated on all state-changing endpoints.
 // 'show' stays GET (no middleware needed). Storefront JS sends the token
 // either as 'wk_csrf' in FormData (default path) or as X-CSRF-Token header.
 $router->get('/cart',                [CartController::class, 'show']);
@@ -35,6 +40,10 @@ $router->post('/checkout/process',   [CheckoutController::class, 'process'], ['c
 $router->post('/checkout/calculate', [CheckoutController::class, 'calculate']);
 $router->post('/checkout/verify-payment', [CheckoutController::class, 'verifyPayment']);
 $router->get('/order-success',       [CheckoutController::class, 'success']);
+
+// Product reviews
+$router->post('/review',             [\App\Controllers\Store\ReviewController::class, 'store'], ['csrf']);
+$router->post('/question',           [\App\Controllers\Store\QuestionController::class, 'store'], ['csrf']);
 
 // Pages, Contact, Chatbot
 $router->get('/page/{slug}',        [\App\Controllers\Store\PageController::class, 'show']);
@@ -110,6 +119,7 @@ $router->group(['prefix' => '/admin', 'middleware' => ['auth', 'csrf']], functio
     $r->get('/orders/{id}',              [OrderController::class, 'show']);
     $r->post('/orders/status/{id}',      [OrderController::class, 'updateStatus']);
     $r->post('/orders/shipping/{id}',    [OrderController::class, 'updateShipping']);
+    $r->post('/orders/refund/{id}',      [OrderController::class, 'refund']);
     $r->get('/orders/invoice/{id}',      [OrderController::class, 'invoice']);
 
     // Product Variants (AJAX)
@@ -141,6 +151,7 @@ $router->group(['prefix' => '/admin', 'middleware' => ['auth', 'csrf']], functio
     $r->get('/gateways',                 [GatewayController::class, 'index']);
     $r->post('/gateways/toggle',         [GatewayController::class, 'toggle']);
     $r->post('/gateways/configure',      [GatewayController::class, 'configure']);
+    $r->post('/gateways/test/{code}',      [GatewayController::class, 'test']);
 
     // Settings
     $r->get('/settings',                 [SettingsController::class, 'index']);
@@ -180,11 +191,29 @@ $router->group(['prefix' => '/admin', 'middleware' => ['auth', 'csrf']], functio
     $r->post('/abandoned-carts/prune',              [\App\Controllers\Admin\AbandonedCartController::class, 'prune']);
 
     // Shipping Carriers
+    $r->get('/reviews',                  [\App\Controllers\Admin\ReviewController::class, 'index']);
+    $r->post('/reviews/status/{id}',     [\App\Controllers\Admin\ReviewController::class, 'status']);
+    $r->post('/reviews/reply/{id}',      [\App\Controllers\Admin\ReviewController::class, 'reply']);
+    $r->post('/reviews/delete/{id}',     [\App\Controllers\Admin\ReviewController::class, 'destroy']);
+    $r->post('/reviews/settings',        [\App\Controllers\Admin\ReviewController::class, 'updateSettings']);
+
+    $r->get('/questions',                [\App\Controllers\Admin\QuestionController::class, 'index']);
+    $r->post('/questions/publish/{id}',  [\App\Controllers\Admin\QuestionController::class, 'publish']);
+    $r->post('/questions/draft/{id}',    [\App\Controllers\Admin\QuestionController::class, 'draft']);
+    $r->post('/questions/reject/{id}',   [\App\Controllers\Admin\QuestionController::class, 'reject']);
+    $r->post('/questions/unpublish/{id}',[\App\Controllers\Admin\QuestionController::class, 'unpublish']);
+    $r->post('/questions/delete/{id}',   [\App\Controllers\Admin\QuestionController::class, 'destroy']);
+    $r->post('/questions/settings',      [\App\Controllers\Admin\QuestionController::class, 'updateSettings']);
+
     $r->get('/shipping',                 [\App\Controllers\Admin\ShippingController::class, 'index']);
     $r->post('/shipping/store',          [\App\Controllers\Admin\ShippingController::class, 'store']);
     $r->post('/shipping/update/{id}',    [\App\Controllers\Admin\ShippingController::class, 'update']);
     $r->post('/shipping/delete/{id}',    [\App\Controllers\Admin\ShippingController::class, 'delete']);
     $r->get('/shipping/settings',        [\App\Controllers\Admin\ShippingController::class, 'settings']);
+    $r->get('/shipping/zones',           [\App\Controllers\Admin\ShippingController::class, 'zones']);
+    $r->post('/shipping/zones/store',    [\App\Controllers\Admin\ShippingController::class, 'zoneStore']);
+    $r->post('/shipping/zones/update/{id}', [\App\Controllers\Admin\ShippingController::class, 'zoneUpdate']);
+    $r->post('/shipping/zones/delete/{id}', [\App\Controllers\Admin\ShippingController::class, 'zoneDelete']);
     $r->post('/shipping/settings/update',[\App\Controllers\Admin\ShippingController::class, 'updateSettings']);
 
     // Pickup points (lockers / collection points)

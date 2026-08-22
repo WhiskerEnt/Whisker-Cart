@@ -83,19 +83,11 @@ class ChatbotController
         }
 
         // ── Order lookup flow ──
-        // M21: do not reveal whether the order number exists. The previous
-        // implementation returned distinguishable responses ("Found …" vs
-        // "I couldn't find …"), letting an attacker iterate order numbers
-        // and learn which ones existed before any email gate applied. Now
-        // we advance to the email-prompt step unconditionally and only
-        // verify (existence AND email match) in the next step, with a
-        // generic failure reply that's identical for both failure modes.
-        //
-        // Per-IP and per-session rate limiting also protects against
-        // mass enumeration even if the response leak were ever
-        // re-introduced. The order number itself has 48 bits of entropy
-        // after the date prefix, so guessing for a specific date is
-        // already infeasible without rate-limit pressure.
+        // Never reveal whether an order number exists: advance to the
+        // email-prompt step unconditionally, then verify existence and email
+        // match together with a single generic failure reply. Rate limiting
+        // and the order number's 48 bits of post-date-prefix entropy keep
+        // enumeration infeasible.
         if ($state['step'] === 'awaiting_order_number') {
             $orderNum = strtoupper(trim((string)$request->input('message')));
 
@@ -120,10 +112,8 @@ class ChatbotController
             $email = strtolower(trim((string)$request->input('message')));
             $_SESSION[$sessionKey] = ['step' => 'idle'];
 
-            // Resolve the order at match-time. This collapses the
-            // "no such order" and "wrong email" branches into one
-            // identical response, so the only signal the attacker
-            // gets back is success vs failure (gated by email knowledge).
+            // Resolve the order at match-time so "no such order" and
+            // "wrong email" produce one identical response.
             $orderNum = (string)($state['order_number'] ?? '');
             $order = $orderNum !== ''
                 ? Database::fetch("SELECT * FROM wk_orders WHERE order_number=?", [$orderNum])
@@ -150,12 +140,9 @@ class ChatbotController
                 $carrier  = (string)($notes['shipping_carrier'] ?? '');
                 $trackNum = (string)$notes['tracking_number'];
                 $tracking = "\n📦 **Carrier:** {$carrier}\n🔢 **Tracking:** {$trackNum}";
-                // Tracking URL: scheme-validate server-side before letting
-                // it become a clickable markdown link. Anything other than
-                // http/https (eg. "javascript:") is dropped silently — the
-                // customer still sees the number, just no link. The client
-                // chatbot renderer also re-validates, but doing it here
-                // keeps the link payload tidy at the boundary.
+                // Only http/https tracking URLs become clickable links; other
+                // schemes are dropped and the customer still sees the number.
+                // The client renderer re-validates too.
                 $rawUrl = (string)($notes['tracking_url'] ?? '');
                 if ($rawUrl !== '') {
                     $scheme = strtolower((string)parse_url($rawUrl, PHP_URL_SCHEME));

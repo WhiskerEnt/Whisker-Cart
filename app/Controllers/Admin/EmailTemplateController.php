@@ -7,7 +7,13 @@ class EmailTemplateController
 {
     public function __construct()
     {
-        try { Database::query("SELECT 1 FROM wk_email_templates LIMIT 1"); }
+        // Seeding used to sit only in the catch below, which meant it never ran:
+        // schema.sql creates this table at install, so the query always
+        // succeeded and the store was left with no templates.
+        try {
+            $count = (int) Database::fetchValue("SELECT COUNT(*) FROM wk_email_templates");
+            if ($count === 0) self::seedDefaults();
+        }
         catch (\Exception $e) {
             Database::connect()->exec("CREATE TABLE IF NOT EXISTS wk_email_templates (
                 id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, slug VARCHAR(50) NOT NULL UNIQUE,
@@ -41,7 +47,7 @@ class EmailTemplateController
         if (!Session::verifyCsrf($request->input('wk_csrf'))) {
             Session::flash('error', 'Session expired.'); Response::redirect(View::url('admin/email-templates/edit/'.$params['id'])); return;
         }
-        // L16: validate length/presence before write.
+        // Validate length/presence before write.
         $v = new Validator($request->all(), [
             'name'    => 'required|min:2|max:100',
             'subject' => 'required|min:1|max:255',
@@ -50,11 +56,9 @@ class EmailTemplateController
             Session::flash('error', $v->firstError());
             Response::redirect(View::url('admin/email-templates/edit/'.$params['id'])); return;
         }
-        // Sanitize the body before storing so a compromised admin (or low-priv
-        // role in the future) can't smuggle <script> or event handlers into a
-        // template that will later run in another admin's browser when they
-        // open the editor or preview, or in customer mailboxes that render
-        // HTML (some webmail clients run inline event handlers).
+        // Sanitize the body on save: templates render in the admin editor,
+        // the preview page, and customer mailboxes, so stored HTML must be
+        // free of scripts and event handlers.
         $body = \App\Services\HtmlSanitizer::purify((string)$request->input('body'));
         Database::update('wk_email_templates', [
             'name' => $request->clean('name'), 'subject' => $request->clean('subject'),
@@ -74,9 +78,9 @@ class EmailTemplateController
         if (!Session::verifyCsrf($request->input('wk_csrf'))) {
             Session::flash('error', 'Session expired.'); Response::redirect(View::url('admin/email-templates/create')); return;
         }
-        // L16: validate before insert so the DB doesn't reject with a raw
-        // 500 on empty name/subject. The slug is derived from name so name
-        // must produce at least one valid char after slugification.
+        // Validate before insert so bad input gets a friendly error rather
+        // than a DB constraint failure. The slug is derived from name, so
+        // name must produce at least one valid char after slugification.
         $v = new Validator($request->all(), [
             'name'    => 'required|min:2|max:100',
             'subject' => 'required|min:1|max:255',
@@ -85,7 +89,7 @@ class EmailTemplateController
             Session::flash('error', $v->firstError());
             Response::redirect(View::url('admin/email-templates/create')); return;
         }
-        $slug = trim(strtolower(preg_replace('/[^a-z0-9]+/', '-', $request->clean('name'))), '-');
+        $slug = View::slug($request->clean('name'));
         if ($slug === '') {
             // Name was all non-alphanumeric — Validator passed min:2 but
             // slugify left nothing usable. Reject explicitly.
@@ -161,10 +165,8 @@ class EmailTemplateController
         $body = str_replace(array_keys($sample), array_values($sample), $tpl['body']);
         $subject = str_replace(array_keys($sample), array_values($sample), $tpl['subject']);
 
-        // Defense in depth: rows written before sanitize-on-save was added
-        // may still contain unsafe HTML, and the preview page is served from
-        // the admin origin — a left-over <script> here would execute with
-        // admin cookies. The sanitizer is idempotent.
+        // Defense in depth: sanitize at render time as well as on save, so
+        // the preview only ever emits safe HTML. The sanitizer is idempotent.
         $body = \App\Services\HtmlSanitizer::purify($body);
 
         echo '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -235,6 +237,24 @@ class EmailTemplateController
                 '{{order_discount}}'=>'Discount', '{{order_total}}'=>'Grand total',
                 '{{shipping_address}}'=>'Shipping address block', '{{billing_address}}'=>'Billing address block',
                 '{{payment_method}}'=>'Payment gateway', '{{payment_status}}'=>'Payment status', '{{invoice_number}}'=>'Invoice number',
+            ]),
+            'refund-notification' => array_merge($common, [
+                '{{order_number}}'=>'Order number', '{{refund_amount}}'=>'Amount refunded',
+                '{{refund_id}}'=>'Refund reference', '{{refund_date}}'=>'Date issued',
+                '{{refund_time}}'=>'Time issued', '{{refund_method}}'=>'Where the money went',
+            ]),
+            'payment-receipt' => array_merge($common, [
+                '{{order_number}}'=>'Order number', '{{amount_paid}}'=>'Amount paid',
+                '{{payment_date}}'=>'Date paid', '{{payment_method}}'=>'Payment gateway',
+                '{{transaction_id}}'=>'Gateway transaction ID', '{{invoice_url}}'=>'Invoice link',
+            ]),
+            'order-pending' => array_merge($common, [
+                '{{order_number}}'=>'Order number', '{{order_total}}'=>'Amount due',
+                '{{order_date}}'=>'Date placed', '{{order_url}}'=>'Link to finish paying',
+            ]),
+            'order-cancelled' => array_merge($common, [
+                '{{order_number}}'=>'Order number', '{{order_total}}'=>'Order total',
+                '{{cancelled_date}}'=>'Date cancelled', '{{cancel_reason}}'=>'Reason given',
             ]),
             'shipping-notification' => array_merge($common, [
                 '{{order_number}}'=>'Order number', '{{carrier_name}}'=>'Carrier', '{{tracking_number}}'=>'Tracking #', '{{tracking_url}}'=>'Track URL',

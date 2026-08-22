@@ -24,6 +24,17 @@ class ProductController
         // Get variant data
         $variants = \App\Services\VariantService::getForProduct($product['id']);
 
+        // Reviews. The table arrives with a migration, so the service answers
+        // with empties rather than throwing on a store that has not migrated.
+        $reviewsOn   = \App\Services\ReviewService::enabled();
+        $reviewStats = $reviewsOn
+            ? \App\Services\ReviewService::stats((int) $product['id'])
+            : ['count' => 0, 'average' => 0.0, 'breakdown' => []];
+        $reviews     = $reviewsOn ? \App\Services\ReviewService::forProduct((int) $product['id']) : [];
+
+        $questionsOn = \App\Services\QuestionService::enabled();
+        $questions   = $questionsOn ? \App\Services\QuestionService::forProduct((int) $product['id']) : [];
+
         // SEO meta tags
         $primaryImage = !empty($images) ? ($images[0]['image_path'] ?? null) : null;
         $seoMeta = \App\Services\SeoService::renderMeta([
@@ -37,7 +48,12 @@ class ProductController
             'type'              => 'product',
             'category_name'     => $product['category_name'] ?? null,
         ]);
-        $productSchema = \App\Services\SeoService::productSchema(array_merge($product, ['primary_image' => $primaryImage]));
+        $productSchema = \App\Services\SeoService::productSchema(array_merge($product, [
+            'primary_image' => $primaryImage,
+            // Feeds aggregateRating, so search results can show stars.
+            'rating_count'   => $reviewStats['count'],
+            'rating_average' => $reviewStats['average'],
+        ]));
 
         View::render('store/product', [
             'product'       => $product,
@@ -47,6 +63,12 @@ class ProductController
             'variants'      => $variants,
             'seoMeta'       => $seoMeta,
             'productSchema' => $productSchema,
+            'reviewsOn'     => $reviewsOn,
+            'reviewStats'   => $reviewStats,
+            'reviews'       => $reviews,
+            'reviewPolicy'  => \App\Services\ReviewService::policy(),
+            'questionsOn'   => $questionsOn,
+            'questions'     => $questions,
         ], 'store/layouts/main');
     }
 
@@ -123,13 +145,55 @@ class ProductController
         ], 'store/layouts/main');
     }
 
+    /**
+     * JSON endpoint for the header type-ahead.
+     *
+     * Returns a handful of ranked matches with everything the dropdown needs
+     * to render a row, so the browser makes one request per keystroke burst.
+     */
+    public function suggest(Request $request, array $params = []): void
+    {
+        $q = trim((string)($request->query('q') ?? ''));
+        if ($q === '' || mb_strlen($q) < 1) {
+            \Core\Response::json(['query' => $q, 'results' => []]);
+            return;
+        }
+        if (mb_strlen($q) > 100) $q = mb_substr($q, 0, 100);
+
+        // Public endpoint hit on every keystroke — cap per-IP volume.
+        if (!\Core\RateLimiter::attempt('search_suggest', $request->ip(), 120, 60)) {
+            \Core\Response::json(['query' => $q, 'results' => [], 'throttled' => true], 429);
+            return;
+        }
+
+        $rows = \App\Services\SearchService::suggest($q, 8);
+
+        $results = [];
+        foreach ($rows as $r) {
+            $price = ($r['sale_price'] !== null && $r['sale_price'] > 0 && $r['sale_price'] < $r['price'])
+                ? $r['sale_price'] : $r['price'];
+            $results[] = [
+                'name'     => $r['name'],
+                'category' => $r['category_name'] ?? '',
+                'url'      => View::url('product/' . rawurlencode($r['slug'])),
+                'image'    => $r['image'] ? View::url('storage/uploads/products/' . $r['image']) : null,
+                'price'    => \App\Services\CurrencyService::displayPrice((float)$price),
+                'in_stock' => ((int)$r['stock_quantity']) > 0,
+            ];
+        }
+
+        \Core\Response::json([
+            'query'   => $q,
+            'results' => $results,
+            'more_url' => View::url('search?q=' . rawurlencode($q)),
+        ]);
+    }
+
     public function search(Request $request, array $params = []): void
     {
-        // Finding 18: do NOT use $request->clean() here. clean() HTML-escapes
-        // (so "Tom & Jerry" becomes "Tom &amp; Jerry"), but wk_products.name
-        // is stored RAW — meaning the LIKE never matches products containing
-        // any of & < > ' ". The view does its own htmlspecialchars on $q at
-        // render time, so we're safe to keep the raw value here for matching.
+        // Keep the query raw (no clean()/HTML-escaping): product names are stored
+        // raw, so the LIKE must match against the unescaped value. The view
+        // htmlspecialchars() $q at render time.
         $q = trim((string)($request->input('q') ?? $request->query('q') ?? ''));
         $perPage = 12;
         $page = max(1, (int)($request->query('page') ?? 1));
@@ -138,24 +202,10 @@ class ProductController
         $totalPages = 1;
 
         if (strlen($q) >= 2) {
-            $escaped = str_replace(['%', '_'], ['\\%', '\\_'], $q);
-            $searchParam = "%{$escaped}%";
-
-            $totalProducts = (int)Database::fetchValue(
-                "SELECT COUNT(*) FROM wk_products p WHERE p.is_active=1 AND (p.name LIKE ? OR p.description LIKE ?)",
-                [$searchParam, $searchParam]
-            );
+            $totalProducts = \App\Services\SearchService::count($q);
             $totalPages = max(1, (int)ceil($totalProducts / $perPage));
             $page = min($page, $totalPages);
-            $offset = ($page - 1) * $perPage;
-
-            $products = Database::fetchAll(
-                "SELECT p.*, (SELECT image_path FROM wk_product_images WHERE product_id=p.id AND is_primary=1 LIMIT 1) AS image,
-                        (SELECT COUNT(*) FROM wk_variant_combos WHERE product_id=p.id AND is_active=1) AS variant_count
-                 FROM wk_products p WHERE p.is_active=1 AND (p.name LIKE ? OR p.description LIKE ?)
-                 ORDER BY p.name LIMIT {$perPage} OFFSET {$offset}",
-                [$searchParam, $searchParam]
-            );
+            $products = \App\Services\SearchService::search($q, $perPage, ($page - 1) * $perPage);
         }
 
         $currency = Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='currency_symbol'") ?: '₹';

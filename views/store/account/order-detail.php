@@ -46,6 +46,45 @@ $countries = \App\Services\CurrencyService::countries();
             </div>
             <div style="font-family:var(--font-mono);font-weight:700;white-space:nowrap"><?= $price($i['total_price']) ?></div>
         </div>
+        <?php
+        // Rating straight from the order: we already know who they are, so no
+        // name or email is asked for and no eligibility question arises.
+        $pid = (int) ($i['product_id'] ?? 0);
+        $rate = $rateable[$pid] ?? null;
+        if ($pid && $rate):
+            $formId = 'wkRate' . $pid;
+        ?>
+        <div style="padding:0 22px 14px">
+            <?php if ($rate['allowed']): ?>
+                <details class="wk-order-rate">
+                    <summary>Rate this product</summary>
+                    <form method="POST" action="<?= $url('review') ?>" class="wk-order-rate-form">
+                        <?= \Core\Session::csrfField() ?>
+                        <input type="hidden" name="product_slug" value="<?= $e($i['slug'] ?? '') ?>">
+                        <input type="hidden" name="name" value="<?= $e($customerName !== '' ? $customerName : ($reviewEmail !== '' ? explode('@', $reviewEmail)[0] : 'Customer')) ?>">
+                        <input type="hidden" name="email" value="<?= $e($reviewEmail) ?>">
+
+                        <fieldset class="wk-rating-input">
+                            <legend>Your rating</legend>
+                            <?php for ($st = 5; $st >= 1; $st--): ?>
+                                <input type="radio" name="rating" id="<?= $formId ?>s<?= $st ?>" value="<?= $st ?>" required>
+                                <label for="<?= $formId ?>s<?= $st ?>" title="<?= $st ?> star<?= $st === 1 ? '' : 's' ?>">
+                                    <span aria-hidden="true">&#9733;</span>
+                                    <span class="wk-sr"><?= $st ?> star<?= $st === 1 ? '' : 's' ?></span>
+                                </label>
+                            <?php endfor; ?>
+                        </fieldset>
+
+                        <input type="text" name="title" maxlength="140" placeholder="Headline (optional)">
+                        <textarea name="body" rows="3" maxlength="4000" placeholder="Anything other shoppers should know? (optional)"></textarea>
+                        <button type="submit" class="wk-review-submit">Submit rating</button>
+                    </form>
+                </details>
+            <?php else: ?>
+                <p class="wk-order-rate-note"><?= $e($rate['reason']) ?></p>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
         <?php endforeach; ?>
     </div>
 
@@ -87,7 +126,7 @@ $countries = \App\Services\CurrencyService::countries();
                 <strong><?= $e($billing['name']??'') ?></strong><br>
                 <?= $e($billing['line1']??'') ?><br>
                 <?= $e(($billing['city']??'').', '.($billing['state']??'').' '.($billing['zip']??'')) ?><br>
-                <?= $e($countries[$billing['country']??'']['name'] ?? ($billing['country']??'')) ?>
+                <?= $e(\App\Services\CountryService::name((string) ($billing['country'] ?? ''))) ?>
             <?php else: ?>
                 <span style="color:var(--wk-muted)">No billing address on file</span>
             <?php endif; ?>

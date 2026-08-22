@@ -88,15 +88,115 @@ class CurrencyService
     }
 
     /**
+     * Format a base-currency amount in the visitor's chosen display currency.
+     *
+     * Shows ONLY the display currency — no base-currency reference. When a
+     * shopper picks JPY/USD/CAD they want to see that currency, not a cluttered
+     * "¥998 (₹599)" dual price. The store still charges in its base currency;
+     * that's disclosed at checkout (where the payment gateway shows it anyway),
+     * not on every browsing price.
+     */
+    public static function displayPrice(float $amount): string
+    {
+        $base = self::baseCurrency();
+
+        // Multi-currency is opt-in (admin toggle). When it's off — the default —
+        // every price is the store's single base currency: no switching, no
+        // conversion, no preview-vs-charge mismatch.
+        if (!self::multiCurrencyEnabled()) {
+            return self::baseSymbol() . number_format($amount, 2);
+        }
+
+        $display = (isset($_SESSION['wk_display_currency']) && $_SESSION['wk_display_currency'] !== '')
+            ? (string) $_SESSION['wk_display_currency']
+            : $base;
+
+        if (strtoupper($display) === strtoupper($base)) {
+            return self::baseSymbol() . number_format($amount, 2);
+        }
+        return self::format(self::convert($amount, $base, $display), $display);
+    }
+
+    /**
+     * Whether the merchant has enabled multi-currency (Admin → Settings).
+     * Off by default — the store then operates in its base currency only.
+     */
+    public static function multiCurrencyEnabled(): bool
+    {
+        try {
+            return Database::setting('general', 'multi_currency') === '1';
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Currencies a shopper may pick, derived from what the store's ACTIVE
+     * payment gateways can actually charge (their supported_currencies), so a
+     * chosen currency is always one we can bill in. The base currency is
+     * always first. Crypto / codes we can't display are dropped.
+     */
+    public static function gatewayCurrencies(): array
+    {
+        $base  = strtoupper(self::baseCurrency());
+        $known = self::currencies();
+        $codes = [$base];
+        try {
+            $rows = Database::fetchAll("SELECT supported_currencies FROM wk_payment_gateways WHERE is_active=1");
+            foreach ($rows as $row) {
+                $list = json_decode($row['supported_currencies'] ?? '[]', true);
+                if (!is_array($list)) continue;
+                foreach ($list as $c) {
+                    $c = strtoupper(trim((string) $c));
+                    if ($c !== '' && isset($known[$c])) $codes[] = $c;
+                }
+            }
+        } catch (\Throwable $e) {}
+        return array_values(array_unique($codes));
+    }
+
+    /**
+     * Currencies with no minor unit. An amount in these is already whole:
+     * ¥5000 is five thousand yen, not fifty.
+     */
+    private const ZERO_DECIMAL = [
+        'JPY', 'KRW', 'IDR', 'VND', 'CLP', 'ISK', 'BIF', 'DJF',
+        'GNF', 'KMF', 'MGA', 'PYG', 'RWF', 'UGX', 'VUV', 'XAF', 'XOF', 'XPF',
+    ];
+
+    public static function decimals(string $currencyCode): int
+    {
+        return in_array(strtoupper($currencyCode), self::ZERO_DECIMAL, true) ? 0 : 2;
+    }
+
+    /**
+     * Convert a display amount into the smallest unit a gateway charges in.
+     *
+     * Two things go wrong if this is done inline as (int)($amount * 100):
+     * binary floating point makes 0.29 * 100 come out as 28.999…, which
+     * truncates to 28; and zero-decimal currencies have no hundredths, so
+     * multiplying at all sends a hundred times too much.
+     */
+    public static function toMinorUnits(float $amount, string $currencyCode): int
+    {
+        return self::decimals($currencyCode) === 0
+            ? (int) round($amount)
+            : (int) round($amount * 100);
+    }
+
+    public static function fromMinorUnits(int $minor, string $currencyCode): float
+    {
+        return self::decimals($currencyCode) === 0 ? (float) $minor : $minor / 100;
+    }
+
+    /**
      * Format price in a specific currency
      */
     public static function format(float $amount, string $currencyCode): string
     {
         $symbol = self::symbol($currencyCode);
-        $code = strtoupper($currencyCode);
 
-        // No decimals for JPY, KRW, IDR
-        if (in_array($code, ['JPY', 'KRW', 'IDR'])) {
+        if (self::decimals($currencyCode) === 0) {
             return $symbol . number_format(round($amount), 0);
         }
 
@@ -158,15 +258,9 @@ class CurrencyService
 
     /**
      * Exchange-rate API (Frankfurter, free, no key, ECB rates).
-     *
-     * NOTE: the old host api.frankfurter.app now 301-redirects to
-     * api.frankfurter.dev/v1. The redirect only worked because
-     * file_get_contents follows redirects — on hosts with allow_url_fopen
-     * OFF (common on shared hosting) the whole thing failed silently and the
-     * storefront showed the base amount under the switched symbol (e.g. a
-     * ₹2799 product read "€2799" instead of "€25"). Point straight at the
-     * current endpoint and fetch via cURL so redirects and allow_url_fopen
-     * are no longer load-bearing.
+     * Points directly at the current api.frankfurter.dev/v1 endpoint and is
+     * fetched via cURL, so redirect handling and allow_url_fopen (often off
+     * on shared hosting) are not load-bearing.
      */
     private const RATES_API = 'https://api.frankfurter.dev/v1/latest';
 
