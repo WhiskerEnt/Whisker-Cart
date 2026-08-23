@@ -2,7 +2,7 @@
 
 <!-- Tab Navigation -->
 <div style="display:flex;gap:6px;margin-bottom:24px;border-bottom:2px solid var(--wk-border);padding-bottom:0;flex-wrap:wrap">
-    <?php $tabs = ['store'=>'🏪 Store','appearance'=>'🎨 Appearance','checkout'=>'🛒 Checkout & Tax','privacy'=>'🍪 Privacy','email'=>'📧 Email','system'=>'⚙️ System'];
+    <?php $tabs = ['store'=>'🏪 Store','appearance'=>'🎨 Appearance','checkout'=>'🛒 Checkout & Tax','privacy'=>'🍪 Privacy','social'=>'💬 Social','email'=>'📧 Email','system'=>'⚙️ System'];
     foreach ($tabs as $key => $label): ?>
     <button onclick="switchTab('<?= $key ?>')" id="tab-btn-<?= $key ?>" style="padding:10px 20px;border:none;background:transparent;font-weight:700;font-size:13px;color:var(--wk-text-muted);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .2s;font-family:inherit"><?= $label ?></button>
     <?php endforeach; ?>
@@ -251,6 +251,85 @@
                     <input type="number" name="privacy_cookie_version" class="wk-input" min="1" step="1" value="<?= $v('privacy','cookie_version') ?: '1' ?>" style="max-width:140px">
                     <div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">
                         Raise this number when your cookie policy changes. Everyone who already answered is asked again.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB: Social -->
+    <div class="settings-tab" id="tab-social" style="display:none">
+        <div class="wk-card" style="max-width:820px">
+            <div class="wk-card-header"><h2>💬 Floating Contact Bar</h2></div>
+            <div class="wk-card-body">
+                <p style="font-size:12px;color:var(--wk-text-muted);margin-bottom:18px;line-height:1.6">
+                    A column of contact and social buttons pinned to the side of your storefront that stays put as
+                    customers scroll. Fill in only the ones you use — the bar appears once at least one is set,
+                    and each button links straight to that app.
+                </p>
+
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;margin-bottom:20px">
+                    <div class="wk-form-group" style="margin:0">
+                        <label>Contact bar</label>
+                        <select name="social_social_enabled" class="wk-select">
+                            <option value="0" <?= ($s['social']['social_enabled'] ?? '0') !== '1' ? 'selected' : '' ?>>Off</option>
+                            <option value="1" <?= ($s['social']['social_enabled'] ?? '0') === '1' ? 'selected' : '' ?>>On — show it on the storefront</option>
+                        </select>
+                    </div>
+                    <div class="wk-form-group" style="margin:0">
+                        <label>Side of the screen</label>
+                        <select name="social_social_position" class="wk-select">
+                            <option value="left" <?= ($s['social']['social_position'] ?? 'left') !== 'right' ? 'selected' : '' ?>>Left</option>
+                            <option value="right" <?= ($s['social']['social_position'] ?? 'left') === 'right' ? 'selected' : '' ?>>Right</option>
+                        </select>
+                        <div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">
+                            The chat bubble sits bottom-right, so the left keeps them apart.
+                        </div>
+                    </div>
+                </div>
+
+                <div style="border-top:1px solid var(--wk-border);padding-top:18px">
+                    <div style="font-weight:800;font-size:13px;margin-bottom:4px">Direct contact</div>
+                    <p style="font-size:12px;color:var(--wk-text-muted);margin-bottom:14px;line-height:1.6">
+                        Enter phone numbers with the country code. Spaces and brackets are fine.
+                    </p>
+
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px">
+                        <div class="wk-form-group" style="margin:0">
+                            <label>WhatsApp number</label>
+                            <input type="text" name="social_social_whatsapp" class="wk-input" value="<?= $v('social','social_whatsapp') ?>" placeholder="+91 98765 43210">
+                        </div>
+                        <div class="wk-form-group" style="margin:0">
+                            <label>Phone number</label>
+                            <input type="text" name="social_social_phone" class="wk-input" value="<?= $v('social','social_phone') ?>" placeholder="+91 98765 43210">
+                        </div>
+                        <div class="wk-form-group" style="margin:0">
+                            <label>Email address</label>
+                            <input type="email" name="social_social_email" class="wk-input" value="<?= $v('social','social_email') ?>" placeholder="hello@yourstore.com">
+                        </div>
+                    </div>
+
+                    <div class="wk-form-group">
+                        <label>WhatsApp opening message <span style="font-weight:500;color:var(--wk-text-muted)">(optional)</span></label>
+                        <input type="text" name="social_social_whatsapp_text" class="wk-input" maxlength="300" value="<?= $v('social','social_whatsapp_text') ?>" placeholder="Hi! I would like to know more about">
+                        <div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">
+                            Typed into the customer's WhatsApp for them, so they only have to press send.
+                        </div>
+                    </div>
+                </div>
+
+                <div style="border-top:1px solid var(--wk-border);padding-top:18px;margin-top:6px">
+                    <div style="font-weight:800;font-size:13px;margin-bottom:4px">Social profiles</div>
+                    <p style="font-size:12px;color:var(--wk-text-muted);margin-bottom:14px;line-height:1.6">
+                        Paste the address of your page. <code>facebook.com/yourshop</code> works as well as the full link.
+                    </p>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px">
+                        <?php foreach (['facebook'=>'Facebook','instagram'=>'Instagram','telegram'=>'Telegram','x'=>'X','youtube'=>'YouTube','tiktok'=>'TikTok','linkedin'=>'LinkedIn'] as $key => $label): ?>
+                            <div class="wk-form-group" style="margin:0">
+                                <label><?= $label ?></label>
+                                <input type="text" name="social_social_<?= $key ?>" class="wk-input" value="<?= $v('social','social_' . $key) ?>" placeholder="<?= strtolower($key) ?>.com/yourshop">
+                            </div>
+                        <?php endforeach; ?>
                     </div>
                 </div>
             </div>

@@ -992,3 +992,85 @@ img { max-width: 100%; display: block; }
 .wk-qa-form input.is-ok  { border-color: var(--wk-green); }
 .wk-qa-form small.is-bad { color: var(--wk-red); font-weight: 700; }
 .wk-qa-form small.is-ok  { color: var(--wk-green); font-weight: 700; }
+
+/* ── Floating contact bar ──────────────────────────────────────────── */
+/* The wrapper spans the viewport height but takes no pointer events, so the
+   space between icons never intercepts a click meant for the page. Only the
+   links themselves are clickable. */
+.wk-social {
+    position: fixed; top: 50%; transform: translateY(-50%);
+    z-index: 850; pointer-events: none;
+    transition: opacity .2s ease, visibility .2s ease;
+}
+.wk-social-left  { left: 14px; }
+.wk-social-right { right: 14px; }
+.wk-social.is-hidden { opacity: 0; visibility: hidden; }
+
+.wk-social-inner {
+    display: flex; flex-direction: column; gap: 9px;
+    max-height: 86vh; overflow-y: auto;
+    /* No scrollbar gutter — a shop with ten channels scrolls silently. */
+    scrollbar-width: none;
+}
+.wk-social-inner::-webkit-scrollbar { display: none; }
+
+.wk-social-link {
+    pointer-events: auto;
+    position: relative; flex: 0 0 auto;
+    width: 42px; height: 42px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--wk-social-brand, var(--wk-purple));
+    color: #fff; text-decoration: none;
+    box-shadow: 0 3px 12px rgba(0,0,0,.18);
+    transition: transform .18s ease, box-shadow .18s ease;
+}
+.wk-social-link svg { width: 20px; height: 20px; display: block; }
+.wk-social-link:hover { transform: scale(1.08); box-shadow: 0 6px 20px rgba(0,0,0,.26); }
+.wk-social-link:focus-visible { outline: 3px solid var(--wk-purple); outline-offset: 3px; }
+
+/* Name appears on hover, growing away from the screen edge. */
+.wk-social-label {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    white-space: nowrap; font-size: 12px; font-weight: 800; line-height: 1;
+    padding: 7px 11px; border-radius: 7px;
+    background: var(--wk-text); color: var(--wk-surface);
+    opacity: 0; pointer-events: none;
+    transition: opacity .16s ease;
+}
+.wk-social-left  .wk-social-label { left: calc(100% + 9px); }
+.wk-social-right .wk-social-label { right: calc(100% + 9px); }
+.wk-social-link:hover .wk-social-label,
+.wk-social-link:focus-visible .wk-social-label { opacity: 1; }
+
+/* Below the point where the 1200px container still leaves a gutter, the bar
+   would start sitting over the page, so it gets smaller and tucks in. */
+@media (max-width: 1320px) {
+    .wk-social-left  { left: 8px; }
+    .wk-social-right { right: 8px; }
+    .wk-social-link { width: 38px; height: 38px; }
+    .wk-social-link svg { width: 18px; height: 18px; }
+}
+@media (max-width: 720px) {
+    .wk-social-inner { gap: 7px; }
+    .wk-social-link { width: 32px; height: 32px; box-shadow: 0 2px 8px rgba(0,0,0,.16); }
+    .wk-social-link svg { width: 15px; height: 15px; }
+    /* Touch devices have no hover, and the label would cover the page. */
+    .wk-social-label { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .wk-social, .wk-social-link, .wk-social-label { transition: none; }
+    .wk-social-link:hover { transform: none; }
+}
+
+/* Keep the page clear of the contact bar.
+   Above 1340px the centred 1200px container already leaves a wide enough
+   gutter; below it the bar would start sitting over the content, so the
+   container gives up the space instead. */
+@media (max-width: 1340px) {
+    body.wk-has-social-left  .wk-container { padding-left: 72px; }
+    body.wk-has-social-right .wk-container { padding-right: 72px; }
+}
+@media (max-width: 720px) {
+    body.wk-has-social-left  .wk-container { padding-left: 50px; }
+    body.wk-has-social-right .wk-container { padding-right: 50px; }
+}

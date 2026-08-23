@@ -392,6 +392,7 @@ async function sendChat(override) {
 }
 </script>
 <?php endif; ?>
+<?php require __DIR__ . '/../partials/social-bar.php'; ?>
 <?php require __DIR__ . '/../partials/cookie-consent.php'; ?>
 </body>
 </html>
