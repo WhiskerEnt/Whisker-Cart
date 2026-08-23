@@ -106,6 +106,38 @@ class SocialBarTest extends TestCase
         );
     }
 
+    /**
+     * Setting one overflow axis to anything but visible makes the other axis
+     * compute to auto, which clipped each icon's shadow at a hard rectangular
+     * edge and cropped the icons themselves.
+     */
+    public function testTheColumnDoesNotClipItsIcons(): void
+    {
+        $css = (string) file_get_contents(WK_ROOT . '/assets/css/store.css');
+        $this->assertSame(1, preg_match('/\.wk-social-inner \{([^}]*)\}/', $css, $m), 'no .wk-social-inner rule');
+
+        $this->assertSame(
+            0,
+            preg_match('/overflow(-x|-y)?:\s*(auto|scroll|hidden|clip)/', $m[1]),
+            'the column must not set overflow: one axis makes the other compute to auto, '
+            . 'and the icons and their shadows get clipped'
+        );
+    }
+
+    /** The bar paints nothing of its own; the icons carry all the colour. */
+    public function testTheBarHasNoBackgroundPanel(): void
+    {
+        $css = (string) file_get_contents(WK_ROOT . '/assets/css/store.css');
+        foreach (['.wk-social', '.wk-social-inner'] as $sel) {
+            $this->assertSame(1, preg_match('/' . preg_quote($sel, '/') . ' \{([^}]*)\}/', $css, $m), "no {$sel} rule");
+            $this->assertSame(
+                0,
+                preg_match('/(?:^|;)\s*background/', $m[1]),
+                "{$sel} must not paint a background — the bar is meant to float over the page"
+            );
+        }
+    }
+
     /** It sits below the chat bubble rather than over it. */
     public function testItDoesNotOutrankTheChatBubble(): void
     {

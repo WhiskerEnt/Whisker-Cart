@@ -1009,13 +1009,13 @@ img { max-width: 100%; display: block; }
 /* An author display declaration beats the hidden attribute, so a closed
    panel would stay laid out — invisible, but still taking clicks. */
 .wk-social-inner[hidden] { display: none; }
+/* No overflow of any kind: setting one axis to auto makes the other auto
+   too, which clipped each icon's shadow at a hard rectangular edge. Ten
+   channels stack to about 500px and fit; a shop with more than that wants
+   the collapsed mode. */
 .wk-social-inner {
     display: flex; flex-direction: column; gap: 9px;
-    max-height: 86vh; overflow-y: auto;
-    /* No scrollbar gutter — a shop with ten channels scrolls silently. */
-    scrollbar-width: none;
 }
-.wk-social-inner::-webkit-scrollbar { display: none; }
 
 .wk-social-link {
     pointer-events: auto;
