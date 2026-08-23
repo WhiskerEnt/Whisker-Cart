@@ -40,7 +40,7 @@ class SocialService
     /** @return string[] setting keys the admin form may write */
     public static function settingKeys(): array
     {
-        $keys = ['social_enabled', 'social_position', 'social_whatsapp_text'];
+        $keys = ['social_enabled', 'social_position', 'social_display', 'social_whatsapp_text'];
         foreach (array_keys(self::CHANNELS) as $c) {
             $keys[] = 'social_' . $c;
         }
@@ -55,6 +55,15 @@ class SocialService
     public static function enabled(): bool
     {
         return Database::setting('social', 'social_enabled', '0') === '1';
+    }
+
+    /**
+     * True when the channels hide behind a single button until asked for.
+     * Defaults to showing them, which is what a shop turning this on wants.
+     */
+    public static function collapsed(): bool
+    {
+        return Database::setting('social', 'social_display', 'always') === 'collapsed';
     }
 
     /** 'left' or 'right'. Right shares an edge with the chat bubble, so left is the default. */

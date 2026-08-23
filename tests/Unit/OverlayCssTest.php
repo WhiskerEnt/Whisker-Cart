@@ -4,13 +4,10 @@ namespace Tests\Unit;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Full-viewport overlays are the one place a CSS mistake takes the whole page
- * down: an author `display` declaration beats the `hidden` attribute, so a
- * base `display: flex` on a `position: fixed; inset: 0` element leaves an
- * invisible sheet over everything, swallowing every click.
- *
- * Any overlay that hides itself with the hidden attribute must either not set
- * display in its base rule, or say what hidden means explicitly.
+ * An author `display` declaration beats the `hidden` attribute. On a
+ * full-viewport overlay that leaves an invisible sheet over the page
+ * swallowing every click; on a panel of links it leaves them invisible but
+ * still clickable. Both have happened, so both are guarded here.
  */
 class OverlayCssTest extends TestCase
 {
@@ -28,6 +25,11 @@ class OverlayCssTest extends TestCase
             $out[$sel] = $r[2];
         }
         return $out;
+    }
+
+    private function setsDisplay(string $body): bool
+    {
+        return (bool) preg_match('/(?:^|;)\s*display:\s*(?:flex|block|grid|inline-flex|inline-block)/', $body);
     }
 
     public function testNoFullScreenOverlayDefeatsTheHiddenAttribute(): void
@@ -58,11 +60,8 @@ class OverlayCssTest extends TestCase
                 if (!$covers) continue;
                 $examined++;
 
-                $setsDisplay = preg_match('/(?:^|;)\s*display:\s*(?:flex|block|grid|inline-flex)/', $body);
-                if (!$setsDisplay) continue;
+                if (!$this->setsDisplay($body)) continue;
 
-                // Setting display is fine unless the element is hidden via the
-                // attribute, in which case the declaration would win over it.
                 $this->assertArrayHasKey(
                     $class,
                     $hasInertState,
@@ -94,13 +93,60 @@ class OverlayCssTest extends TestCase
             'a hidden modal must not be laid out'
         );
 
-        $this->assertArrayNotHasKey(
-            '.wk-modal',
-            array_filter($rules, fn($body, $sel) => $sel === '.wk-modal'
-                && preg_match('/(?:^|;)\s*display:\s*(?:flex|block|grid)/', $body),
-                ARRAY_FILTER_USE_BOTH),
+        $base = $rules['.wk-modal'] ?? '';
+        $this->assertFalse(
+            $this->setsDisplay($base),
             'the base .wk-modal rule must not set a display that overrides [hidden]'
         );
+    }
+
+    /**
+     * Anything a view hides with the hidden attribute must have a matching
+     * [hidden] rule if its own styling sets display. Otherwise it stays laid
+     * out while "hidden" — invisible, and for links, still taking clicks.
+     */
+    public function testElementsHiddenByAttributeAreActuallyHidden(): void
+    {
+        $rules = array_merge($this->rules('store.css'), $this->rules('admin.css'));
+
+        // Scanned line by line rather than by tag, because the attribute is
+        // usually emitted by a PHP expression, and the closing tag of that
+        // expression ends any tag-shaped match early.
+        $hiddenClasses = [];
+        foreach (glob(WK_ROOT . '/views/store/partials/*.php') as $view) {
+            $lines = file($view) ?: [];
+            foreach ($lines as $i => $line) {
+                if (!preg_match("/(?:^|\s|')hidden(?:'|\s|>)/", $line)) continue;
+
+                // The class may sit a line or two above, on a wrapped tag.
+                $window = implode(' ', array_slice($lines, max(0, $i - 2), 3));
+                if (!preg_match('/class="([^"]+)"/', $window, $c)) continue;
+
+                foreach (preg_split('/\s+/', trim($c[1])) as $class) {
+                    if ($class !== '' && !str_contains($class, '<')) {
+                        $hiddenClasses['.' . $class] = basename($view);
+                    }
+                }
+            }
+        }
+        $this->assertNotEmpty($hiddenClasses, 'no attribute-hidden elements found — update the parser in this test');
+
+        foreach ($hiddenClasses as $class => $view) {
+            $base = $rules[$class] ?? null;
+            if ($base === null || !$this->setsDisplay($base)) continue;
+
+            $this->assertArrayHasKey(
+                $class . '[hidden]',
+                $rules,
+                "{$view}: {$class} is hidden with the attribute but its own rule sets display, "
+                . "which overrides it. Add {$class}[hidden] { display: none }."
+            );
+            $this->assertMatchesRegularExpression(
+                '/display:\s*none/',
+                $rules[$class . '[hidden]'],
+                "{$class}[hidden] must set display: none"
+            );
+        }
     }
 
     /** Overlays hidden by a class must stop taking clicks in that state. */

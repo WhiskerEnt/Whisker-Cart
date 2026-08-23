@@ -4,6 +4,7 @@
 INSERT INTO wk_settings (setting_group, setting_key, setting_value) VALUES
 ('social', 'social_enabled', '0'),
 ('social', 'social_position', 'left'),
+('social', 'social_display', 'always'),
 ('social', 'social_whatsapp', ''),
 ('social', 'social_whatsapp_text', ''),
 ('social', 'social_phone', ''),

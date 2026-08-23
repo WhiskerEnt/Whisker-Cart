@@ -1006,6 +1006,9 @@ img { max-width: 100%; display: block; }
 .wk-social-right { right: 14px; }
 .wk-social.is-hidden { opacity: 0; visibility: hidden; }
 
+/* An author display declaration beats the hidden attribute, so a closed
+   panel would stay laid out — invisible, but still taking clicks. */
+.wk-social-inner[hidden] { display: none; }
 .wk-social-inner {
     display: flex; flex-direction: column; gap: 9px;
     max-height: 86vh; overflow-y: auto;
@@ -1073,4 +1076,46 @@ img { max-width: 100%; display: block; }
 @media (max-width: 720px) {
     body.wk-has-social-left  .wk-container { padding-left: 50px; }
     body.wk-has-social-right .wk-container { padding-right: 50px; }
+}
+
+/* Collapsed mode: one button, opening into the column. */
+.wk-social-toggle {
+    pointer-events: auto;
+    width: 42px; height: 42px; border-radius: 50%; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, var(--wk-purple), var(--wk-pink));
+    color: #fff; box-shadow: 0 3px 12px rgba(0,0,0,.18);
+    transition: transform .18s ease, box-shadow .18s ease;
+}
+.wk-social-toggle:hover { transform: scale(1.08); box-shadow: 0 6px 20px rgba(0,0,0,.26); }
+.wk-social-toggle:focus-visible { outline: 3px solid var(--wk-purple); outline-offset: 3px; }
+.wk-social-toggle svg { width: 20px; height: 20px; display: block; }
+.wk-social-toggle-close { display: none; }
+.wk-social.is-open .wk-social-toggle-open { display: none; }
+.wk-social.is-open .wk-social-toggle-close { display: block; }
+
+/* The button sits at the bottom of the stack so the icons open upward,
+   away from the page rather than across it. */
+.wk-social-collapsible { display: flex; flex-direction: column-reverse; gap: 9px; align-items: center; }
+.wk-social-collapsible .wk-social-inner { gap: 9px; }
+.wk-social-collapsible .wk-social-link {
+    opacity: 0; transform: translateY(10px) scale(.85);
+    transition: opacity .18s ease, transform .18s ease;
+    transition-delay: calc(var(--wk-social-i, 0) * 35ms);
+}
+.wk-social.is-open .wk-social-link { opacity: 1; transform: none; }
+
+@media (max-width: 1320px) {
+    .wk-social-toggle { width: 38px; height: 38px; }
+    .wk-social-toggle svg { width: 18px; height: 18px; }
+}
+@media (max-width: 720px) {
+    .wk-social-toggle { width: 34px; height: 34px; }
+    .wk-social-toggle svg { width: 16px; height: 16px; }
+    .wk-social-collapsible, .wk-social-collapsible .wk-social-inner { gap: 7px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .wk-social-toggle, .wk-social-collapsible .wk-social-link { transition: none; }
+    .wk-social-toggle:hover { transform: none; }
+    .wk-social-collapsible .wk-social-link { opacity: 1; transform: none; }
 }

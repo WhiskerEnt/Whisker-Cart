@@ -277,6 +277,16 @@
                         </select>
                     </div>
                     <div class="wk-form-group" style="margin:0">
+                        <label>How it shows</label>
+                        <select name="social_social_display" class="wk-select">
+                            <option value="always" <?= ($s['social']['social_display'] ?? 'always') !== 'collapsed' ? 'selected' : '' ?>>Always show every button</option>
+                            <option value="collapsed" <?= ($s['social']['social_display'] ?? 'always') === 'collapsed' ? 'selected' : '' ?>>Collapse behind one button</option>
+                        </select>
+                        <div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">
+                            Collapsed takes up less of the page — worth it if you use more than three or four.
+                        </div>
+                    </div>
+                    <div class="wk-form-group" style="margin:0">
                         <label>Side of the screen</label>
                         <select name="social_social_position" class="wk-select">
                             <option value="left" <?= ($s['social']['social_position'] ?? 'left') !== 'right' ? 'selected' : '' ?>>Left</option>
