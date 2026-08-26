@@ -110,10 +110,22 @@ $coupon = LeadService::usableCoupon();
         if (e.key === 'Escape' && !box.hidden) close();
     });
 
-    // Desktop: the pointer leaving through the top of the window.
-    document.addEventListener('mouseout', function (e) {
-        if (e.clientY <= 0 && !e.relatedTarget) show();
-    });
+    // Give the page a moment before watching, so a pointer that happens to
+    // start near the top does not trigger it on arrival.
+    var armed = false;
+    setTimeout(function () { armed = true; }, 3000);
+
+    // Desktop: the pointer heading out through the top of the window, which
+    // is where the tab bar, the address bar and the close button all live.
+    // Both events are watched because browsers differ over which one fires
+    // when the pointer leaves the window entirely.
+    function maybeExit(e) {
+        if (!armed) return;
+        var y = e.clientY;
+        if (typeof y === 'number' && y <= 8 && !e.relatedTarget && !e.toElement) show();
+    }
+    document.addEventListener('mouseout', maybeExit);
+    document.documentElement.addEventListener('mouseleave', maybeExit);
 
     // Touch: no pointer to watch, so wait until they have read a fair amount
     // and then scrolled back up, which is what leaving tends to look like.
@@ -124,11 +136,6 @@ $coupon = LeadService::usableCoupon();
         if (y > deepest) { deepest = y; return; }
         if (settled && deepest > 500 && y < deepest - 400) show();
     }, { passive: true });
-
-    // Leaving the tab for something else counts too.
-    document.addEventListener('visibilitychange', function () {
-        if (document.visibilityState === 'hidden') remember(0.02);
-    });
 
     var form = document.getElementById('wkLeadForm');
     var done = document.getElementById('wkLeadDone');

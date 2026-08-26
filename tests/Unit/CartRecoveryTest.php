@@ -239,6 +239,30 @@ class CartRecoveryTest extends TestCase
         );
     }
 
+    /**
+     * Switching tabs is not leaving. Treating it as a reason to stay quiet
+     * suppressed the prompt for anyone who alt-tabbed, which is nearly
+     * everyone, so it almost never appeared.
+     */
+    public function testLeavingTheTabDoesNotSilenceThePrompt(): void
+    {
+        $view = (string) file_get_contents(WK_ROOT . '/views/store/partials/lead-capture.php');
+        $this->assertStringNotContainsString(
+            'visibilityState',
+            $view,
+            'a tab switch must not count against the visitor'
+        );
+    }
+
+    /** Both events, because browsers disagree about which fires on leaving. */
+    public function testExitIsWatchedOnBothEvents(): void
+    {
+        $view = (string) file_get_contents(WK_ROOT . '/views/store/partials/lead-capture.php');
+        $this->assertStringContainsString("addEventListener('mouseout', maybeExit)", $view);
+        $this->assertStringContainsString("addEventListener('mouseleave', maybeExit)", $view);
+        $this->assertStringContainsString('armed = true', $view, 'and not before the page has settled');
+    }
+
     public function testTheExitPromptDoesNotNag(): void
     {
         $view = (string) file_get_contents(WK_ROOT . '/views/store/partials/lead-capture.php');
