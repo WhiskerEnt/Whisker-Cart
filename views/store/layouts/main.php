@@ -53,6 +53,17 @@ $currentSymbol = $currentCurrency === $baseCurrency
     <title><?= $e(\App\Services\SeoService::buildTitle($pageTitle ?? null)) ?></title>
     <?php endif; ?>
     <?= $productSchema ?? '' ?>
+    <?= $pageSchema ?? '' ?>
+    <?php
+    // Who the shop is, and how to search it. On the front page only: repeating
+    // it everywhere says nothing new, and the search box markup is only
+    // honoured there in any case.
+    $wkPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+    $wkBase = rtrim(parse_url(\Core\View::url(''), PHP_URL_PATH) ?: '', '/');
+    if (rtrim($wkPath, '/') === $wkBase):
+        echo \App\Services\SeoService::organizationSchema();
+        echo \App\Services\SeoService::websiteSchema();
+    endif; ?>
     <?php if ($faviconUrl): ?>
     <link rel="icon" href="<?= \Core\View::safeUrl($faviconUrl, true) ?>">
     <?php else: ?>

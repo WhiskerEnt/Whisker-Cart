@@ -48,6 +48,26 @@ class ProductController
             'type'              => 'product',
             'category_name'     => $product['category_name'] ?? null,
         ]);
+        // The trail to this product, and its FAQ, in the form search engines
+        // can show under the result.
+        $wkBase = rtrim(\Core\View::url(''), '/');
+        $crumbs = [['name' => 'Home', 'url' => $wkBase . '/']];
+        if (!empty($product['category_name'])) {
+            $catSlug = \Core\Database::fetchValue(
+                "SELECT slug FROM wk_categories WHERE id = ?", [$product['category_id']]
+            );
+            $crumbs[] = [
+                'name' => $product['category_name'],
+                'url'  => $catSlug ? $wkBase . '/category/' . $catSlug : null,
+            ];
+        }
+        $crumbs[] = ['name' => $product['name'], 'url' => null];
+
+        $pageSchema = \App\Services\SeoService::breadcrumbSchema($crumbs)
+            . \App\Services\SeoService::faqSchema(
+                \App\Services\ProductFaqService::parse($product['faq'] ?? null)
+            );
+
         $productSchema = \App\Services\SeoService::productSchema(array_merge($product, [
             'primary_image' => $primaryImage,
             // Feeds aggregateRating, so search results can show stars.
@@ -69,6 +89,7 @@ class ProductController
             'reviewPolicy'  => \App\Services\ReviewService::policy(),
             'questionsOn'   => $questionsOn,
             'questions'     => $questions,
+            'pageSchema'    => $pageSchema,
         ], 'store/layouts/main');
     }
 
@@ -130,9 +151,17 @@ class ProductController
              GROUP BY c.id ORDER BY c.sort_order, c.name"
         );
 
+        // A category page is one step in from the front page.
+        $wkBase = rtrim(\Core\View::url(''), '/');
+        $catSchema = \App\Services\SeoService::breadcrumbSchema([
+            ['name' => 'Home', 'url' => $wkBase . '/'],
+            ['name' => $cat['name'], 'url' => null],
+        ]);
+
         View::render('store/shop', [
             'products'        => $products,
             'categories'      => $categories,
+            'pageSchema'      => $catSchema,
             'currentCategory' => $cat,
             'currency'        => $currency,
             'sort'            => $sort,
