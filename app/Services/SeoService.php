@@ -249,7 +249,43 @@ class SeoService
     public static function writeSitemap(?string $rootPath = null): bool
     {
         $rootPath = $rootPath ?? (defined('WK_ROOT') ? WK_ROOT : dirname(__DIR__, 2));
-        return (bool) file_put_contents($rootPath . '/sitemap.xml', self::generateSitemap());
+        $written = (bool) @file_put_contents($rootPath . '/sitemap.xml', self::generateSitemap());
+        if ($written) self::$stale = false;
+        return $written;
+    }
+
+    /** @var bool set when something on the site map has changed this request */
+    private static bool $stale = false;
+
+    /** @var bool so the shutdown handler is only ever registered once */
+    private static bool $flushRegistered = false;
+
+    /**
+     * Note that a public URL has appeared, changed or gone.
+     *
+     * The file is not rewritten here. A bulk import saves a thousand products
+     * in one request, and rewriting the whole map a thousand times would make
+     * the import crawl — so the work is deferred to the end of the request and
+     * happens once, however many things changed.
+     */
+    public static function markSitemapStale(): void
+    {
+        self::$stale = true;
+
+        if (self::$flushRegistered) return;
+        self::$flushRegistered = true;
+
+        register_shutdown_function(static function () {
+            if (!self::$stale) return;
+            try {
+                if (function_exists('fastcgi_finish_request')) fastcgi_finish_request();
+                self::writeSitemap();
+            } catch (\Throwable $e) {
+                // A sitemap that could not be written must never take down the
+                // page that changed the product.
+                error_log('Whisker: rewriting the sitemap failed — ' . $e->getMessage());
+            }
+        });
     }
 
     // ── robots.txt Generator ──────────────────────

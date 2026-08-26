@@ -14,6 +14,7 @@ class ImportController
     {
         if (!Session::verifyCsrf($request->input('wk_csrf'))) {
             Session::flash('error', 'Session expired.');
+            \App\Services\SeoService::markSitemapStale();
             Response::redirect(View::url('admin/import'));
             return;
         }

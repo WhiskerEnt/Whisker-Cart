@@ -46,6 +46,7 @@ class PageController
         ]);
         if ($v->fails()) {
             Session::flash('error', $v->firstError());
+            \App\Services\SeoService::markSitemapStale();
             Response::redirect(View::url('admin/pages/edit/'.$params['id'])); return;
         }
         // Sanitize on save so the stored HTML is already safe — display path
@@ -78,6 +79,7 @@ class PageController
         ]);
         if ($v->fails()) {
             Session::flash('error', $v->firstError());
+            \App\Services\SeoService::markSitemapStale();
             Response::redirect(View::url('admin/pages/create')); return;
         }
         $slug = View::slug($request->clean('title'));
@@ -96,6 +98,7 @@ class PageController
     {
         Database::delete('wk_pages', 'id=?', [$params['id']]);
         Session::flash('success','Page deleted.');
+        \App\Services\SeoService::markSitemapStale();
         Response::redirect(View::url('admin/pages'));
     }
 

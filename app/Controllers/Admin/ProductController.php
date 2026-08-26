@@ -45,6 +45,7 @@ class ProductController
         if (!Session::verifyCsrf($request->input('wk_csrf'))) {
             Session::flash('error', 'Session expired.');
             Session::setOldInput($request->all());
+            \App\Services\SeoService::markSitemapStale();
             Response::redirect(View::url('admin/products/create'));
             return;
         }
@@ -147,6 +148,7 @@ class ProductController
     {
         if (!Session::verifyCsrf($request->input('wk_csrf'))) {
             Session::flash('error', 'Session expired.');
+            \App\Services\SeoService::markSitemapStale();
             Response::redirect(View::url('admin/products/edit/' . $params['id']));
             return;
         }
@@ -212,6 +214,7 @@ class ProductController
 
         Database::delete('wk_products', 'id = ?', [$params['id']]);
         Session::flash('success', 'Product deleted.');
+        \App\Services\SeoService::markSitemapStale();
         Response::redirect(View::url('admin/products'));
     }
 
