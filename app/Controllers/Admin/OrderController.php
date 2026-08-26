@@ -83,7 +83,23 @@ class OrderController
             Response::redirect(View::url('admin/orders/' . $params['id']));
             return;
         }
-        Database::update('wk_orders', ['status' => $status], 'id=?', [$params['id']]);
+        // Cancelling is not just a status: stock comes back, the customer's
+        // totals are corrected, and the money may need returning. It ran as a
+        // plain status write before, so an order cancelled from here left its
+        // stock deducted while the same cancellation by the customer did not.
+        if ($status === 'cancelled') {
+            $existing = Database::fetch("SELECT * FROM wk_orders WHERE id=?", [$params['id']]);
+            if ($existing) {
+                $cancel = \App\Services\CancellationService::cancel($existing, Session::adminId(), false);
+                Session::flash($cancel['success'] ? 'success' : 'error', $cancel['message']);
+                if (!$cancel['success']) {
+                    Response::redirect(View::url('admin/orders/' . $params['id']));
+                    return;
+                }
+            }
+        } else {
+            Database::update('wk_orders', ['status' => $status], 'id=?', [$params['id']]);
+        }
 
         // Marking an order paid, shipped or delivered by hand is a statement
         // that the money arrived — often by bank transfer or cash, which no

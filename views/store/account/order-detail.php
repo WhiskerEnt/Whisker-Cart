@@ -2,7 +2,7 @@
 $notes=json_decode($o['notes']??'{}',true)?:[];
 $billing=json_decode($o['billing_address']??'{}',true)?:[];
 $shipping_addr=json_decode($o['shipping_address']??'{}',true)?:[];
-$canCancel = in_array($o['status'], ['pending', 'processing']);
+$canCancel = \App\Services\CancellationService::customerCanCancel($o);
 $countries = \App\Services\CurrencyService::countries();
 ?>
 <section class="wk-section"><div class="wk-container" style="max-width:700px">

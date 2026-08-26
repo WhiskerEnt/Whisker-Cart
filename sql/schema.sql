@@ -419,6 +419,7 @@ INSERT INTO wk_payment_gateways (gateway_code, display_name, description, is_act
  '["BTC","ETH","USDT","LTC","XRP"]');
 
 INSERT INTO wk_settings (setting_group, setting_key, setting_value) VALUES
+('checkout', 'auto_refund_on_cancel', '0'),
 ('social', 'social_enabled', '0'),
 ('social', 'social_position', 'left'),
 ('social', 'social_display', 'always'),

@@ -149,6 +149,17 @@
                             <option value="0" <?= $v('checkout','guest_checkout')==='0'?'selected':'' ?>>Disabled</option>
                         </select>
                     </div>
+                    <div class="wk-form-group"><label>Refund When an Order Is Cancelled</label>
+                        <select name="checkout_auto_refund_on_cancel" class="wk-select">
+                            <option value="0" <?= $v('checkout','auto_refund_on_cancel')!=='1'?'selected':'' ?>>Off &mdash; refund it yourself from the order page</option>
+                            <option value="1" <?= $v('checkout','auto_refund_on_cancel')==='1'?'selected':'' ?>>On &mdash; send the money back automatically</option>
+                        </select>
+                        <div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px;line-height:1.6">
+                            When on, cancelling a paid order refunds it through the payment gateway straight away,
+                            whether you cancelled it or the customer did. Off by default, because it moves money
+                            without anyone looking. Gateways that cannot refund automatically still need doing by hand.
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="wk-card">
