@@ -247,7 +247,7 @@ $countries = \App\Services\CurrencyService::countries();
         </div>
     </div>
 
-    <?php $cancelBy = \App\Services\CancellationService::cancelDeadline($o); ?>
+    <?php $cancelBy = \App\Services\CancellationService::deadlineToShow($o); ?>
     <?php if ($canCancel): ?>
     <?php if ($cancelBy): ?>
         <p style="font-size:12px;color:var(--wk-muted);margin:10px 0 0;line-height:1.6">

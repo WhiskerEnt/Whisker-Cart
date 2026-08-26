@@ -96,6 +96,51 @@ class CancellationTest extends TestCase
         );
     }
 
+    /**
+     * Hiding the deadline is presentation only. A shop that would rather not
+     * advertise the window must not accidentally remove it.
+     */
+    public function testHidingTheDeadlineDoesNotExtendTheWindow(): void
+    {
+        $src = $this->service();
+
+        // deadlineToShow is what the view asks; withinCancelWindow is what the
+        // server enforces. They must not be the same call.
+        $this->assertStringContainsString('public static function deadlineToShow(', $src);
+        $this->assertStringContainsString('public static function showsDeadline(', $src);
+
+        $enforce = substr($src, strpos($src, 'public static function withinCancelWindow('));
+        $enforce = substr($enforce, 0, strpos($enforce, 'public static function customerCanCancel('));
+        $this->assertStringNotContainsString(
+            'showsDeadline',
+            $enforce,
+            'whether the deadline is displayed must have no bearing on whether it applies'
+        );
+
+        $can = substr($src, strpos($src, 'public static function customerCanCancel('));
+        $can = substr($can, 0, strpos($can, 'public static function showsDeadline('));
+        $this->assertStringNotContainsString('showsDeadline', $can);
+    }
+
+    public function testTheDeadlineIsShownUnlessTheShopTurnsItOff(): void
+    {
+        $this->assertStringContainsString(
+            "Database::setting('checkout', 'show_cancel_deadline', '1')",
+            $this->service(),
+            'showing it is the friendlier default'
+        );
+
+        $view = (string) file_get_contents(WK_ROOT . '/views/store/account/order-detail.php');
+        $this->assertStringContainsString(
+            'CancellationService::deadlineToShow($o)',
+            $view,
+            'the view must ask what to show, rather than reading the deadline directly'
+        );
+
+        $migration = (string) file_get_contents(WK_ROOT . '/sql/migrations/20260822_v141_cancel_refund.sql');
+        $this->assertStringContainsString("('checkout', 'show_cancel_deadline', '1')", $migration);
+    }
+
     /** Goods already with a carrier are not back on the shelf. */
     public function testStockOnlyReturnsForOrdersThatNeverShipped(): void
     {

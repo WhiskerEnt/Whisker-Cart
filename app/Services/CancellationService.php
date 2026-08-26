@@ -74,6 +74,26 @@ class CancellationService
     }
 
     /**
+     * Whether the storefront tells the customer when their window closes.
+     * Some shops would rather not draw attention to it; the window still
+     * applies either way.
+     */
+    public static function showsDeadline(): bool
+    {
+        return Database::setting('checkout', 'show_cancel_deadline', '1') === '1';
+    }
+
+    /**
+     * The deadline to put in front of the customer, or null when there is
+     * nothing to say — no window set, no date to measure from, or the shop
+     * has asked not to show it.
+     */
+    public static function deadlineToShow(array $order): ?int
+    {
+        return self::showsDeadline() ? self::cancelDeadline($order) : null;
+    }
+
+    /**
      * Cancel an order.
      *
      * The status change is an atomic compare-and-set, so two requests racing

@@ -174,6 +174,16 @@
                             You can still cancel any order yourself from the order page, whenever you like.
                         </div>
                     </div>
+                    <div class="wk-form-group"><label>Show the Cancellation Deadline</label>
+                        <select name="checkout_show_cancel_deadline" class="wk-select">
+                            <option value="1" <?= $v('checkout','show_cancel_deadline')!=='0'?'selected':'' ?>>Show &mdash; tell the customer how long they have</option>
+                            <option value="0" <?= $v('checkout','show_cancel_deadline')==='0'?'selected':'' ?>>Hide &mdash; say nothing about the deadline</option>
+                        </select>
+                        <div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px;line-height:1.6">
+                            Only applies when a window is set above. Hiding it does not extend the window &mdash;
+                            the cancel button still goes when the time is up.
+                        </div>
+                    </div>
                     <div class="wk-form-group"><label>Refund When an Order Is Cancelled</label>
                         <select name="checkout_auto_refund_on_cancel" class="wk-select">
                             <option value="0" <?= $v('checkout','auto_refund_on_cancel')!=='1'?'selected':'' ?>>Off &mdash; refund it yourself from the order page</option>
