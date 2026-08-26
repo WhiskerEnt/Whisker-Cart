@@ -263,6 +263,28 @@ class EmailService
             return ['subject' => 'Refund issued — ' . $v('order_number'), 'body' => $body];
         }
 
+        if ($slug === 'order-status-update') {
+            $body = '
+            <div style="text-align:center;margin-bottom:28px">
+                <div style="font-size:48px;margin-bottom:8px">' . $v('status_emoji', '✉️') . '</div>
+                <h1 style="font-size:26px;font-weight:900;margin:0 0 6px">Your order is now ' . htmlspecialchars($v('order_status')) . '</h1>
+                <p style="color:#6b7280;margin:0;font-size:15px">Order ' . htmlspecialchars($v('order_number')) . '</p>
+            </div>
+            <div style="background:#faf8f6;border-radius:10px;padding:20px;margin-bottom:22px">
+                <table style="width:100%;font-size:14px">
+                    <tr><td style="color:#6b7280;padding:5px 0">Total</td><td style="text-align:right;font-weight:800;font-family:monospace">' . htmlspecialchars($v('order_total')) . '</td></tr>
+                    <tr><td style="color:#6b7280;padding:5px 0">Placed</td><td style="text-align:right;font-weight:700">' . htmlspecialchars($v('order_date')) . '</td></tr>
+                </table>
+            </div>
+            <p style="font-size:14px;line-height:1.7;color:#6b7280;margin:0">
+                Hello ' . htmlspecialchars($v('customer_name', 'there')) . ', any questions just reply to this email.
+            </p>';
+            return [
+                'subject' => 'Your order ' . $v('order_number') . ' is now ' . $v('order_status'),
+                'body' => $body,
+            ];
+        }
+
         if ($slug === 'welcome') {
             $body = '
             <div style="text-align:center;margin-bottom:28px">

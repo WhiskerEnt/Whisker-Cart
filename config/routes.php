@@ -45,6 +45,11 @@ $router->get('/order-success',       [CheckoutController::class, 'success']);
 $router->post('/review',             [\App\Controllers\Store\ReviewController::class, 'store'], ['csrf']);
 $router->post('/question',           [\App\Controllers\Store\QuestionController::class, 'store'], ['csrf']);
 
+// Abandoned cart recovery and lead capture
+$router->get('/cart/recover/{token}', [\App\Controllers\Store\CartRecoveryController::class, 'recover']);
+$router->get('/cart/unsubscribe/{token}/{email}', [\App\Controllers\Store\CartRecoveryController::class, 'unsubscribe']);
+$router->post('/lead',               [\App\Controllers\Store\LeadController::class, 'capture'], ['csrf']);
+
 // Pages, Contact, Chatbot
 $router->get('/page/{slug}',        [\App\Controllers\Store\PageController::class, 'show']);
 $router->get('/contact',            [\App\Controllers\Store\PageController::class, 'contact']);
@@ -189,6 +194,8 @@ $router->group(['prefix' => '/admin', 'middleware' => ['auth', 'csrf']], functio
     $r->post('/abandoned-carts/send-reminder/{id}', [\App\Controllers\Admin\AbandonedCartController::class, 'sendReminder']);
     $r->post('/abandoned-carts/mark-abandoned/{id}',[\App\Controllers\Admin\AbandonedCartController::class, 'markAbandoned']);
     $r->post('/abandoned-carts/prune',              [\App\Controllers\Admin\AbandonedCartController::class, 'prune']);
+    $r->post('/abandoned-carts/sweep',              [\App\Controllers\Admin\AbandonedCartController::class, 'runSweep']);
+    $r->post('/abandoned-carts/settings',           [\App\Controllers\Admin\AbandonedCartController::class, 'updateSettings']);
 
     // Shipping Carriers
     $r->get('/reviews',                  [\App\Controllers\Admin\ReviewController::class, 'index']);

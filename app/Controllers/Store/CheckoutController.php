@@ -413,6 +413,9 @@ class CheckoutController
         }
 
         // Mark cart converted
+        // Stamp the order onto the cart before the status changes, so a
+        // basket that came back from a reminder can be counted as recovered.
+        \App\Services\CartRecoveryService::markRecovered(Session::cartId(), (int) $orderId);
         Database::update('wk_carts', ['status'=>'converted'], 'session_id=? AND status=?', [Session::cartId(),'active']);
 
         // Update customer order stats

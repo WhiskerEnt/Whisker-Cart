@@ -9,6 +9,16 @@ class HomeController
 
     public function index(Request $request, array $params = []): void
     {
+        // Reminders have to be sent by something. A shop on shared hosting may
+        // have no cron, and the storefront is visited far more often than the
+        // admin dashboard, which is where the low stock alert already hangs.
+        // The service throttles itself, so this costs one settings read.
+        try { \App\Services\CartRecoveryService::sweep(); } catch (\Throwable $e) {}
+        $this->render($request, $params);
+    }
+
+    private function render(Request $request, array $params = []): void
+    {
         // Currency switching is handled globally in index.php so it works on
         // every page and returns the visitor to where they were.
 

@@ -10,36 +10,70 @@ class AbandonedCartController
      */
     public function index(Request $request, array $params = []): void
     {
-        $currency = Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='currency_symbol'") ?: '₹';
+        $currency = Database::setting('general', 'currency_symbol') ?: '₹';
 
-        // Carts that: have items, are still 'active', created more than 1 hour ago
+        $page = max(1, (int) ($request->query('page') ?? 1));
+        $perPage = 25;
+        $offset = ($page - 1) * $perPage;
+
+        // Carts worth chasing: still open, holding something, and left alone
+        // long enough that the shopper has moved on.
+        $minutes = \App\Services\CartRecoveryService::abandonAfterMinutes();
+
         $carts = Database::fetchAll(
-            "SELECT c.*, 
-                    c.email AS cart_email,
+            "SELECT c.*, c.email AS cart_email,
                     cu.first_name, cu.last_name, cu.email AS customer_email,
                     COUNT(ci.id) AS item_count,
                     SUM(ci.unit_price * ci.quantity) AS cart_value
-             FROM wk_carts c
-             LEFT JOIN wk_customers cu ON cu.id = c.customer_id
-             JOIN wk_cart_items ci ON ci.cart_id = c.id
-             WHERE c.status = 'active'
-               AND c.created_at < DATE_SUB(NOW(), INTERVAL 1 HOUR)
-             GROUP BY c.id
-             ORDER BY c.created_at DESC
-             LIMIT 50"
+               FROM wk_carts c
+               LEFT JOIN wk_customers cu ON cu.id = c.customer_id
+               JOIN wk_cart_items ci ON ci.cart_id = c.id
+              WHERE c.recovered_at IS NULL
+                AND (c.status = 'abandoned'
+                     OR (c.status = 'active' AND c.updated_at < DATE_SUB(NOW(), INTERVAL ? MINUTE)))
+              GROUP BY c.id
+              ORDER BY c.updated_at DESC
+              LIMIT {$perPage} OFFSET {$offset}",
+            [$minutes]
         );
 
+        $totalCarts = (int) (Database::fetchValue(
+            "SELECT COUNT(*) FROM (
+                SELECT c.id FROM wk_carts c
+                  JOIN wk_cart_items ci ON ci.cart_id = c.id
+                 WHERE c.recovered_at IS NULL
+                   AND (c.status = 'abandoned'
+                        OR (c.status = 'active' AND c.updated_at < DATE_SUB(NOW(), INTERVAL ? MINUTE)))
+                 GROUP BY c.id
+             ) t",
+            [$minutes]
+        ) ?: 0);
+
         $stats = [
-            'total' => count($carts),
-            'value' => array_sum(array_column($carts, 'cart_value')),
+            'total'      => $totalCarts,
+            'value'      => array_sum(array_column($carts, 'cart_value')),
             'with_email' => count(array_filter($carts, fn($c) => !empty($c['cart_email'] ?? $c['customer_email']))),
         ];
 
+        $settings = [];
+        foreach (Database::fetchAll(
+            "SELECT setting_group, setting_key, setting_value FROM wk_settings
+              WHERE setting_group IN ('cart_recovery','leads')"
+        ) as $row) {
+            $settings[$row['setting_group']][$row['setting_key']] = $row['setting_value'];
+        }
+
         View::render('admin/abandoned-carts/index', [
-            'pageTitle' => 'Abandoned Carts',
-            'carts' => $carts,
-            'stats' => $stats,
-            'currency' => $currency,
+            'pageTitle'  => 'Abandoned Carts',
+            'carts'      => $carts,
+            'stats'      => $stats,
+            'recovery'   => \App\Services\CartRecoveryService::stats(),
+            'settings'   => $settings,
+            'currency'   => $currency,
+            'page'       => $page,
+            'perPage'    => $perPage,
+            'totalCarts' => $totalCarts,
+            'leadCount'  => (int) (Database::fetchValue("SELECT COUNT(*) FROM wk_leads") ?: 0),
         ], 'admin/layouts/main');
     }
 
@@ -80,28 +114,26 @@ class AbandonedCartController
      */
     public function sendReminder(Request $request, array $params = []): void
     {
-        // CSRF — group middleware enforces but be explicit (consistent with
-        // other destructive/side-effect admin endpoints).
         if (!Session::verifyCsrf($request->input('wk_csrf') ?? $request->server('HTTP_X_CSRF_TOKEN'))) {
             Response::json(['success' => false, 'message' => 'Session expired.'], 403);
             return;
         }
 
-        $cartId = (int)$params['id'];
+        $cartId = (int) $params['id'];
         $cart = Database::fetch(
             "SELECT c.*, cu.first_name, cu.last_name, cu.email AS customer_email
-             FROM wk_carts c LEFT JOIN wk_customers cu ON cu.id=c.customer_id WHERE c.id=?", [$cartId]
+               FROM wk_carts c LEFT JOIN wk_customers cu ON cu.id=c.customer_id WHERE c.id=?",
+            [$cartId]
         );
         if (!$cart) { Response::json(['success' => false, 'message' => 'Cart not found']); return; }
 
-        // 6-hour cooldown per cart, enforced server-side (the UI's disabled
-        // button is advisory only). A successful send bumps
-        // wk_carts.reminder_sent_at below.
+        // Six hours between reminders for the same cart, whatever the button
+        // says — the disabled state in the UI is advisory only.
         if (!empty($cart['reminder_sent_at'])) {
             $lastSent = strtotime($cart['reminder_sent_at']);
             $sixHours = 6 * 3600;
             if ($lastSent !== false && (time() - $lastSent) < $sixHours) {
-                $minsLeft = (int)ceil(($sixHours - (time() - $lastSent)) / 60);
+                $minsLeft = (int) ceil(($sixHours - (time() - $lastSent)) / 60);
                 Response::json([
                     'success' => false,
                     'message' => "A reminder was sent recently for this cart. Try again in {$minsLeft} minute" . ($minsLeft === 1 ? '' : 's') . '.',
@@ -110,55 +142,93 @@ class AbandonedCartController
             }
         }
 
-        $email = $cart['email'] ?? $cart['customer_email'] ?? null;
-        if (!$email) { Response::json(['success' => false, 'message' => 'No email address for this cart']); return; }
+        // One implementation for the email, whether it was sent by hand or by
+        // the sweep: same template, same recovery link, same unsubscribe.
+        $result = \App\Services\CartRecoveryService::sendReminder($cart);
 
-        $name = trim(($cart['first_name'] ?? '') . ' ' . ($cart['last_name'] ?? '')) ?: 'Customer';
-        $currency = Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='currency_symbol'") ?: '₹';
-        $storeName = Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='site_name'") ?: 'Whisker Store';
+        $email = $cart['email'] ?: ($cart['customer_email'] ?? '');
+        Response::json([
+            'success' => $result['sent'],
+            'message' => $result['sent']
+                ? 'Reminder sent to ' . $email
+                : 'Not sent: ' . $result['reason'] . '.',
+        ]);
+    }
 
-        // Build cart items HTML
-        $items = Database::fetchAll(
-            "SELECT ci.*, p.name, vc.label AS variant_label,
-                    (SELECT image_path FROM wk_product_images WHERE product_id=p.id AND is_primary=1 LIMIT 1) AS image
-             FROM wk_cart_items ci JOIN wk_products p ON p.id=ci.product_id
-             LEFT JOIN wk_variant_combos vc ON vc.id=ci.variant_combo_id WHERE ci.cart_id=?", [$cartId]
-        );
-
-        $itemsHtml = '<table style="width:100%;font-size:14px;border-collapse:collapse">';
-        $total = 0;
-        foreach ($items as $item) {
-            $lineTotal = $item['unit_price'] * $item['quantity'];
-            $total += $lineTotal;
-            $imgTag = '';
-            if ($item['image']) {
-                $imgTag = '<img src="' . View::url('storage/uploads/products/' . $item['image']) . '" style="width:48px;height:48px;object-fit:cover;border-radius:6px" alt="">';
-            } else {
-                $imgTag = '<div style="width:48px;height:48px;background:#faf8f6;border-radius:6px;display:flex;align-items:center;justify-content:center">📦</div>';
-            }
-            $variant = !empty($item['variant_label']) ? '<div style="font-size:12px;color:#8b5cf6;font-weight:700">' . htmlspecialchars($item['variant_label']) . '</div>' : '';
-            $itemsHtml .= '<tr><td style="padding:12px 0;border-bottom:1px solid #e8e5df"><div style="display:flex;align-items:center;gap:10px">' . $imgTag . '<div><div style="font-weight:700">' . htmlspecialchars($item['name']) . '</div>' . $variant . '<div style="font-size:12px;color:#6b7280">Qty: ' . $item['quantity'] . ' × ' . $currency . number_format($item['unit_price'], 2) . '</div></div></div></td><td style="text-align:right;font-family:monospace;font-weight:700;vertical-align:top;padding-top:16px">' . $currency . number_format($lineTotal, 2) . '</td></tr>';
+    /**
+     * Run the sweep now, rather than waiting for storefront traffic.
+     */
+    public function runSweep(Request $request, array $params = []): void
+    {
+        if (!Session::verifyCsrf($request->input('wk_csrf'))) {
+            Session::flash('error', 'Session expired.');
+            Response::redirect(View::url('admin/abandoned-carts'));
+            return;
         }
-        $itemsHtml .= '</table>';
 
-        $vars = [
-            '{{customer_name}}' => $name, '{{customer_email}}' => $email,
-            '{{store_name}}' => $storeName, '{{store_url}}' => View::url(''),
-            '{{cart_items_html}}' => $itemsHtml,
-            '{{cart_total}}' => $currency . number_format($total, 2),
-            '{{cart_url}}' => View::url(''),
-            '{{currency_symbol}}' => $currency,
+        $r = \App\Services\CartRecoveryService::sweep(true);
+        Session::flash('success', sprintf(
+            'Sweep finished. %d cart%s marked abandoned, %d reminder%s sent.',
+            $r['abandoned'], $r['abandoned'] === 1 ? '' : 's',
+            $r['sent'], $r['sent'] === 1 ? '' : 's'
+        ));
+        Response::redirect(View::url('admin/abandoned-carts'));
+    }
+
+    /**
+     * Save the recovery and lead-capture settings.
+     */
+    public function updateSettings(Request $request, array $params = []): void
+    {
+        if (!Session::verifyCsrf($request->input('wk_csrf'))) {
+            Session::flash('error', 'Session expired.');
+            Response::redirect(View::url('admin/abandoned-carts'));
+            return;
+        }
+
+        $onOff = fn($v) => $v === '1' ? '1' : '0';
+
+        $values = [
+            'cart_recovery' => [
+                'recovery_enabled'      => $onOff($request->input('recovery_enabled')),
+                'abandon_after_minutes' => (string) max(5, (int) $request->input('abandon_after_minutes')),
+                'recovery_schedule'     => $this->cleanSchedule((string) $request->input('recovery_schedule')),
+                'recovery_coupon'       => trim((string) $request->input('recovery_coupon')),
+            ],
+            'leads' => [
+                'lead_capture_enabled' => $onOff($request->input('lead_capture_enabled')),
+                'lead_capture_fields'  => in_array($request->input('lead_capture_fields'), ['email','phone','both'], true)
+                    ? (string) $request->input('lead_capture_fields') : 'email',
+                'lead_capture_when'    => $request->input('lead_capture_when') === 'always' ? 'always' : 'cart',
+                'lead_capture_title'   => mb_substr(trim((string) $request->input('lead_capture_title')), 0, 120),
+                'lead_capture_text'    => mb_substr(trim((string) $request->input('lead_capture_text')), 0, 400),
+                'lead_capture_coupon'  => trim((string) $request->input('lead_capture_coupon')),
+            ],
         ];
 
-        $sent = \App\Services\EmailService::sendFromTemplate('abandoned-cart', $email, $vars);
-
-        if ($sent) {
-            try {
-                Database::query("UPDATE wk_carts SET reminder_sent_at=NOW(), reminder_count=reminder_count+1 WHERE id=?", [$cartId]);
-            } catch (\Exception $e) {}
+        foreach ($values as $group => $pairs) {
+            foreach ($pairs as $key => $value) {
+                Database::query(
+                    "INSERT INTO wk_settings (setting_group,setting_key,setting_value) VALUES(?,?,?)
+                     ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value)",
+                    [$group, $key, $value]
+                );
+            }
         }
+        Database::clearSettingsCache();
 
-        Response::json(['success' => $sent, 'message' => $sent ? 'Reminder sent to ' . $email : 'Failed to send. Check SMTP settings.']);
+        Session::flash('success', 'Recovery settings saved.');
+        Response::redirect(View::url('admin/abandoned-carts'));
+    }
+
+    /** Keep only sensible, ascending minute values. */
+    private function cleanSchedule(string $raw): string
+    {
+        $mins = array_filter(array_map('intval', explode(',', $raw)), fn($m) => $m > 0 && $m <= 43200);
+        $mins = array_values(array_unique($mins));
+        sort($mins);
+        $mins = array_slice($mins, 0, 5);
+        return $mins ? implode(',', $mins) : '60,1440,4320';
     }
 
     /**

@@ -295,6 +295,15 @@ const WhiskerStore = {
 };
 
 document.addEventListener('DOMContentLoaded', () => WhiskerStore.init());
+
+// A recovery link lands here with ?cart=open, so the basket it just restored
+// is the first thing the shopper sees.
+document.addEventListener('DOMContentLoaded', () => {
+    if (/[?&]cart=open/.test(location.search)) {
+        WhiskerStore.loadCart();
+        WhiskerStore.openCart();
+    }
+});
 /**
  * Header type-ahead search.
  *

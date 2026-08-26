@@ -419,6 +419,15 @@ INSERT INTO wk_payment_gateways (gateway_code, display_name, description, is_act
  '["BTC","ETH","USDT","LTC","XRP"]');
 
 INSERT INTO wk_settings (setting_group, setting_key, setting_value) VALUES
+('leads', 'lead_capture_title', 'Before you go'),
+('leads', 'lead_capture_coupon', ''),
+('cart_recovery', 'recovery_enabled', '0'),
+('cart_recovery', 'abandon_after_minutes', '60'),
+('cart_recovery', 'recovery_schedule', '60,1440,4320'),
+('cart_recovery', 'recovery_coupon', ''),
+('leads', 'lead_capture_enabled', '0'),
+('leads', 'lead_capture_fields', 'email'),
+('leads', 'lead_capture_when', 'cart'),
 ('checkout', 'auto_refund_on_cancel', '0'),
 ('checkout', 'cancel_window_minutes', '0'),
 ('checkout', 'show_cancel_deadline', '1'),
