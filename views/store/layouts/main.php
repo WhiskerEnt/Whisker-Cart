@@ -174,26 +174,53 @@ $currentSymbol = $currentCurrency === $baseCurrency
             </script>
             <?php endif; ?>
 
-            <?php if ($isLoggedIn): ?>
-                <div style="position:relative" id="accountMenu">
-                    <button onclick="document.getElementById('accountDrop').style.display=document.getElementById('accountDrop').style.display==='block'?'none':'block'" style="background:none;border:2px solid var(--wk-border);border-radius:8px;padding:6px 12px;cursor:pointer;font-family:var(--font);font-size:13px;font-weight:800;color:var(--wk-purple);display:flex;align-items:center;gap:6px">
+            <?php
+            // One account menu, signed in or not: the shopper looks in the
+            // same place either way.
+            $wkMenuItem = 'display:block;padding:12px 16px;font-size:13px;font-weight:700;color:var(--wk-text);border-bottom:1px solid var(--wk-border)';
+            ?>
+            <div style="position:relative" id="accountMenu">
+                <button type="button" onclick="wkToggleAccount()" id="accountToggle" aria-haspopup="true" aria-expanded="false" style="background:none;border:2px solid var(--wk-border);border-radius:8px;padding:6px 12px;cursor:pointer;font-family:var(--font);font-size:13px;font-weight:800;color:var(--wk-purple);display:flex;align-items:center;gap:6px;white-space:nowrap">
+                    <?php if ($isLoggedIn): ?>
                         👋 <?= $e($customer['first_name'] ?? 'Account') ?> ▾
-                    </button>
-                    <div id="accountDrop" style="display:none;position:absolute;right:0;top:calc(100% + 8px);background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,.1);width:200px;z-index:200;overflow:hidden">
-                        <a href="<?= $url('account') ?>" style="display:block;padding:12px 16px;font-size:13px;font-weight:700;color:var(--wk-text);border-bottom:1px solid var(--wk-border)">📊 Dashboard</a>
-                        <a href="<?= $url('account/orders') ?>" style="display:block;padding:12px 16px;font-size:13px;font-weight:700;color:var(--wk-text);border-bottom:1px solid var(--wk-border)">📦 My Orders</a>
-                        <a href="<?= $url('account/profile') ?>" style="display:block;padding:12px 16px;font-size:13px;font-weight:700;color:var(--wk-text);border-bottom:1px solid var(--wk-border)">👤 Profile</a>
-                        <a href="<?= $url('account/addresses') ?>" style="display:block;padding:12px 16px;font-size:13px;font-weight:700;color:var(--wk-text);border-bottom:1px solid var(--wk-border)">📍 Addresses</a>
+                    <?php else: ?>
+                        👤 Account ▾
+                    <?php endif; ?>
+                </button>
+                <div id="accountDrop" style="display:none;position:absolute;right:0;top:calc(100% + 8px);background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,.1);width:200px;z-index:200;overflow:hidden">
+                    <?php if ($isLoggedIn): ?>
+                        <a href="<?= $url('account') ?>" style="<?= $wkMenuItem ?>">📊 Dashboard</a>
+                        <a href="<?= $url('account/orders') ?>" style="<?= $wkMenuItem ?>">📦 My Orders</a>
+                        <a href="<?= $url('account/profile') ?>" style="<?= $wkMenuItem ?>">👤 Profile</a>
+                        <a href="<?= $url('account/addresses') ?>" style="<?= $wkMenuItem ?>">📍 Addresses</a>
                         <form method="POST" action="<?= $url('account/logout') ?>" style="margin:0">
                             <?= \Core\Session::csrfField() ?>
                             <button type="submit" style="display:block;width:100%;padding:12px 16px;font-size:13px;font-weight:700;color:#ef4444;background:none;border:none;text-align:left;cursor:pointer;font-family:inherit">↪ Sign Out</button>
                         </form>
-                    </div>
+                    <?php else: ?>
+                        <a href="<?= $url('account/login') ?>" style="<?= $wkMenuItem ?>">↪ Sign In</a>
+                        <a href="<?= $url('account/register') ?>" style="<?= $wkMenuItem ?>;color:var(--wk-purple)">✨ Create Account</a>
+                        <a href="<?= $url('track') ?>" style="<?= $wkMenuItem ?>">📦 Track Order</a>
+                    <?php endif; ?>
                 </div>
-                <script>document.addEventListener('click',function(e){if(!document.getElementById('accountMenu').contains(e.target))document.getElementById('accountDrop').style.display='none'});</script>
-            <?php else: ?>
-                <a href="<?= $url('account/login') ?>" style="font-size:13px;font-weight:700;color:var(--wk-muted);white-space:nowrap">Sign In</a>
-            <?php endif; ?>
+            </div>
+            <script>
+            function wkToggleAccount() {
+                const drop = document.getElementById('accountDrop');
+                const open = drop.style.display !== 'block';
+                drop.style.display = open ? 'block' : 'none';
+                document.getElementById('accountToggle').setAttribute('aria-expanded', open ? 'true' : 'false');
+            }
+            document.addEventListener('click', function (e) {
+                if (document.getElementById('accountMenu').contains(e.target)) return;
+                document.getElementById('accountDrop').style.display = 'none';
+                document.getElementById('accountToggle').setAttribute('aria-expanded', 'false');
+            });
+            document.addEventListener('keydown', function (e) { if (e.key === 'Escape') {
+                document.getElementById('accountDrop').style.display = 'none';
+                document.getElementById('accountToggle').setAttribute('aria-expanded', 'false');
+            }});
+            </script>
 
             <button class="wk-cart-btn" data-cart-open>
                 🛒 Cart <span class="wk-cart-count" style="display:none">0</span>
@@ -275,6 +302,7 @@ $currentSymbol = $currentCurrency === $baseCurrency
                 <a href="<?= $url('account') ?>" style="color:rgba(255,255,255,.5)">My Account</a>
             <?php else: ?>
                 <a href="<?= $url('account/login') ?>" style="color:rgba(255,255,255,.5)">Sign In</a>
+                <a href="<?= $url('account/register') ?>" style="color:rgba(255,255,255,.5)">Create Account</a>
             <?php endif; ?>
         </div>
         <div class="wk-footer-brand">🐱 Powered by <a href="https://github.com" style="color:var(--wk-purple);margin-left:4px">Whisker</a></div>
