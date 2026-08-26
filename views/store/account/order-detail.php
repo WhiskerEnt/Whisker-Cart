@@ -247,7 +247,13 @@ $countries = \App\Services\CurrencyService::countries();
         </div>
     </div>
 
+    <?php $cancelBy = \App\Services\CancellationService::cancelDeadline($o); ?>
     <?php if ($canCancel): ?>
+    <?php if ($cancelBy): ?>
+        <p style="font-size:12px;color:var(--wk-muted);margin:10px 0 0;line-height:1.6">
+            You can cancel this order until <strong><?= $e(date('g:ia \o\n j M', $cancelBy)) ?></strong>.
+        </p>
+    <?php endif; ?>
     <form method="POST" action="<?= $url('account/order/cancel/'.$o['id']) ?>" onsubmit="return confirm('Are you sure you want to cancel this order? This cannot be undone.')" style="margin-top:8px">
         <?= \Core\Session::csrfField() ?>
         <button type="submit" style="width:100%;padding:14px;background:none;border:2px solid #ef4444;border-radius:8px;color:#ef4444;font-family:var(--font);font-size:14px;font-weight:800;cursor:pointer;transition:all .2s">

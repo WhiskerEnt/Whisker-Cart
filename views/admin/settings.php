@@ -149,6 +149,31 @@
                             <option value="0" <?= $v('checkout','guest_checkout')==='0'?'selected':'' ?>>Disabled</option>
                         </select>
                     </div>
+                    <div class="wk-form-group"><label>Customers Can Cancel For</label>
+                        <?php
+                        $wkWindow = $v('checkout','cancel_window_minutes') ?: '0';
+                        $wkWindows = [
+                            '0'     => 'No time limit — until you start processing it',
+                            '30'    => '30 minutes after the order is placed',
+                            '60'    => '1 hour after the order is placed',
+                            '120'   => '2 hours after the order is placed',
+                            '360'   => '6 hours after the order is placed',
+                            '720'   => '12 hours after the order is placed',
+                            '1440'  => '24 hours after the order is placed',
+                            '2880'  => '2 days after the order is placed',
+                            '10080' => '7 days after the order is placed',
+                        ];
+                        ?>
+                        <select name="checkout_cancel_window_minutes" class="wk-select">
+                            <?php foreach ($wkWindows as $mins => $label): ?>
+                                <option value="<?= $mins ?>" <?= $wkWindow === $mins ? 'selected' : '' ?>><?= $label ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px;line-height:1.6">
+                            After this, the cancel button disappears and the customer is asked to contact you.
+                            You can still cancel any order yourself from the order page, whenever you like.
+                        </div>
+                    </div>
                     <div class="wk-form-group"><label>Refund When an Order Is Cancelled</label>
                         <select name="checkout_auto_refund_on_cancel" class="wk-select">
                             <option value="0" <?= $v('checkout','auto_refund_on_cancel')!=='1'?'selected':'' ?>>Off &mdash; refund it yourself from the order page</option>

@@ -43,6 +43,59 @@ class CancellationTest extends TestCase
         );
     }
 
+    public function testNoWindowIsSetByDefault(): void
+    {
+        $this->assertStringContainsString(
+            "Database::setting('checkout', 'cancel_window_minutes', '0')",
+            $this->service(),
+            'zero means no time limit, which is what an existing shop already had'
+        );
+
+        $migration = (string) file_get_contents(WK_ROOT . '/sql/migrations/20260822_v141_cancel_refund.sql');
+        $this->assertStringContainsString("('checkout', 'cancel_window_minutes', '0')", $migration);
+    }
+
+    /** An order with no readable date must not be locked out by the window. */
+    public function testAMissingOrderDateLeavesTheWindowOpen(): void
+    {
+        $this->assertTrue(\App\Services\CancellationService::withinCancelWindow([]));
+        $this->assertTrue(\App\Services\CancellationService::withinCancelWindow(['created_at' => 'nonsense']));
+        $this->assertNull(\App\Services\CancellationService::cancelDeadline(['created_at' => 'nonsense']));
+    }
+
+    /** With no window configured there is no deadline to show. */
+    public function testNoDeadlineWhenThereIsNoLimit(): void
+    {
+        $this->assertNull(
+            \App\Services\CancellationService::cancelDeadline(['created_at' => '2026-08-26 10:00:00']),
+            'a shop with no window set has nothing to count down to'
+        );
+    }
+
+    /** The window is enforced on the way in, not only by hiding the button. */
+    public function testTheWindowIsEnforcedServerSide(): void
+    {
+        $src = $this->service();
+        $cancel = substr($src, strpos($src, 'public static function cancel('));
+        $cancel = substr($cancel, 0, strpos($cancel, 'private static function everythingButCancelled('));
+
+        $this->assertStringContainsString('self::withinCancelWindow($order)', $cancel);
+
+        $checkAt = strpos($cancel, 'self::withinCancelWindow($order)');
+        $writeAt = strpos($cancel, "UPDATE wk_orders SET status='cancelled'");
+        $this->assertLessThan($writeAt, $checkAt, 'the window must be checked before the status is written');
+    }
+
+    /** A shopkeeper is not bound by the customer-facing window. */
+    public function testTheWindowAppliesToCustomersOnly(): void
+    {
+        $this->assertMatchesRegularExpression(
+            '/if \(\$customer && !self::withinCancelWindow\(\$order\)\)/',
+            $this->service(),
+            'an admin cancelling on the customer behalf is a decision, not a self-service action'
+        );
+    }
+
     /** Goods already with a carrier are not back on the shelf. */
     public function testStockOnlyReturnsForOrdersThatNeverShipped(): void
     {

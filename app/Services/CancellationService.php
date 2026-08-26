@@ -32,9 +32,45 @@ class CancellationService
         return Database::setting('checkout', 'auto_refund_on_cancel', '0') === '1';
     }
 
+    /**
+     * How long after placing an order a customer may still cancel it, in
+     * minutes. Zero means no time limit, which is the default: the status
+     * rules alone decide.
+     */
+    public static function cancelWindowMinutes(): int
+    {
+        return max(0, (int) Database::setting('checkout', 'cancel_window_minutes', '0'));
+    }
+
+    /**
+     * The moment the window closes, or null when there is no limit or the
+     * order carries no date to measure from.
+     */
+    public static function cancelDeadline(array $order): ?int
+    {
+        $minutes = self::cancelWindowMinutes();
+        if ($minutes <= 0) return null;
+
+        $placed = strtotime((string) ($order['created_at'] ?? ''));
+        return $placed ? $placed + ($minutes * 60) : null;
+    }
+
+    /**
+     * Whether the order is still inside its cancellation window.
+     *
+     * An order with no readable date is treated as still open rather than
+     * closed — a missing timestamp is our problem, not the customer's.
+     */
+    public static function withinCancelWindow(array $order): bool
+    {
+        $deadline = self::cancelDeadline($order);
+        return $deadline === null || time() <= $deadline;
+    }
+
     public static function customerCanCancel(array $order): bool
     {
-        return in_array($order['status'] ?? '', self::CUSTOMER_CANCELLABLE, true);
+        return in_array($order['status'] ?? '', self::CUSTOMER_CANCELLABLE, true)
+            && self::withinCancelWindow($order);
     }
 
     /**
@@ -57,6 +93,12 @@ class CancellationService
     {
         $orderId = (int) $order['id'];
         $from    = (string) ($order['status'] ?? '');
+
+        // The window applies to customers only. A shopkeeper cancelling on
+        // their behalf is a decision, not a self-service action.
+        if ($customer && !self::withinCancelWindow($order)) {
+            return self::fail(self::windowClosedMessage());
+        }
 
         $allowedFrom = $customer ? self::CUSTOMER_CANCELLABLE : self::everythingButCancelled();
         if (!in_array($from, $allowedFrom, true)) {
@@ -208,6 +250,20 @@ class CancellationService
         }
 
         return implode(' ', $parts);
+    }
+
+    /** Says how long the window was, so the answer is not just "no". */
+    private static function windowClosedMessage(): string
+    {
+        $minutes = self::cancelWindowMinutes();
+        $window = $minutes % 1440 === 0 && $minutes >= 1440
+            ? (($minutes / 1440) . ' day' . ($minutes === 1440 ? '' : 's'))
+            : ($minutes % 60 === 0
+                ? (($minutes / 60) . ' hour' . ($minutes === 60 ? '' : 's'))
+                : ($minutes . ' minutes'));
+
+        return 'Orders can only be cancelled within ' . $window . ' of being placed. '
+             . 'Get in touch and we will sort it out.';
     }
 
     private static function fail(string $message): array
