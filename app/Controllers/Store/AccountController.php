@@ -13,7 +13,11 @@ class AccountController
     public function showRegister(Request $request, array $params = []): void
     {
         if (Session::customerId()) { Response::redirect(View::url('account')); return; }
-        View::render('store/account/register', ['pageTitle' => 'Create Account'], 'store/layouts/main');
+        View::render('store/account/register', [
+            'pageTitle'   => 'Create Account',
+            'dialCodes'   => \App\Services\CountryService::dialCodes(),
+            'phoneDefault'=> \App\Services\CountryService::storeCountry(),
+        ], 'store/layouts/main');
     }
 
     public function register(Request $request, array $params = []): void
@@ -35,10 +39,14 @@ class AccountController
         ]);
         if ($v->fails()) { Session::flash('error', $v->firstError()); Response::redirect(View::url('account/register')); return; }
 
-        // Password complexity: require at least 1 number
+        // The same three rules the form shows while the password is typed.
         $pass = $request->input('password');
         if (!preg_match('/[0-9]/', $pass)) {
             Session::flash('error', 'Password must contain at least one number.');
+            Response::redirect(View::url('account/register')); return;
+        }
+        if (!preg_match('/[^a-zA-Z0-9]/', $pass)) {
+            Session::flash('error', 'Password must contain at least one special character.');
             Response::redirect(View::url('account/register')); return;
         }
 
@@ -56,7 +64,10 @@ class AccountController
 
         $id = Database::insert('wk_customers', [
             'first_name' => $request->clean('first_name'), 'last_name' => $request->clean('last_name'),
-            'email' => $request->clean('email'), 'phone' => $request->clean('phone') ?? '',
+            'email' => $request->clean('email'),
+            'phone' => \App\Services\CountryService::joinPhone(
+                $request->clean('phone_code'), $request->clean('phone')
+            ),
             'password_hash' => password_hash($request->input('password'), PASSWORD_BCRYPT, ['cost' => 12]),
             'is_active' => 1,
         ]);
