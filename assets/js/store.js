@@ -457,13 +457,18 @@ const WhiskerNav = {
     },
 
     layout() {
+        // Measure against a clipped row, so an item past the edge shows up as
+        // scrollWidth rather than being allowed to stick out. The clip goes
+        // back off at the end, and nothing repaints in between.
+        this.nav.classList.remove('wk-nav-ready');
+
         // Start from a clean slate so widening the window restores items.
         this.items.forEach((el) => { el.hidden = false; });
         this.menu.innerHTML = '';
         this.more.hidden = true;
 
         const fits = () => this.nav.scrollWidth <= this.nav.clientWidth + 1;
-        if (fits()) return;
+        if (fits()) { this.nav.classList.add('wk-nav-ready'); return; }
 
         // Move items from the end into the dropdown until the row fits.
         // Home / Shop All stay put — they are the primary links.
@@ -481,6 +486,8 @@ const WhiskerNav = {
             }
             if (fits()) break;
         }
+
+        this.nav.classList.add('wk-nav-ready');
     },
 };
 

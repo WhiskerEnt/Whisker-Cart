@@ -162,4 +162,58 @@ class OverlayCssTest extends TestCase
             );
         }
     }
+
+    /**
+     * A menu that opens past the edge of its parent needs every ancestor to
+     * leave its overflow alone: one clipping ancestor cuts the menu off, and
+     * setting either axis to a clipping value makes the other one clip too.
+     *
+     * The header row clips itself only while the script measures which items
+     * fit, so the clip has to be lifted again for the category menus to open.
+     */
+    public function testTheHeaderRowStopsClippingOnceItHasBeenMeasured(): void
+    {
+        $rules = $this->rules('store.css');
+
+        $clips = static fn(string $body): bool
+            => (bool) preg_match('/overflow(?:-x|-y)?:\s*(hidden|clip|auto|scroll)/', $body);
+
+        $this->assertArrayHasKey('.wk-nav-dropdown-menu', $rules);
+        $this->assertMatchesRegularExpression(
+            '/position:\s*absolute/',
+            $rules['.wk-nav-dropdown-menu'],
+            'the menu is positioned out of the row, so an ancestor clip would hide it'
+        );
+
+        // Whichever ancestors clip must each name a state that lifts it.
+        foreach ($rules as $sel => $body) {
+            if (!preg_match('/^(\.wk-header-nav|\.wk-nav-dropdown)$/', $sel) || !$clips($body)) continue;
+
+            $lifted = false;
+            foreach ($rules as $other => $otherBody) {
+                if ($other !== $sel && str_starts_with($other, $sel)
+                    && preg_match('/overflow:\s*visible/', $otherBody)) {
+                    $lifted = true;
+
+                    // A rule nothing ever matches lifts nothing.
+                    preg_match('/^' . preg_quote($sel, '/') . '\.([\w-]+)/', $other, $m);
+                    $js = (string) file_get_contents(WK_ROOT . '/assets/js/store.js');
+                    $this->assertStringContainsString(
+                        "classList.add('{$m[1]}')",
+                        $js,
+                        "{$other} lifts the clip but nothing ever adds .{$m[1]}"
+                    );
+                    // Every path out of the measurement has to restore it,
+                    // including the one where everything already fits.
+                    $this->assertSame(
+                        2,
+                        substr_count($js, "classList.add('{$m[1]}')"),
+                        "one way out of layout() leaves .{$m[1]} off and the menus clipped"
+                    );
+                }
+            }
+
+            $this->assertTrue($lifted, "{$sel} clips its overflow and nothing ever lifts it, so the category menus cannot open");
+        }
+    }
 }
