@@ -71,16 +71,24 @@ $coupon = LeadService::usableCoupon();
     var box = document.getElementById('wkLead');
     if (!box) return;
 
-    var KEY = 'wk_lead_seen';
+    // Versioned, so a value written by an earlier build cannot keep the
+    // prompt quiet for a week after the reason for it was fixed.
+    var KEY = 'wk_lead_seen_v2';
     var QUIET_DAYS = 7;
 
+    // ?lead=preview shows it straight away and does not count as being seen,
+    // so a shopkeeper can look at their own wording without waiting a week.
+    var preview = /[?&]lead=preview\b/.test(location.search);
+
     function seen() {
+        if (preview) return false;
         try {
             var until = parseInt(localStorage.getItem(KEY) || '0', 10);
             return until > Date.now();
         } catch (e) { return false; }
     }
     function remember(days) {
+        if (preview) return;
         try { localStorage.setItem(KEY, String(Date.now() + days * 86400000)); } catch (e) {}
     }
 
@@ -114,6 +122,11 @@ $coupon = LeadService::usableCoupon();
     // start near the top does not trigger it on arrival.
     var armed = false;
     setTimeout(function () { armed = true; }, 3000);
+
+    if (preview) {
+        armed = true;
+        setTimeout(show, 400);
+    }
 
     // Desktop: the pointer heading out through the top of the window, which
     // is where the tab bar, the address bar and the close button all live.

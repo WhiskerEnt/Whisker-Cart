@@ -263,6 +263,39 @@ class CartRecoveryTest extends TestCase
         $this->assertStringContainsString('armed = true', $view, 'and not before the page has settled');
     }
 
+    /**
+     * The broken build wrote a week-long suppression on every tab switch.
+     * Versioning the key means fixing the bug is enough — nobody has to clear
+     * their browser storage to see the result.
+     */
+    public function testTheQuietFlagIsVersioned(): void
+    {
+        $view = (string) file_get_contents(WK_ROOT . '/views/store/partials/lead-capture.php');
+        $this->assertMatchesRegularExpression(
+            "/var KEY = 'wk_lead_seen_v\d+'/",
+            $view,
+            'the storage key must carry a version so stale values are ignored'
+        );
+    }
+
+    /** A shopkeeper should be able to look at their own wording. */
+    public function testThePromptCanBePreviewed(): void
+    {
+        $view = (string) file_get_contents(WK_ROOT . '/views/store/partials/lead-capture.php');
+        $this->assertStringContainsString('lead=preview', $view);
+
+        // Previewing must not count as having seen it.
+        $this->assertMatchesRegularExpression(
+            '/function remember\(days\) \{\s*if \(preview\) return;/',
+            $view,
+            'previewing once must not hide it for a week'
+        );
+        $this->assertMatchesRegularExpression(
+            '/function seen\(\) \{\s*if \(preview\) return false;/',
+            $view
+        );
+    }
+
     public function testTheExitPromptDoesNotNag(): void
     {
         $view = (string) file_get_contents(WK_ROOT . '/views/store/partials/lead-capture.php');
