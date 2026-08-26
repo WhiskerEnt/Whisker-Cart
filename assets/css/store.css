@@ -1185,3 +1185,31 @@ img { max-width: 100%; display: block; }
     .wk-lead, .wk-lead-box { transition: none; }
     .wk-lead-box { transform: none; }
 }
+
+/* Link from the description to the questions further down the page */
+.wk-ask-link {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: 13px; font-weight: 700; color: var(--wk-purple);
+    text-decoration: none; margin-bottom: 18px;
+    padding: 7px 12px; border-radius: 999px;
+    background: var(--wk-purple-soft); transition: filter .15s ease;
+}
+.wk-ask-link:hover { filter: brightness(.96); text-decoration: underline; }
+
+/* ── Product FAQ ───────────────────────────────────────────────────── */
+.wk-faq { margin-top: 48px; padding-top: 36px; border-top: 2px solid var(--wk-border); scroll-margin-top: 90px; }
+.wk-faq-heading { font-size: 22px; font-weight: 900; margin: 0 0 20px; }
+.wk-faq-list { display: grid; gap: 10px; }
+.wk-faq-item {
+    border: 2px solid var(--wk-border); border-radius: var(--radius-sm);
+    background: var(--wk-surface); overflow: hidden;
+}
+.wk-faq-item summary {
+    cursor: pointer; padding: 14px 18px; font-size: 14.5px; font-weight: 800;
+    list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.wk-faq-item summary::-webkit-details-marker { display: none; }
+.wk-faq-item summary::after { content: '+'; font-size: 20px; font-weight: 400; color: var(--wk-muted); }
+.wk-faq-item[open] summary::after { content: '\2212'; }
+.wk-faq-item[open] summary { border-bottom: 1px solid var(--wk-border); }
+.wk-faq-item p { margin: 0; padding: 14px 18px; font-size: 14px; line-height: 1.75; color: var(--wk-muted); }

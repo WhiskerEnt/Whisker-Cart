@@ -12,6 +12,43 @@ $o = fn($k, $d='') => htmlspecialchars($old[$k] ?? $d);
                 <div class="wk-card-body">
                     <div class="wk-form-group"><label>Product Name</label><input type="text" name="name" class="wk-input" required placeholder="e.g. Classic Cotton T-Shirt" autofocus value="<?=$o('name')?>"></div>
                     <div class="wk-form-group"><label>Description</label><textarea name="description" class="wk-textarea" placeholder="Describe your product..."><?=$o('description')?></textarea></div>
+                    <div class="wk-form-group">
+                        <label>Frequently Asked Questions</label>
+                        <p style="font-size:11px;color:var(--wk-text-muted);margin:0 0 10px;line-height:1.6">
+                            Answer what customers keep asking, so they do not have to. These show on the product
+                            page under the description. An empty row is dropped.
+                        </p>
+                        <div id="wkFaqRows">
+                            <?php
+                            $wkFaq = \App\Services\ProductFaqService::parse($o('faq'));
+                            $wkFaq[] = ['q' => '', 'a' => ''];
+                            foreach ($wkFaq as $wkItem): ?>
+                                <div class="wk-faq-row">
+                                    <input type="text" name="faq_q[]" class="wk-input" maxlength="200"
+                                           placeholder="Does it shrink in the wash?"
+                                           value="<?= \Core\View::e($wkItem['q']) ?>">
+                                    <textarea name="faq_a[]" class="wk-input" rows="2" maxlength="2000"
+                                              placeholder="Not if you wash it cold and hang it to dry."><?= \Core\View::e($wkItem['a']) ?></textarea>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                        <button type="button" class="wk-btn wk-btn-secondary wk-btn-sm" id="wkFaqAdd">Add another question</button>
+                    </div>
+                    <script>
+                    (function () {
+                        var add = document.getElementById('wkFaqAdd');
+                        var rows = document.getElementById('wkFaqRows');
+                        if (!add || !rows) return;
+                        add.addEventListener('click', function () {
+                            var last = rows.lastElementChild;
+                            var copy = last.cloneNode(true);
+                            copy.querySelectorAll('input, textarea').forEach(function (f) { f.value = ''; });
+                            rows.appendChild(copy);
+                            copy.querySelector('input').focus();
+                        });
+                    })();
+                    </script>
+
                     <div class="wk-form-group"><label>Short Description</label><input type="text" name="short_description" class="wk-input" placeholder="Brief summary for product cards" value="<?=$o('short_description')?>"></div>
                 </div>
             </div>

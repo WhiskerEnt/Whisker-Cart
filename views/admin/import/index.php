@@ -99,12 +99,29 @@
             <p style="color:var(--wk-muted);margin:4px 0">Leave <code>parent</code> empty for top-level. Child categories reference parent by exact name.</p>
         </div>
         <div id="guide-products" style="display:none">
-            <strong>📦 Products CSV:</strong> <code>sku, name, category, price, sale_price, stock_quantity, description, short_description, weight, is_active, is_featured, meta_title, meta_description, meta_keywords</code>
+            <strong>📦 Products CSV:</strong> <code>sku, name, category, price, sale_price, stock_quantity, description, short_description, weight, is_active, is_featured, faq, meta_title, meta_description, meta_keywords</code>
             <p style="color:var(--wk-muted);margin:4px 0"><code>sku</code> and <code>name</code> required. <code>category</code> matches by exact name. SEO fields auto-generate if empty.</p>
         </div>
         <div id="guide-variants" style="display:none">
             <strong>🔀 Variants CSV:</strong> <code>product_sku, variant_group, options, combo_sku, combo_price, combo_stock</code>
             <p style="color:var(--wk-muted);margin:4px 0">Group rows define dimensions (Size: S,M,L). Combos auto-generate. Combo rows override individual SKU/price/stock.</p>
+        </div>
+
+        <div style="margin-top:14px;padding:14px;background:var(--wk-purple-soft,#ede9fe);border-radius:var(--radius-sm)">
+            <strong>❓ The <code>faq</code> column</strong>
+            <p style="color:var(--wk-text-muted);margin:6px 0 8px;line-height:1.7">
+                Questions you answer up front, shown on the product page under the description. One cell holds
+                the lot: separate a question from its answer with <code>::</code> and one pair from the next
+                with <code>||</code>.
+            </p>
+            <div style="background:var(--wk-surface);border:1px solid var(--wk-border);border-radius:6px;padding:10px 12px;font-family:var(--font-mono);font-size:11.5px;line-height:1.8;overflow-x:auto;white-space:nowrap">
+                Does it shrink? :: Not if you wash cold. || Is it true to size? :: Yes, order your usual size.
+            </div>
+            <p style="color:var(--wk-text-muted);margin:8px 0 0;line-height:1.7;font-size:12px">
+                Spaces around the separators are ignored. A pair missing either half is skipped rather than
+                imported half-finished. Leave the cell empty for no FAQ. Up to 20 per product.
+                If your answer needs a comma, wrap the whole cell in quotes, as with any CSV field.
+            </p>
         </div>
 
         <div style="margin-top:14px;padding:12px;background:var(--wk-bg);border:1px solid var(--wk-border);border-radius:var(--radius-sm)">

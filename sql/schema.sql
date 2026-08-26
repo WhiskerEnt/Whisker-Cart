@@ -74,6 +74,7 @@ CREATE TABLE IF NOT EXISTS wk_products (
     name VARCHAR(255) NOT NULL,
     slug VARCHAR(280) NOT NULL UNIQUE,
     description TEXT,
+    faq TEXT DEFAULT NULL,
     short_description VARCHAR(500),
     price DECIMAL(12,2) NOT NULL DEFAULT 0.00,
     sale_price DECIMAL(12,2) DEFAULT NULL,

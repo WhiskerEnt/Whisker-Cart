@@ -243,10 +243,19 @@ $currentSymbol = $currentCurrency === $baseCurrency
         </div>
         <?php endif; ?>
         <div style="display:flex;justify-content:center;gap:24px;flex-wrap:wrap;font-size:12px">
-            <a href="<?= $url('page/terms-and-conditions') ?>" style="color:rgba(255,255,255,.5)">Terms & Conditions</a>
-            <a href="<?= $url('page/privacy-policy') ?>" style="color:rgba(255,255,255,.5)">Privacy Policy</a>
-            <a href="<?= $url('page/refund-policy') ?>" style="color:rgba(255,255,255,.5)">Refund Policy</a>
-            <a href="<?= $url('page/exchange-policy') ?>" style="color:rgba(255,255,255,.5)">Exchange Policy</a>
+            <?php
+            // Only pages the shop has actually published. These were four fixed
+            // links, so a shop that never wrote an exchange policy still had a
+            // footer link to one, and it went to a not-found page.
+            $wkPolicyPages = [];
+            try {
+                $wkPolicyPages = \Core\Database::fetchAll(
+                    "SELECT slug, title FROM wk_pages WHERE is_active = 1 ORDER BY title"
+                );
+            } catch (\Exception $e) {}
+            foreach ($wkPolicyPages as $wkPage): ?>
+                <a href="<?= $url('page/' . $wkPage['slug']) ?>" style="color:rgba(255,255,255,.5)"><?= $e($wkPage['title']) ?></a>
+            <?php endforeach; ?>
             <a href="<?= $url('track') ?>" style="color:rgba(255,255,255,.5)">Track Order</a>
             <?php if (\Core\Database::setting('privacy', 'cookie_consent', '0') === '1'): ?>
                 <a href="#" onclick="if(window.WhiskerConsent){WhiskerConsent.reopen();}return false;" style="color:rgba(255,255,255,.5)">Cookie Settings</a>

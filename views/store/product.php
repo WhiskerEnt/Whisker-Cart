@@ -100,6 +100,18 @@ foreach ($variants['combos'] ?? [] as $combo) {
                     <p style="color:var(--wk-muted);margin-bottom:20px;line-height:1.7;font-size:15px"><?= $e($p['short_description']) ?></p>
                 <?php endif; ?>
 
+                <?php if (!empty($questionsOn)):
+                    // The answers live further down the page; this is how anyone
+                    // reading the description finds out they are there.
+                    $qCount = count($questions ?? []); ?>
+                    <a href="#questions" class="wk-ask-link">
+                        <span aria-hidden="true">&#128172;</span>
+                        <?= $qCount > 0
+                            ? $qCount . ' question' . ($qCount === 1 ? '' : 's') . ' answered about this'
+                            : 'Ask a question about this product' ?>
+                    </a>
+                <?php endif; ?>
+
                 <!-- Variant Selectors -->
                 <?php if ($hasVariants): ?>
                 <div id="variantSelector" style="margin-bottom:20px">
@@ -189,6 +201,22 @@ foreach ($variants['combos'] ?? [] as $combo) {
                 <?php endforeach; ?>
             </div>
         </div>
+        <?php endif; ?>
+
+        <?php
+        $wkFaq = \App\Services\ProductFaqService::parse($p['faq'] ?? null);
+        if ($wkFaq): ?>
+        <section class="wk-faq" id="faq">
+            <h2 class="wk-faq-heading">Frequently Asked Questions</h2>
+            <div class="wk-faq-list">
+                <?php foreach ($wkFaq as $wkItem): ?>
+                    <details class="wk-faq-item">
+                        <summary><?= $e($wkItem['q']) ?></summary>
+                        <p><?= nl2br($e($wkItem['a'])) ?></p>
+                    </details>
+                <?php endforeach; ?>
+            </div>
+        </section>
         <?php endif; ?>
 
         <?php if (!empty($reviewsOn)) require __DIR__ . '/partials/reviews.php'; ?>

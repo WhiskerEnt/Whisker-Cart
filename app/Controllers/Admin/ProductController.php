@@ -69,6 +69,12 @@ class ProductController
             'name'             => $request->clean('name'),
             'slug'             => $slug,
             'description'      => $request->input('description') ?? '',
+            'faq'              => \App\Services\ProductFaqService::encode(
+                \App\Services\ProductFaqService::fromForm(
+                    (array) ($request->all()['faq_q'] ?? []),
+                    (array) ($request->all()['faq_a'] ?? [])
+                )
+            ),
             'short_description'=> $request->clean('short_description') ?? '',
             'price'            => (float)$request->input('price'),
             'sale_price'       => $request->input('sale_price') ? (float)$request->input('sale_price') : null,
@@ -150,6 +156,12 @@ class ProductController
             'sku'              => $request->clean('sku'),
             'name'             => $request->clean('name'),
             'description'      => $request->input('description') ?? '',
+            'faq'              => \App\Services\ProductFaqService::encode(
+                \App\Services\ProductFaqService::fromForm(
+                    (array) ($request->all()['faq_q'] ?? []),
+                    (array) ($request->all()['faq_a'] ?? [])
+                )
+            ),
             'short_description'=> $request->clean('short_description') ?? '',
             'price'            => (float)$request->input('price'),
             'sale_price'       => $request->input('sale_price') ? (float)$request->input('sale_price') : null,
