@@ -23,7 +23,7 @@ $coupon = LeadService::usableCoupon();
 
         <h2 class="wk-lead-title" id="wkLeadTitle"><?= $e(LeadService::title()) ?></h2>
         <?php if (LeadService::text() !== ''): ?>
-            <p class="wk-lead-text"><?= $e(LeadService::text()) ?></p>
+            <p class="wk-lead-text" id="wkLeadText"><?= $e(LeadService::text()) ?></p>
         <?php endif; ?>
 
         <?php if ($coupon): ?>
@@ -80,6 +80,19 @@ $coupon = LeadService::usableCoupon();
     // so a shopkeeper can look at their own wording without waiting a week.
     var preview = /[?&]lead=preview\b/.test(location.search);
 
+    var TRIGGER = <?= json_encode(LeadService::trigger()) ?>;
+    var DELAY   = <?= (int) LeadService::delaySeconds() ?>;
+    var COPY    = {
+        exit: {
+            title: <?= json_encode(LeadService::title()) ?>,
+            text:  <?= json_encode(LeadService::text()) ?>
+        },
+        time: {
+            title: <?= json_encode(LeadService::timeTitle()) ?>,
+            text:  <?= json_encode(LeadService::timeText()) ?>
+        }
+    };
+
     function seen() {
         if (preview) return false;
         try {
@@ -93,11 +106,19 @@ $coupon = LeadService::usableCoupon();
     }
 
     var shown = false;
-    function show() {
+    function show(reason) {
         if (shown || seen()) return;
         // Never over a form somebody is part-way through.
         var active = document.activeElement;
         if (active && /^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName)) return;
+
+        // Someone still browsing is asked a different question from someone
+        // on their way out.
+        var copy = COPY[reason === 'time' ? 'time' : 'exit'];
+        var titleEl = document.getElementById('wkLeadTitle');
+        var textEl = document.getElementById('wkLeadText');
+        if (titleEl && copy.title) titleEl.textContent = copy.title;
+        if (textEl && copy.text) textEl.textContent = copy.text;
 
         shown = true;
         box.hidden = false;
@@ -125,7 +146,24 @@ $coupon = LeadService::usableCoupon();
 
     if (preview) {
         armed = true;
-        setTimeout(show, 400);
+        setTimeout(function () { show(/[?&]lead=preview=time/.test(location.search) ? 'time' : 'exit'); }, 400);
+    }
+
+    // ── Dwell ────────────────────────────────────────────────────────────
+    // Counted across pages and only while the tab is actually being looked at,
+    // so browsing four pages for a minute each counts, and a tab left open in
+    // the background does not.
+    if (TRIGGER === 'time' || TRIGGER === 'both') {
+        var DWELL_KEY = 'wk_lead_dwell';
+        var dwell = 0;
+        try { dwell = parseInt(sessionStorage.getItem(DWELL_KEY) || '0', 10) || 0; } catch (e) {}
+
+        setInterval(function () {
+            if (document.visibilityState !== 'visible') return;
+            dwell++;
+            try { sessionStorage.setItem(DWELL_KEY, String(dwell)); } catch (e) {}
+            if (dwell >= DELAY) show('time');
+        }, 1000);
     }
 
     // Desktop: the pointer heading out through the top of the window, which
@@ -133,9 +171,9 @@ $coupon = LeadService::usableCoupon();
     // Both events are watched because browsers differ over which one fires
     // when the pointer leaves the window entirely.
     function maybeExit(e) {
-        if (!armed) return;
+        if (!armed || TRIGGER === 'time') return;
         var y = e.clientY;
-        if (typeof y === 'number' && y <= 8 && !e.relatedTarget && !e.toElement) show();
+        if (typeof y === 'number' && y <= 8 && !e.relatedTarget && !e.toElement) show('exit');
     }
     document.addEventListener('mouseout', maybeExit);
     document.documentElement.addEventListener('mouseleave', maybeExit);
@@ -147,7 +185,7 @@ $coupon = LeadService::usableCoupon();
     window.addEventListener('scroll', function () {
         var y = window.scrollY || 0;
         if (y > deepest) { deepest = y; return; }
-        if (settled && deepest > 500 && y < deepest - 400) show();
+        if (settled && deepest > 500 && y < deepest - 400) show('exit');
     }, { passive: true });
 
     var form = document.getElementById('wkLeadForm');

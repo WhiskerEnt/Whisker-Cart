@@ -247,10 +247,19 @@ class CartRecoveryTest extends TestCase
     public function testLeavingTheTabDoesNotSilenceThePrompt(): void
     {
         $view = (string) file_get_contents(WK_ROOT . '/views/store/partials/lead-capture.php');
-        $this->assertStringNotContainsString(
-            'visibilityState',
-            $view,
-            'a tab switch must not count against the visitor'
+
+        // Reading visibility is fine — the dwell timer only counts time while
+        // the tab is actually being looked at. What must never happen is a
+        // visibility change writing the quiet flag.
+        $this->assertSame(
+            0,
+            preg_match('/visibilitychange/', $view),
+            'nothing should hang off a tab switch'
+        );
+        $this->assertSame(
+            0,
+            preg_match('/visibilityState[^;]*\{[^}]*remember\(/s', $view),
+            'a tab switch must never mark the prompt as seen'
         );
     }
 
@@ -294,6 +303,55 @@ class CartRecoveryTest extends TestCase
             '/function seen\(\) \{\s*if \(preview\) return false;/',
             $view
         );
+    }
+
+    /** Dwell and exit catch different people, so both are offered. */
+    public function testThePromptCanBeBroughtUpByTimeAsWellAsExit(): void
+    {
+        $src = (string) file_get_contents(WK_ROOT . '/app/Services/LeadService.php');
+        $this->assertStringContainsString('public static function trigger(', $src);
+        $this->assertMatchesRegularExpression(
+            '/in_array\(\$t, \[\'exit\', \'time\', \'both\'\], true\)/',
+            $src,
+            'an unrecognised value must not disable the prompt'
+        );
+
+        $view = (string) file_get_contents(WK_ROOT . '/views/store/partials/lead-capture.php');
+        $this->assertStringContainsString("TRIGGER === 'time' || TRIGGER === 'both'", $view);
+        $this->assertStringContainsString("if (!armed || TRIGGER === 'time') return;", $view,
+            'exit intent must stay quiet when the shop asked for the timed prompt only');
+    }
+
+    /**
+     * A tab left open in the background is not someone browsing, and browsing
+     * four pages for a minute each is.
+     */
+    public function testDwellCountsRealBrowsingOnly(): void
+    {
+        $view = (string) file_get_contents(WK_ROOT . '/views/store/partials/lead-capture.php');
+        $this->assertStringContainsString("document.visibilityState !== 'visible'", $view,
+            'a background tab must not accrue time');
+        $this->assertStringContainsString('wk_lead_dwell', $view);
+        $this->assertStringContainsString('sessionStorage', $view,
+            'the count must survive moving between pages');
+    }
+
+    /** Someone still browsing gets a different question from someone leaving. */
+    public function testEachTriggerHasItsOwnWording(): void
+    {
+        $src = (string) file_get_contents(WK_ROOT . '/app/Services/LeadService.php');
+        foreach (['timeTitle', 'timeText'] as $method) {
+            $this->assertStringContainsString("public static function {$method}(", $src);
+        }
+        // Blank falls back rather than showing an empty heading.
+        $this->assertMatchesRegularExpression(
+            '/return \$t !== \'\' \? \$t : self::title\(\);/',
+            $src,
+            'a shop that wants one message should write it once'
+        );
+
+        $view = (string) file_get_contents(WK_ROOT . '/views/store/partials/lead-capture.php');
+        $this->assertStringContainsString("COPY[reason === 'time' ? 'time' : 'exit']", $view);
     }
 
     public function testTheExitPromptDoesNotNag(): void

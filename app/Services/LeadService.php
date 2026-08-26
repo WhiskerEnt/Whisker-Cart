@@ -34,6 +34,39 @@ class LeadService
         return Database::setting('leads', 'lead_capture_when', 'cart') === 'always' ? 'always' : 'cart';
     }
 
+    /**
+     * What brings the prompt up: heading for the exit, dwelling long enough,
+     * or either. They catch different people — the one closing the tab, and
+     * the one who has been circling the same product for five minutes.
+     */
+    public static function trigger(): string
+    {
+        $t = (string) Database::setting('leads', 'lead_capture_trigger', 'both');
+        return in_array($t, ['exit', 'time', 'both'], true) ? $t : 'both';
+    }
+
+    /** Seconds of browsing before the dwell prompt appears. */
+    public static function delaySeconds(): int
+    {
+        return max(10, (int) Database::setting('leads', 'lead_capture_delay', '90'));
+    }
+
+    /**
+     * Wording for the dwell prompt. Falls back to the exit wording, so a shop
+     * that only wants one message writes it once.
+     */
+    public static function timeTitle(): string
+    {
+        $t = trim((string) Database::setting('leads', 'lead_capture_title_time', ''));
+        return $t !== '' ? $t : self::title();
+    }
+
+    public static function timeText(): string
+    {
+        $t = trim((string) Database::setting('leads', 'lead_capture_text_time', ''));
+        return $t !== '' ? $t : self::text();
+    }
+
     public static function title(): string
     {
         return (string) Database::setting('leads', 'lead_capture_title', 'Before you go');

@@ -200,6 +200,11 @@ class AbandonedCartController
                 'lead_capture_fields'  => in_array($request->input('lead_capture_fields'), ['email','phone','both'], true)
                     ? (string) $request->input('lead_capture_fields') : 'email',
                 'lead_capture_when'    => $request->input('lead_capture_when') === 'always' ? 'always' : 'cart',
+                'lead_capture_trigger' => in_array($request->input('lead_capture_trigger'), ['exit','time','both'], true)
+                    ? (string) $request->input('lead_capture_trigger') : 'both',
+                'lead_capture_delay'   => (string) max(10, min(1800, (int) $request->input('lead_capture_delay'))),
+                'lead_capture_title_time' => mb_substr(trim((string) $request->input('lead_capture_title_time')), 0, 120),
+                'lead_capture_text_time'  => mb_substr(trim((string) $request->input('lead_capture_text_time')), 0, 400),
                 'lead_capture_title'   => mb_substr(trim((string) $request->input('lead_capture_title')), 0, 120),
                 'lead_capture_text'    => mb_substr(trim((string) $request->input('lead_capture_text')), 0, 400),
                 'lead_capture_coupon'  => trim((string) $request->input('lead_capture_coupon')),

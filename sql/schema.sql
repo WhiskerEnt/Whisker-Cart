@@ -428,6 +428,8 @@ INSERT INTO wk_settings (setting_group, setting_key, setting_value) VALUES
 ('leads', 'lead_capture_enabled', '0'),
 ('leads', 'lead_capture_fields', 'email'),
 ('leads', 'lead_capture_when', 'cart'),
+('leads', 'lead_capture_trigger', 'both'),
+('leads', 'lead_capture_delay', '90'),
 ('checkout', 'auto_refund_on_cancel', '0'),
 ('checkout', 'cancel_window_minutes', '0'),
 ('checkout', 'show_cancel_deadline', '1'),

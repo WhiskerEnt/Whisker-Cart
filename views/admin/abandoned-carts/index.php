@@ -103,6 +103,34 @@ $on = fn($v, $d = '0') => ($v ?? $d) === '1';
                     </select>
                 </div>
                 <div class="wk-form-group" style="margin:0">
+                    <label>When to ask</label>
+                    <select name="lead_capture_trigger" class="wk-select">
+                        <?php foreach ([
+                            'both' => 'Both — on the way out, and after a while',
+                            'exit' => 'Only when they look like leaving',
+                            'time' => 'Only after they have been browsing a while',
+                        ] as $k => $lbl): ?>
+                            <option value="<?= $k ?>" <?= ($ld['lead_capture_trigger'] ?? 'both') === $k ? 'selected' : '' ?>><?= $lbl ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="wk-form-group" style="margin:0">
+                    <label>After browsing for</label>
+                    <?php $wkDelay = (string) ($ld['lead_capture_delay'] ?? '90'); ?>
+                    <select name="lead_capture_delay" class="wk-select">
+                        <?php foreach ([
+                            '30' => '30 seconds', '60' => '1 minute', '90' => '90 seconds',
+                            '120' => '2 minutes', '180' => '3 minutes', '300' => '5 minutes',
+                            '600' => '10 minutes',
+                        ] as $secs => $lbl): ?>
+                            <option value="<?= $secs ?>" <?= $wkDelay === (string) $secs ? 'selected' : '' ?>><?= $lbl ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">
+                        Counted across pages, and only while the tab is actually being looked at.
+                    </div>
+                </div>
+                <div class="wk-form-group" style="margin:0">
                     <label>Who to ask</label>
                     <select name="lead_capture_when" class="wk-select">
                         <option value="cart" <?= ($ld['lead_capture_when'] ?? 'cart') !== 'always' ? 'selected' : '' ?>>Only with something in the basket</option>
@@ -124,6 +152,26 @@ $on = fn($v, $d = '0') => ($v ?? $d) === '1';
             <div class="wk-form-group">
                 <label>Message</label>
                 <textarea name="lead_capture_text" class="wk-input" rows="2" maxlength="400"><?= htmlspecialchars($ld['lead_capture_text'] ?? '') ?></textarea>
+            </div>
+
+            <div style="border-top:1px solid var(--wk-border);padding-top:16px;margin-top:4px">
+                <div style="font-weight:800;font-size:13px;margin-bottom:4px">Wording after a while</div>
+                <p style="font-size:12px;color:var(--wk-text-muted);margin:0 0 12px;line-height:1.6">
+                    Someone still browsing is in a different frame of mind from someone closing the tab —
+                    &ldquo;still looking?&rdquo; rather than &ldquo;before you go&rdquo;. Leave these blank to use
+                    the same wording for both.
+                </p>
+                <div class="wk-form-group">
+                    <label>Heading</label>
+                    <input type="text" name="lead_capture_title_time" class="wk-input" maxlength="120"
+                           value="<?= htmlspecialchars($ld['lead_capture_title_time'] ?? '') ?>"
+                           placeholder="Still looking?">
+                </div>
+                <div class="wk-form-group">
+                    <label>Message</label>
+                    <textarea name="lead_capture_text_time" class="wk-input" rows="2" maxlength="400"
+                              placeholder="Take 5% off if you order today — leave us your email and we will send the code."><?= htmlspecialchars($ld['lead_capture_text_time'] ?? '') ?></textarea>
+                </div>
             </div>
 
             <button type="submit" class="wk-btn wk-btn-primary">Save Settings</button>
