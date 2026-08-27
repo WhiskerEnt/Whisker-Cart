@@ -52,6 +52,89 @@ there whenever your cookie policy changes and everyone is asked again.
 - PHP Extensions: PDO, pdo_mysql, mbstring, curl, openssl, json
 
 
+## Compression & Caching
+
+Whisker ships two `.htaccess` files that turn these on, and on Apache they
+work with no setup at all:
+
+- **`.htaccess`** — compresses HTML, CSS, JS, JSON, XML and SVG, and caches
+  uploaded images for a week.
+- **`assets/.htaccess`** — caches Whisker's own CSS, JS and images for a year.
+
+Caching Whisker's assets that hard is safe because every link to them carries
+`?v=<modification time>`. Editing a file changes its URL, so browsers pick up
+the change on the very next page load — there is no cache to clear.
+
+A typical storefront page drops from around 110 KB to roughly 30 KB with
+compression on. It is the single biggest speed change you can make.
+
+### Checking whether it is working
+
+```bash
+curl -s -o /dev/null -D - -H "Accept-Encoding: gzip" https://yourdomain.com/ | grep -i content-encoding
+```
+
+`content-encoding: gzip` (or `br`) means it is on. **No output at all means it
+is off** — read on.
+
+> Use `-D -` as above, not `curl -I`. `-I` sends a HEAD request, and because
+> there is no body to compress Apache leaves the header off — so a working
+> setup looks broken. Compare sizes if you want to see the difference for
+> yourself:
+>
+> ```bash
+> curl -s https://yourdomain.com/ | wc -c                              # uncompressed
+> curl -s -H "Accept-Encoding: gzip" -o /dev/null -w '%{size_download}\n' https://yourdomain.com/
+> ```
+
+### If you cannot use .htaccess
+
+`.htaccess` is ignored on nginx, and on Apache hosts that set
+`AllowOverride None`. Whisker still runs; it just serves everything
+uncompressed. Use whichever of these matches your server.
+
+**nginx** — add to your `server` block, then `nginx -t && systemctl reload nginx`:
+
+```nginx
+gzip              on;
+gzip_vary         on;
+gzip_min_length   1024;
+gzip_proxied      any;
+gzip_types        text/plain text/css text/xml text/javascript
+                  application/javascript application/json application/xml
+                  application/rss+xml image/svg+xml;
+
+# Whisker's assets carry ?v=<mtime>, so they can be cached hard.
+location /assets/ {
+    expires 1y;
+    add_header Cache-Control "public, immutable";
+}
+```
+
+**Apache with `AllowOverride None`** — either set `AllowOverride All` for the
+directory, or copy the `# Compression` and `# Caching` blocks out of Whisker's
+`.htaccess` into your `<VirtualHost>` or `<Directory>` block, where they work
+unchanged.
+
+**LiteSpeed / OpenLiteSpeed** — reads `.htaccess`, but only where
+`Rewrite → Enable Rewrite` is on for the virtual host. Turn that on and the
+shipped files apply as they do on Apache.
+
+**cPanel** — most cPanel hosts enable compression already. If yours does not,
+look for *Optimize Website* in the control panel and choose "Compress all
+content".
+
+**Shared hosting with none of the above** — ask your host to enable
+`mod_deflate`. If they will not, the last resort is PHP-level compression:
+add `zlib.output_compression = On` to a `.user.ini` file in the Whisker
+folder. It is slower than letting the web server do it, but far better than
+sending everything uncompressed.
+
+> If your host puts a CDN or reverse proxy in front of the site
+> (Cloudflare and similar), compression is usually applied there instead, and
+> the `curl` check above will already show `gzip` or `br`.
+
+
 ## Subfolder Installation
 
 If installing in a subfolder (e.g. `https://example.com/shop/`):

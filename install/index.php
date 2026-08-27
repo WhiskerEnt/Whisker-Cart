@@ -166,8 +166,54 @@ RewriteRule ^plugins/.*\.php$ - [F,L]
     RewriteRule ^storage/uploads/.*\.php$ - [F,L]
 </IfModule>
 
+<IfModule mod_brotli.c>
+    AddOutputFilterByType BROTLI_COMPRESS text/html text/plain text/css text/xml
+    AddOutputFilterByType BROTLI_COMPRESS application/javascript text/javascript
+    AddOutputFilterByType BROTLI_COMPRESS application/json application/xml application/rss+xml
+    AddOutputFilterByType BROTLI_COMPRESS image/svg+xml
+</IfModule>
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/css text/xml
+    AddOutputFilterByType DEFLATE application/javascript text/javascript
+    AddOutputFilterByType DEFLATE application/json application/xml application/rss+xml
+    AddOutputFilterByType DEFLATE image/svg+xml
+    <IfModule mod_headers.c>
+        Header append Vary Accept-Encoding
+    </IfModule>
+</IfModule>
+
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType image/jpeg "access plus 7 days"
+    ExpiresByType image/png "access plus 7 days"
+    ExpiresByType image/gif "access plus 7 days"
+    ExpiresByType image/webp "access plus 7 days"
+    ExpiresByType image/avif "access plus 7 days"
+    ExpiresByType image/x-icon "access plus 30 days"
+</IfModule>
+
 AddDefaultCharset UTF-8' . $cpanelHandler . "\n";
                 file_put_contents($htaccessPath, $htaccess);
+            }
+
+            // Whisker's own assets are versioned in the URL, so they can be
+            // kept for a year. Written separately because it belongs beside
+            // the files it governs.
+            $assetsHtaccess = WK_ROOT . '/assets/.htaccess';
+            if (is_dir(WK_ROOT . '/assets') && !file_exists($assetsHtaccess)) {
+                @file_put_contents($assetsHtaccess, '<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresDefault "access plus 1 year"
+</IfModule>
+
+<IfModule mod_headers.c>
+    Header set Cache-Control "public, max-age=31536000, immutable"
+</IfModule>
+
+<FilesMatch "\.(php|phtml|php3|php4|php5|php7|phps|phar|shtml)$">
+    Require all denied
+</FilesMatch>
+');
             }
             $step = 2;
             break;

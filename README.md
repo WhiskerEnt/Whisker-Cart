@@ -167,6 +167,10 @@ Whisker refuses to process a webhook when its secret is missing, rather than tru
 - **Tax rate cache** — loaded once per request from DB
 - **Atomic stock** — `WHERE stock_quantity >= ?` prevents race conditions
 - **Non-blocking emails** — `fastcgi_finish_request()` on PHP-FPM
+- **Compression on by default** — gzip/brotli via the shipped `.htaccess`; a
+  storefront page goes from ~110 KB to ~30 KB
+- **Assets cached for a year** — every asset URL carries `?v=<mtime>`, so an
+  edited file is a new URL and there is no cache to clear
 - Runs on shared hosting, handles 500+ orders/day on a decent VPS
 
 ---
