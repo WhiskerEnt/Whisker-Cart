@@ -50,8 +50,14 @@ $defAddr = !empty($addrs) ? $addrs[0] : [];
                         <div><label style="<?= $ls ?>">Last Name</label><input type="text" name="last_name" required value="<?= $e($cust['last_name']??'') ?>" placeholder="Doe" style="<?= $is ?>"></div>
                     </div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px">
-                        <div><label style="<?= $ls ?>">Email</label><input type="email" name="email" required value="<?= $e($cust['email']??'') ?>" placeholder="john@example.com" style="<?= $is ?>"></div>
-                        <div><label style="<?= $ls ?>">Phone</label><input type="tel" name="phone" value="<?= $e($cust['phone']??'') ?>" placeholder="+91 98765 43210" style="<?= $is ?>"></div>
+                        <div><label style="<?= $ls ?>">Email</label><input type="email" name="email" required value="<?= $e($cust['email']??'') ?>" placeholder="john@example.com" data-wk-validate="email" style="<?= $is ?>"></div>
+                        <div>
+                            <label style="<?= $ls ?>">Phone</label>
+                            <?php
+                            $wkPhone = ['value' => $cust['phone'] ?? '', 'inputStyle' => $is];
+                            require __DIR__ . '/partials/phone-field.php';
+                            ?>
+                        </div>
                     </div>
                 </div>
 

@@ -1217,3 +1217,28 @@ img { max-width: 100%; display: block; }
 .wk-faq-item[open] summary::after { content: '\2212'; }
 .wk-faq-item[open] summary { border-bottom: 1px solid var(--wk-border); }
 .wk-faq-item p { margin: 0; padding: 14px 18px; font-size: 14px; line-height: 1.75; color: var(--wk-muted); }
+
+/* ── Phone field ──────────────────────────────── */
+/* The picker sits beside the number. Kept in the stylesheet rather than on the
+   element so a narrower home for it can lay the two out differently. */
+.wk-phone-field { display: grid; grid-template-columns: minmax(0, 148px) minmax(0, 1fr); gap: 8px; }
+@media (max-width: 480px) {
+    .wk-phone-field { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ── Field validation ─────────────────────────── */
+/* The line under a field that says why it was rejected, or offers a spelling. */
+.wk-field-note { font-size: 11px; font-weight: 700; margin: 5px 0 0; line-height: 1.4; }
+.wk-field-note.wk-field-bad  { color: #ef4444; }
+.wk-field-note.wk-field-warn { color: #f59e0b; }
+input.wk-field-invalid { border-color: #ef4444 !important; }
+
+/* The exit prompt is narrow, so the picker sits above the number rather than
+   beside it, where the country name would have nowhere to go. */
+.wk-lead-field .wk-phone-field { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+.wk-lead-field .wk-phone-field select {
+    width: 100%; padding: 11px 12px; border: 2px solid var(--wk-border); border-radius: 10px;
+    font-family: var(--font); font-size: 13px; font-weight: 700;
+    background: var(--wk-surface); color: var(--wk-text);
+}
+.wk-lead-field .wk-phone-field select:focus { outline: none; border-color: var(--wk-purple); }

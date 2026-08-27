@@ -7,7 +7,7 @@
     <div style="background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:var(--radius);padding:32px">
         <form method="POST" action="<?= $url('account/login') ?>">
             <?= \Core\Session::csrfField() ?>
-            <div><label style="display:block;font-size:11px;font-weight:800;text-transform:uppercase;color:var(--wk-muted);margin-bottom:4px">Email</label><input type="email" name="email" required placeholder="you@example.com" style="width:100%;padding:10px 14px;border:2px solid var(--wk-border);border-radius:8px;font-family:var(--font);font-size:14px;font-weight:600"></div>
+            <div><label style="display:block;font-size:11px;font-weight:800;text-transform:uppercase;color:var(--wk-muted);margin-bottom:4px">Email</label><input type="email" name="email" required placeholder="you@example.com" data-wk-validate="email" style="width:100%;padding:10px 14px;border:2px solid var(--wk-border);border-radius:8px;font-family:var(--font);font-size:14px;font-weight:600"></div>
             <div style="margin-top:14px">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
                     <label style="font-size:11px;font-weight:800;text-transform:uppercase;color:var(--wk-muted)">Password</label>

@@ -33,7 +33,13 @@ $ls = 'display:block;font-size:11px;font-weight:800;text-transform:uppercase;let
                 <div><label style="<?= $ls ?>">Last Name</label><input type="text" name="last_name" value="<?= $e($c['last_name']) ?>" required style="<?= $is ?>"></div>
             </div>
             <div style="margin-top:14px"><label style="<?= $ls ?>">Email <span style="font-weight:500;text-transform:none">(cannot be changed)</span></label><input type="email" value="<?= $e($c['email']) ?>" disabled style="<?= $is ?>;background:var(--wk-bg);opacity:.7"></div>
-            <div style="margin-top:14px"><label style="<?= $ls ?>">Phone</label><input type="tel" name="phone" value="<?= $e($c['phone']??'') ?>" style="<?= $is ?>"></div>
+            <div style="margin-top:14px">
+                <label style="<?= $ls ?>">Phone</label>
+                <?php
+                $wkPhone = ['value' => $c['phone'] ?? '', 'inputStyle' => $is];
+                require __DIR__ . '/../partials/phone-field.php';
+                ?>
+            </div>
             <button type="submit" class="wk-checkout-btn" style="margin-top:20px">Save Changes</button>
         </form>
     </div>

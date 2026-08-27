@@ -23,9 +23,19 @@ class LeadController
             return;
         }
 
+        $phoneError = \App\Services\CountryService::phoneError(
+            (string) $request->input('phone_code'), (string) $request->input('phone')
+        );
+        if ($phoneError !== null) {
+            Response::json(['success' => false, 'message' => $phoneError, 'coupon' => null], 422);
+            return;
+        }
+
         $result = LeadService::capture(
             (string) $request->input('email'),
-            (string) $request->input('phone'),
+            \App\Services\CountryService::joinPhone(
+                (string) $request->input('phone_code'), (string) $request->input('phone')
+            ),
             LeadService::currentCartId()
         );
 

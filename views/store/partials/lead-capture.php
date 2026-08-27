@@ -42,16 +42,18 @@ $coupon = LeadService::usableCoupon();
             <?php if ($fields === 'email' || $fields === 'both'): ?>
                 <label class="wk-lead-field">
                     <span>Email</span>
-                    <input type="email" name="email" maxlength="190" autocomplete="email"
+                    <input type="email" name="email" maxlength="190" autocomplete="email" data-wk-validate="email"
                            placeholder="you@example.com" <?= $fields === 'email' ? 'required' : '' ?>>
                 </label>
             <?php endif; ?>
             <?php if ($fields === 'phone' || $fields === 'both'): ?>
-                <label class="wk-lead-field">
+                <div class="wk-lead-field">
                     <span>Phone</span>
-                    <input type="tel" name="phone" maxlength="40" autocomplete="tel"
-                           placeholder="+91 98765 43210" <?= $fields === 'phone' ? 'required' : '' ?>>
-                </label>
+                    <?php
+                    $wkPhone = ['required' => $fields === 'phone'];
+                    require __DIR__ . '/phone-field.php';
+                    ?>
+                </div>
             <?php endif; ?>
             <?php if ($fields === 'both'): ?>
                 <p class="wk-lead-hint">Either one is enough.</p>

@@ -492,3 +492,138 @@ const WhiskerNav = {
 };
 
 document.addEventListener('DOMContentLoaded', () => WhiskerNav.init());
+
+/**
+ * Live checking for the two fields people mistype: the email a receipt has to
+ * reach, and the phone number a courier has to ring.
+ *
+ * The rules here match the ones the server applies. This is the earlier, more
+ * helpful half of the pair — it says what is wrong while the field is being
+ * filled in, rather than after the form comes back.
+ */
+const WhiskerValidate = {
+    // The domains people reach for when they mean the popular one.
+    TYPOS: {
+        'gmail.co': 'gmail.com',   'gmail.con': 'gmail.com',  'gmial.com': 'gmail.com',
+        'gmai.com': 'gmail.com',   'gnail.com': 'gmail.com',  'yahoo.co': 'yahoo.com',
+        'hotmial.com': 'hotmail.com', 'hotmail.co': 'hotmail.com', 'outlook.co': 'outlook.com',
+        'iclould.com': 'icloud.com', 'icloud.co': 'icloud.com',
+    },
+
+    email(value) {
+        const v = value.trim();
+        if (v === '') return null;
+
+        if (v.indexOf('@') === -1)        return 'An email address needs an @.';
+        if (v.split('@').length > 2)      return 'An email address can only have one @.';
+
+        const [local, domain] = v.split('@');
+        if (!local)                       return 'Add the part before the @.';
+        if (!domain)                      return 'Add the part after the @, like gmail.com.';
+        if (/\s/.test(v))                 return 'An email address cannot contain spaces.';
+        if (domain.indexOf('.') === -1)   return 'The part after the @ needs a dot, like gmail.com.';
+        if (/\.\./.test(v) || domain.startsWith('.') || domain.endsWith('.')) {
+            return 'That email address has a misplaced dot.';
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(v)) return 'That does not look like a valid email address.';
+
+        const suggestion = this.TYPOS[domain.toLowerCase()];
+        if (suggestion) return { warning: 'Did you mean ' + local + '@' + suggestion + '?' };
+
+        return null;
+    },
+
+    phone(value, dial) {
+        const v = value.trim();
+        if (v === '') return null;
+
+        let cleaned = v.replace(/[\s().\-\/]/g, '');
+        const ownPrefix = cleaned.charAt(0) === '+';
+        if (ownPrefix) cleaned = cleaned.slice(1);
+
+        if (!/^[0-9]+$/.test(cleaned)) return 'A phone number can only contain digits.';
+
+        const national = ownPrefix ? cleaned : cleaned.replace(/^0+/, '');
+        const total = (ownPrefix ? 0 : (dial || '').length) + national.length;
+
+        if (national.length < 4)  return 'That phone number is too short.';
+        if (total > 15)           return 'That phone number is too long.';
+        if (/^(\d)\1+$/.test(national)) return 'That does not look like a real phone number.';
+
+        return null;
+    },
+
+    /** The dial code currently picked beside this number box. */
+    dialFor(input) {
+        const wrap = input.closest('.wk-phone-field');
+        const select = wrap && wrap.querySelector('[data-wk-phone-code]');
+        if (!select || !select.selectedOptions[0]) return '';
+        const m = select.selectedOptions[0].textContent.match(/\(\+(\d+)\)\s*$/);
+        return m ? m[1] : '';
+    },
+
+    /** The line under a field, created once and reused. */
+    noteFor(input) {
+        const wrap = input.closest('.wk-phone-field') || input;
+        let note = (wrap.parentElement || wrap).querySelector(':scope > [data-wk-note]');
+        if (!note) {
+            note = document.createElement('p');
+            note.className = 'wk-field-note';
+            note.setAttribute('data-wk-note', '');
+            wrap.insertAdjacentElement('afterend', note);
+        }
+        return note;
+    },
+
+    check(input) {
+        const kind = input.getAttribute('data-wk-validate');
+        const result = kind === 'phone'
+            ? this.phone(input.value, this.dialFor(input))
+            : this.email(input.value);
+
+        const note = this.noteFor(input);
+        const warning = result && typeof result === 'object';
+        const message = warning ? result.warning : result;
+
+        note.textContent = message || '';
+        note.style.display = message ? 'block' : 'none';
+        note.className = 'wk-field-note' + (warning ? ' wk-field-warn' : message ? ' wk-field-bad' : '');
+        input.classList.toggle('wk-field-invalid', !!message && !warning);
+
+        // A suggestion is not a refusal, so only a real error blocks the form.
+        input.setCustomValidity(message && !warning ? message : '');
+        return !message || warning;
+    },
+
+    init() {
+        const fields = document.querySelectorAll('[data-wk-validate]');
+        fields.forEach((input) => {
+            // Nothing is said until the field has been left once, so the
+            // message is not there while a correct address is still half typed.
+            let touched = false;
+            input.addEventListener('blur', () => { touched = true; this.check(input); });
+            input.addEventListener('input', () => { if (touched) this.check(input); });
+
+            const wrap = input.closest('.wk-phone-field');
+            const select = wrap && wrap.querySelector('[data-wk-phone-code]');
+            if (select) select.addEventListener('change', () => { if (touched) this.check(input); });
+        });
+
+        // Nothing invalid leaves the page, whatever route the form takes.
+        document.querySelectorAll('form').forEach((form) => {
+            form.addEventListener('submit', (e) => {
+                let ok = true;
+                form.querySelectorAll('[data-wk-validate]').forEach((input) => {
+                    if (!this.check(input)) ok = false;
+                });
+                if (!ok) {
+                    e.preventDefault();
+                    const bad = form.querySelector('.wk-field-invalid');
+                    if (bad) bad.focus();
+                }
+            });
+        });
+    },
+};
+
+document.addEventListener('DOMContentLoaded', () => WhiskerValidate.init());

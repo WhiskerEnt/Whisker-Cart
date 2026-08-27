@@ -42,7 +42,7 @@ $ship  = $order ? (json_decode($order['shipping_address'] ?? '{}', true) ?: []) 
             </div>
             <div class="wk-form-group" style="margin-bottom:18px">
                 <label style="display:block;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--wk-muted);margin-bottom:6px">Email address</label>
-                <input type="email" name="email" required value="<?= $e($trackEmail ?? '') ?>"
+                <input type="email" name="email" required value="<?= $e($trackEmail ?? '') ?>" data-wk-validate="email"
                        placeholder="you@example.com"
                        style="width:100%;padding:11px 14px;border:2px solid var(--wk-border);border-radius:var(--radius-sm);font-family:var(--font);font-size:14px;background:var(--wk-bg);color:var(--wk-text)">
             </div>

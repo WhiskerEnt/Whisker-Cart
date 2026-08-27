@@ -328,6 +328,22 @@ class CountryService
         'YE' => '967',  'ZM' => '260',  'ZW' => '263',
     ];
 
+    /**
+     * Which country to show for a calling code that several share.
+     *
+     * A stored '+1 555 0100' could be any of a dozen countries, so the picker
+     * has to settle on one rather than guess differently each time.
+     */
+    private const PRIMARY_FOR_DIAL = [
+        '1'   => 'US', '7'   => 'RU', '39'  => 'IT', '44'  => 'GB', '47'  => 'NO',
+        '61'  => 'AU', '64'  => 'NZ', '212' => 'MA', '262' => 'RE', '358' => 'FI',
+        '500' => 'FK', '590' => 'GP', '599' => 'CW', '672' => 'NF',
+    ];
+
+    /** A number this long cannot be dialled — E.164 stops at 15 digits. */
+    private const MAX_E164_DIGITS = 15;
+    private const MIN_NATIONAL_DIGITS = 4;
+
     /** @return array<string,string> code => dial code, in the order of all() */
     public static function dialCodes(): array
     {
@@ -352,6 +368,93 @@ class CountryService
 
         $dial = self::dialCode((string) $countryCode);
         return $dial === '' ? $number : '+' . $dial . ' ' . ltrim($number, '0 ');
+    }
+
+    /**
+     * A stored number pulled back apart, so the picker can show the country it
+     * was saved with instead of defaulting to the shop's own.
+     *
+     * @return array{code:string,number:string} an empty code means the number
+     *         carried no recognisable prefix and is shown exactly as stored
+     */
+    public static function splitPhone(?string $stored): array
+    {
+        $stored = trim((string) $stored);
+        if ($stored === '' || !str_starts_with($stored, '+')) {
+            return ['code' => '', 'number' => $stored];
+        }
+
+        $digits = preg_replace('/[^0-9]/', '', $stored) ?? '';
+
+        // Longest match first: +1 is a prefix of +1264, so a shorter code that
+        // happens to match would claim numbers belonging to a longer one.
+        for ($len = 4; $len >= 1; $len--) {
+            $dial = substr($digits, 0, $len);
+            if ($dial === '' || !in_array($dial, self::DIAL_CODES, true)) continue;
+
+            $country = self::PRIMARY_FOR_DIAL[$dial] ?? array_search($dial, self::DIAL_CODES, true);
+            $rest = ltrim(substr($stored, strpos($stored, $dial) + strlen($dial)), ' -');
+
+            return ['code' => (string) $country, 'number' => $rest];
+        }
+
+        return ['code' => '', 'number' => $stored];
+    }
+
+    /**
+     * Why a phone number cannot be dialled, or null if it can.
+     *
+     * Deliberately lenient about how it is written — people space and bracket
+     * numbers however they like — and strict only about what has to be true:
+     * digits, and enough of them but not too many.
+     */
+    public static function phoneError(?string $countryCode, ?string $number, bool $required = false): ?string
+    {
+        $number = trim((string) $number);
+        if ($number === '') {
+            return $required ? 'Please enter a phone number.' : null;
+        }
+
+        // Everything people use to make a number readable.
+        $cleaned = preg_replace('/[\s().\-\/]/', '', $number) ?? '';
+        $typedOwnPrefix = str_starts_with($cleaned, '+');
+        if ($typedOwnPrefix) $cleaned = substr($cleaned, 1);
+
+        if ($cleaned === '' || !ctype_digit($cleaned)) {
+            return 'That phone number contains characters that are not digits.';
+        }
+
+        $national = $typedOwnPrefix ? $cleaned : ltrim($cleaned, '0');
+        $dial     = $typedOwnPrefix ? '' : self::dialCode((string) $countryCode);
+        $total    = strlen($dial) + strlen($national);
+
+        if (strlen($national) < self::MIN_NATIONAL_DIGITS) {
+            return 'That phone number is too short.';
+        }
+        if ($total > self::MAX_E164_DIGITS) {
+            return 'That phone number is too long — no number has more than ' . self::MAX_E164_DIGITS . ' digits.';
+        }
+        // 5555555555 is what gets typed to get past a required field.
+        if (preg_match('/^(\d)\1+$/', $national)) {
+            return 'That does not look like a real phone number.';
+        }
+        if ($typedOwnPrefix && self::countryForDial($cleaned) === null) {
+            return 'That phone number does not start with a country code we recognise.';
+        }
+
+        return null;
+    }
+
+    /** The country a full international number belongs to, if any. */
+    private static function countryForDial(string $digits): ?string
+    {
+        for ($len = 4; $len >= 1; $len--) {
+            $dial = substr($digits, 0, $len);
+            if ($dial !== '' && in_array($dial, self::DIAL_CODES, true)) {
+                return self::PRIMARY_FOR_DIAL[$dial] ?? (string) array_search($dial, self::DIAL_CODES, true);
+            }
+        }
+        return null;
     }
 
     /** EU member states, offered as a one-click group in the admin. */

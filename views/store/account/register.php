@@ -11,17 +11,13 @@
                 <div><label style="display:block;font-size:11px;font-weight:800;text-transform:uppercase;color:var(--wk-muted);margin-bottom:4px">First Name</label><input type="text" name="first_name" required placeholder="John" style="width:100%;padding:10px 14px;border:2px solid var(--wk-border);border-radius:8px;font-family:var(--font);font-size:14px;font-weight:600;outline:none"></div>
                 <div><label style="display:block;font-size:11px;font-weight:800;text-transform:uppercase;color:var(--wk-muted);margin-bottom:4px">Last Name</label><input type="text" name="last_name" required placeholder="Doe" style="width:100%;padding:10px 14px;border:2px solid var(--wk-border);border-radius:8px;font-family:var(--font);font-size:14px;font-weight:600;outline:none"></div>
             </div>
-            <div style="margin-top:14px"><label style="display:block;font-size:11px;font-weight:800;text-transform:uppercase;color:var(--wk-muted);margin-bottom:4px">Email</label><input type="email" name="email" required placeholder="you@example.com" style="width:100%;padding:10px 14px;border:2px solid var(--wk-border);border-radius:8px;font-family:var(--font);font-size:14px;font-weight:600;outline:none"></div>
+            <div style="margin-top:14px"><label style="display:block;font-size:11px;font-weight:800;text-transform:uppercase;color:var(--wk-muted);margin-bottom:4px">Email</label><input type="email" name="email" required placeholder="you@example.com" data-wk-validate="email" style="width:100%;padding:10px 14px;border:2px solid var(--wk-border);border-radius:8px;font-family:var(--font);font-size:14px;font-weight:600;outline:none"></div>
             <div style="margin-top:14px">
                 <label style="display:block;font-size:11px;font-weight:800;text-transform:uppercase;color:var(--wk-muted);margin-bottom:4px">Phone <span style="font-weight:500;text-transform:none">(optional)</span></label>
-                <div style="display:grid;grid-template-columns:minmax(0,148px) minmax(0,1fr);gap:8px">
-                    <select name="phone_code" aria-label="Country calling code" style="width:100%;padding:10px 8px;border:2px solid var(--wk-border);border-radius:8px;font-family:var(--font);font-size:13px;font-weight:600;outline:none;background:var(--wk-surface);color:var(--wk-text)">
-                        <?php foreach (($dialCodes ?? []) as $wkCc => $wkDial): ?>
-                            <option value="<?= $e($wkCc) ?>"<?= $wkCc === ($phoneDefault ?? '') ? ' selected' : '' ?>><?= $e(\App\Services\CountryService::name($wkCc)) ?> (+<?= $e($wkDial) ?>)</option>
-                        <?php endforeach; ?>
-                    </select>
-                    <input type="tel" name="phone" placeholder="98765 43210" style="width:100%;padding:10px 14px;border:2px solid var(--wk-border);border-radius:8px;font-family:var(--font);font-size:14px;font-weight:600;outline:none">
-                </div>
+                <?php
+                $wkPhone = ['inputStyle' => 'width:100%;padding:10px 14px;border:2px solid var(--wk-border);border-radius:8px;font-family:var(--font);font-size:14px;font-weight:600;outline:none;background:var(--wk-surface);color:var(--wk-text)'];
+                require __DIR__ . '/../partials/phone-field.php';
+                ?>
             </div>
             <div style="margin-top:14px">
                 <label style="display:block;font-size:11px;font-weight:800;text-transform:uppercase;color:var(--wk-muted);margin-bottom:4px">Password</label>

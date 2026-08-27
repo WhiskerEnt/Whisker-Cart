@@ -104,6 +104,27 @@ class CheckoutController
         $email = ($emailRaw !== '' && filter_var($emailRaw, FILTER_VALIDATE_EMAIL))
             ? strtolower($emailRaw)
             : '';
+
+        // The confirmation and every update go to this address, so a mistyped
+        // one cannot be quietly dropped and the order placed anyway.
+        if ($email === '') {
+            Session::flash('error', $emailRaw === ''
+                ? 'Please enter your email address so we can send your order confirmation.'
+                : 'That email address does not look right. Please check it and try again.');
+            Response::redirect(View::url('checkout')); return;
+        }
+
+        $phoneError = \App\Services\CountryService::phoneError(
+            $request->clean('phone_code'), $request->clean('phone')
+        );
+        if ($phoneError !== null) {
+            Session::flash('error', $phoneError);
+            Response::redirect(View::url('checkout')); return;
+        }
+        $phone = \App\Services\CountryService::joinPhone(
+            $request->clean('phone_code'), $request->clean('phone')
+        );
+
         if ($email !== '') {
             try {
                 $sid = Session::cartId();
@@ -169,7 +190,7 @@ class CheckoutController
                     'first_name'    => $request->clean('first_name') ?? '',
                     'last_name'     => $request->clean('last_name') ?? '',
                     'email'         => $email, // validated lowercase; escape at output, not at storage
-                    'phone'         => $request->clean('phone') ?? '',
+                    'phone'         => $phone,
                     'password_hash' => '*',
                     'is_active'     => 1,
                 ]);
@@ -230,7 +251,7 @@ class CheckoutController
                     'currency'=>Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='currency'") ?: 'INR',
                     'payment_gateway'=>$request->clean('payment_gateway'),
                     'customer_email'=>$email, // validated lowercase form
-                    'customer_phone'=>$request->clean('phone'),
+                    'customer_phone'=>$phone,
                     'tax_details'=>json_encode($totals['tax_breakdown'] ?? []),
                     'shipping_address'=>json_encode($shippingAddress),
                     'billing_address'=>json_encode(
@@ -464,7 +485,7 @@ class CheckoutController
                     'order_number'     => $orderNumber,
                     'order_id'         => $orderId,
                     'email'            => $request->clean('email') ?? '',
-                    'phone'            => $request->clean('phone') ?? '',
+                    'phone'            => $phone,
                     'name'             => trim($request->clean('first_name') . ' ' . $request->clean('last_name')),
                 ]);
             }

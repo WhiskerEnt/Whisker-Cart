@@ -97,7 +97,12 @@ class SignupFormTest extends TestCase
     /** The picker is only useful if the server reads it. */
     public function testTheChosenCodeReachesTheStoredNumber(): void
     {
-        $this->assertStringContainsString('name="phone_code"', $this->view());
+        $this->assertStringContainsString('phone-field.php', $this->view(),
+            'the sign-up form no longer offers a country picker');
+
+        $partial = (string) file_get_contents(WK_ROOT . '/views/store/partials/phone-field.php');
+        $this->assertStringContainsString('_code"', $partial);
+
         $this->assertStringContainsString('joinPhone(', $this->controller(),
             'the form sends a country code the server never joins on');
     }

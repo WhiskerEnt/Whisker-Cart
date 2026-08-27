@@ -54,13 +54,30 @@ class TicketController
 
         $name = $request->clean('name');
         $email = $request->clean('email');
-        $phone = $request->clean('phone');
+        $phone = \App\Services\CountryService::joinPhone(
+            $request->clean('phone_code'), $request->clean('phone')
+        );
         $subject = $request->clean('subject');
         $message = trim($request->input('message') ?? '');
         $orderId = $request->input('order_id') ?: null;
 
         if (!$name || !$email || !$subject || !$message) {
             Session::flash('error','Please fill in all required fields.');
+            Response::redirect(View::url('account/tickets/create'));
+            return;
+        }
+
+        // A reply has to reach whoever raised this.
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            Session::flash('error','Please enter a valid email address.');
+            Response::redirect(View::url('account/tickets/create'));
+            return;
+        }
+        $phoneError = \App\Services\CountryService::phoneError(
+            $request->clean('phone_code'), $request->clean('phone')
+        );
+        if ($phoneError !== null) {
+            Session::flash('error', $phoneError);
             Response::redirect(View::url('account/tickets/create'));
             return;
         }

@@ -50,6 +50,14 @@ class AccountController
             Response::redirect(View::url('account/register')); return;
         }
 
+        $phoneError = \App\Services\CountryService::phoneError(
+            $request->clean('phone_code'), $request->clean('phone')
+        );
+        if ($phoneError !== null) {
+            Session::flash('error', $phoneError);
+            Response::redirect(View::url('account/register')); return;
+        }
+
         // Verify the password/confirmation match server-side, consistent with
         // every other password flow in the app.
         if ($pass !== $request->input('password_confirm')) {
@@ -180,10 +188,20 @@ class AccountController
         if (!Session::customerId() || !Session::verifyCsrf($request->input('wk_csrf'))) {
             Session::flash('error', 'Session expired.'); Response::redirect(View::url('account/profile')); return;
         }
+        $phoneError = \App\Services\CountryService::phoneError(
+            $request->clean('phone_code'), $request->clean('phone')
+        );
+        if ($phoneError !== null) {
+            Session::flash('error', $phoneError);
+            Response::redirect(View::url('account/profile')); return;
+        }
+
         Database::update('wk_customers', [
             'first_name' => $request->clean('first_name'),
             'last_name'  => $request->clean('last_name'),
-            'phone'      => $request->clean('phone') ?? '',
+            'phone'      => \App\Services\CountryService::joinPhone(
+                $request->clean('phone_code'), $request->clean('phone')
+            ),
         ], 'id=?', [Session::customerId()]);
         Session::flash('success', 'Profile updated!');
         Response::redirect(View::url('account/profile'));
