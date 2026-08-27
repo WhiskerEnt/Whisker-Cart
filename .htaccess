@@ -22,6 +22,17 @@ RewriteRule ^sql/ - [F,L]
 RewriteRule ^views/ - [F,L]
 RewriteRule ^plugins/.*\.php$ - [F,L]
 
+# Not part of a running shop, but present often enough to matter: a clone left
+# in place, a dev install, a release unpacked whole. The rules above only take
+# effect for paths that exist, so blocking them costs nothing when they do not.
+RewriteRule ^tests/ - [F,L]
+RewriteRule ^vendor/ - [F,L]
+RewriteRule ^node_modules/ - [F,L]
+# A dot-directory is not caught by the hidden-file rule below: that matches on
+# the file's own name, and .git/config is named "config".
+RewriteRule ^\.git - [F,L]
+RewriteRule ^\.github/ - [F,L]
+
 # Block sensitive files
 <FilesMatch "\.(env|sql|sh|lock|log|md|json)$">
     Require all denied
@@ -39,7 +50,11 @@ RewriteRule ^plugins/.*\.php$ - [F,L]
     Header set X-XSS-Protection "1; mode=block"
     Header set Referrer-Policy "strict-origin-when-cross-origin"
     Header set Permissions-Policy "camera=(), microphone=(), geolocation=()"
-    Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://checkout.razorpay.com https://js.stripe.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://api.razorpay.com https://api.stripe.com; frame-src https://api.razorpay.com https://js.stripe.com https://checkout.razorpay.com;"
+    # object-src, base-uri and frame-ancestors are additions to the same policy:
+    # no plugins, no rewriting where relative links point, and framed only by
+    # this site. form-action is deliberately absent — a payment gateway posts
+    # the shopper back, and pinning it would break checkout.
+    Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://checkout.razorpay.com https://js.stripe.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://api.razorpay.com https://api.stripe.com; frame-src https://api.razorpay.com https://js.stripe.com https://checkout.razorpay.com; object-src 'none'; base-uri 'self'; frame-ancestors 'self';"
     Header set Strict-Transport-Security "max-age=31536000; includeSubDomains" env=HTTPS
 </IfModule>
 

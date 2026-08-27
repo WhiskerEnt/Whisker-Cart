@@ -24,10 +24,26 @@ class ServerConfigTest extends TestCase
     private function generated(): string
     {
         $src = (string) file_get_contents(WK_ROOT . '/install/index.php');
-        $start = strpos($src, "\$htaccess = 'Options -MultiViews");
-        $this->assertNotFalse($start, 'the installer no longer generates an .htaccess');
-        $end = strpos($src, "AddDefaultCharset UTF-8'", $start);
-        return substr($src, $start, $end - $start);
+        $found = preg_match("/<<<'WK_HTACCESS'\n(.*?)\nWK_HTACCESS;/s", $src, $m);
+        $this->assertSame(1, $found, 'the installer no longer generates an .htaccess');
+        return $m[1];
+    }
+
+    /**
+     * The installer writes the shipped file verbatim.
+     *
+     * Kept as one comparison rather than a list of things to check for: a
+     * hand-written list only catches the rules somebody remembered to add to
+     * it, which is how the generated copy came to be missing the content
+     * security policy, HSTS and half the upload rules in the first place.
+     */
+    public function testTheInstallerWritesExactlyWhatWhiskerShips(): void
+    {
+        $this->assertSame(
+            rtrim($this->root(), "\n"),
+            $this->generated(),
+            'a shop installed onto a server with no .htaccess gets different rules from one that had it'
+        );
     }
 
     // ── Compression ──────────────────────────────────────────────────────
@@ -41,17 +57,43 @@ class ServerConfigTest extends TestCase
         }
     }
 
-    /** A shop installed onto a server with no .htaccess must not miss out. */
-    public function testTheInstallerWritesTheSameCompressionRules(): void
+    /** Nothing a running shop relies on may be reachable over HTTP. */
+    public function testTheDirectoriesThatMustNeverBeServedAreBlocked(): void
     {
-        $generated = $this->generated();
-        $this->assertStringContainsString('mod_deflate.c', $generated,
-            'the generated .htaccess leaves the site uncompressed');
-        foreach (['text/html', 'text/css', 'application/javascript'] as $type) {
-            $this->assertStringContainsString($type, $generated, "the generated file omits {$type}");
+        $htaccess = $this->root();
+        foreach (['app', 'core', 'config', 'sql', 'views', 'tests', 'vendor', 'node_modules'] as $dir) {
+            $this->assertMatchesRegularExpression(
+                '/^RewriteRule \^' . preg_quote($dir, '/') . '\/ - \[F,L\]$/m',
+                $htaccess,
+                "{$dir}/ is served over HTTP"
+            );
         }
-        $this->assertStringContainsString('mod_expires.c', $generated,
-            'the generated .htaccess never caches anything');
+        $this->assertStringContainsString('RewriteRule ^\.git', $htaccess,
+            'a repository left in place would expose the whole history');
+    }
+
+    /**
+     * The hidden-file rule matches on a file's own name, so it never sees
+     * .git/config — that file is called "config".
+     */
+    public function testTheHiddenFileRuleIsNotRelivedOnForDotDirectories(): void
+    {
+        $htaccess = $this->root();
+        $this->assertStringContainsString('<FilesMatch "^\.">', $htaccess);
+        $this->assertMatchesRegularExpression('/RewriteRule \^\\\\\.git/', $htaccess,
+            'dot-directories need a rule of their own');
+    }
+
+    /** An upload is data. It must never be run, whatever it is named. */
+    public function testUploadsCannotBeExecuted(): void
+    {
+        $htaccess = $this->root();
+        preg_match('/storage\/uploads\/[^\n]*/', $htaccess, $m);
+        $this->assertNotEmpty($m, 'nothing stops an uploaded file being executed');
+
+        foreach (['php', 'phtml', 'phar', 'shtml', 'php7'] as $ext) {
+            $this->assertStringContainsString($ext, $m[0], "an uploaded .{$ext} would run");
+        }
     }
 
     /**
@@ -60,13 +102,34 @@ class ServerConfigTest extends TestCase
      */
     public function testCompressedResponsesVaryOnTheEncoding(): void
     {
-        foreach (['shipped' => $this->root(), 'generated' => $this->generated()] as $which => $config) {
-            $this->assertMatchesRegularExpression(
-                '/Header append Vary Accept-Encoding/',
-                $config,
-                "the {$which} config compresses without telling caches it did"
-            );
+        $this->assertMatchesRegularExpression(
+            '/Header append Vary Accept-Encoding/',
+            $this->root(),
+            'the config compresses without telling caches it did'
+        );
+    }
+
+    /**
+     * The policy names the payment gateways the checkout loads. Narrowing it
+     * without them would leave shoppers on a blank payment step.
+     */
+    public function testTheContentPolicyStillAdmitsThePaymentGateways(): void
+    {
+        preg_match('/Content-Security-Policy "([^"]+)"/', $this->root(), $m);
+        $this->assertNotEmpty($m, 'there is no content security policy');
+        $csp = $m[1];
+
+        foreach (['js.stripe.com', 'checkout.razorpay.com', 'api.stripe.com', 'api.razorpay.com'] as $host) {
+            $this->assertStringContainsString($host, $csp, "the policy would block {$host}");
         }
+
+        foreach (["object-src 'none'", "base-uri 'self'", "frame-ancestors 'self'"] as $directive) {
+            $this->assertStringContainsString($directive, $csp, "the policy is missing {$directive}");
+        }
+
+        // A gateway posts the shopper back to the shop, so this one cannot be pinned.
+        $this->assertStringNotContainsString('form-action', $csp,
+            'pinning form-action breaks the return leg of a card payment');
     }
 
     /** Compressing an already-compressed format costs time and saves nothing. */
