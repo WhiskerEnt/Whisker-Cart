@@ -39,7 +39,7 @@ $gridProducts = $products;
                     <div class="wk-carousel-slide-inner">
                         <div class="wk-carousel-img" onclick="window.location='<?= $url('product/'.urlencode($p['slug'])) ?>'">
                             <?php if ($p['image']): ?>
-                                <img src="<?= $url('storage/uploads/products/'.$p['image']) ?>" alt="<?= $e($p['name']) ?>">
+                                <?= \Core\View::productImage($p['image'], $p['name']) ?>
                             <?php else: ?>
                                 <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:64px;opacity:.15;background:var(--wk-bg)">📦</div>
                             <?php endif; ?>
@@ -102,12 +102,12 @@ $gridProducts = $products;
                 <div class="wk-product-card">
                     <div class="wk-product-img" onclick="window.location='<?= $url('product/'.urlencode($p['slug'])) ?>'">
                         <?php if ($p['image']): ?>
-                            <img src="<?= $url('storage/uploads/products/'.$p['image']) ?>" alt="<?= $e($p['name']) ?>">
+                            <?= \Core\View::productImage($p['image'], $p['name']) ?>
                         <?php else: ?>
                             <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:48px;opacity:.15">📦</div>
                         <?php endif; ?>
                         <?php if ($p['stock_quantity'] <= 0): ?>
-                            <span class="wk-product-badge" style="background:#ef4444">Sold Out</span>
+                            <span class="wk-product-badge" style="background:#dc2626">Sold Out</span>
                         <?php elseif ($hasSale): ?>
                             <span class="wk-product-badge">Sale</span>
                         <?php elseif ($p['is_featured']): ?>
@@ -139,7 +139,7 @@ $gridProducts = $products;
             </div>
 
             <div style="text-align:center;margin-top:32px">
-                <a href="<?= $url('shop') ?>" style="display:inline-block;padding:14px 36px;background:var(--wk-purple);color:#fff;border-radius:12px;font-weight:800;text-decoration:none;font-size:15px;transition:all .2s">View All Products →</a>
+                <a href="<?= $url('shop') ?>" style="display:inline-block;padding:14px 36px;background:var(--wk-purple-ink);color:#fff;border-radius:12px;font-weight:800;text-decoration:none;font-size:15px;transition:all .2s">View All Products →</a>
             </div>
         <?php endif; ?>
     </div>

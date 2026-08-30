@@ -337,8 +337,8 @@ if ($chatbotEnabled !== '0'):
         </div>
         <div id="wkChatMessages" style="flex:1;overflow-y:auto;padding:16px;max-height:340px;min-height:250px"></div>
         <div style="border-top:1px solid var(--wk-border);padding:12px;display:flex;gap:8px">
-            <input type="text" id="wkChatInput" placeholder="Type a message..." onkeydown="if(event.key==='Enter')sendChat()" style="flex:1;padding:10px 14px;border:2px solid var(--wk-border);border-radius:8px;font-family:var(--font);font-size:13px;font-weight:600;outline:none">
-            <button onclick="sendChat()" style="background:var(--wk-purple);color:#fff;border:none;border-radius:8px;padding:10px 16px;cursor:pointer;font-weight:800;font-size:13px">Send</button>
+            <input type="text" id="wkChatInput" aria-label="Type a message" placeholder="Type a message..." onkeydown="if(event.key==='Enter')sendChat()" style="flex:1;padding:10px 14px;border:2px solid var(--wk-border);border-radius:8px;font-family:var(--font);font-size:13px;font-weight:600;outline:none">
+            <button onclick="sendChat()" style="background:var(--wk-purple-ink);color:#fff;border:none;border-radius:8px;padding:10px 16px;cursor:pointer;font-weight:800;font-size:13px">Send</button>
         </div>
     </div>
 </div>
@@ -362,7 +362,7 @@ function addMessage(text, from, actions) {
     d.style.cssText = 'margin-bottom:12px;display:flex;' + (from==='user'?'justify-content:flex-end':'');
     const bubble = document.createElement('div');
     bubble.style.cssText = from==='user'
-        ? 'background:var(--wk-purple);color:#fff;padding:10px 14px;border-radius:12px 12px 4px 12px;max-width:80%;font-size:13px;font-weight:600;line-height:1.5'
+        ? 'background:var(--wk-purple-ink);color:#fff;padding:10px 14px;border-radius:12px 12px 4px 12px;max-width:80%;font-size:13px;font-weight:600;line-height:1.5'
         : 'background:var(--wk-bg);color:var(--wk-text);padding:10px 14px;border-radius:12px 12px 12px 4px;max-width:85%;font-size:13px;line-height:1.6';
     // Render chatbot replies safely. The reply may include markdown produced
     // by the server from DB data, so we treat it as untrusted: HTML-escape

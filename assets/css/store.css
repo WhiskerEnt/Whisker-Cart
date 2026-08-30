@@ -122,7 +122,13 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: var(--font); background: var(--wk-bg); color: var(--wk-text); line-height: 1.6; -webkit-font-smoothing: antialiased; }
 a { color: inherit; text-decoration: none; }
-img { max-width: 100%; display: block; }
+img { max-width: 100%; height: auto; display: block; }
+
+/* A <picture> is only a wrapper for choosing the file; it must not become a
+   box of its own. Left as an inline element it shrink-wraps to the image's
+   intrinsic width, and every rule written for the image inside a flex or grid
+   parent then measures against the wrapper instead of the parent. */
+picture { display: contents; }
 
 /* ── Branded Page Loader ────────────────────── */
 .wk-page-loader {
@@ -425,8 +431,12 @@ img { max-width: 100%; display: block; }
     transition: transform .6s cubic-bezier(.25,.8,.25,1);
 }
 .wk-carousel-slide {
-    min-width: 100%;
-    flex-shrink: 0;
+    /* Exactly one screen wide, never more: min-width alone lets a slide grow
+       to fit its content, and a slide wider than the track is laid out off the
+       side of the screen where it cannot be scrolled to. */
+    flex: 0 0 100%;
+    min-width: 0;
+    max-width: 100%;
 }
 .wk-hero-slide {
     position: relative;
@@ -470,7 +480,9 @@ img { max-width: 100%; display: block; }
 }
 .wk-hero-badge {
     display: inline-block;
-    background: var(--wk-pink);
+    /* A step darker than the brand pink: white at 12px needs 4.5:1, and the
+       lighter shade only reaches 3.5. */
+    background: var(--wk-pink-deep, #db2777);
     color: #fff;
     font-size: 12px; font-weight: 800;
     padding: 5px 14px;
@@ -570,6 +582,11 @@ img { max-width: 100%; display: block; }
 .wk-hero-slide-img img {
     max-height: 400px;
     max-width: 100%;
+    /* Capped by height, with the width following from the picture's own
+       proportions — otherwise the width attribute wins and a tall image is
+       800px wide on a 375px screen. */
+    width: auto;
+    height: auto;
     object-fit: contain;
     filter: drop-shadow(0 20px 60px rgba(0,0,0,.5));
     transition: transform .5s cubic-bezier(.25,.8,.25,1);
@@ -614,6 +631,9 @@ img { max-width: 100%; display: block; }
     background: none; border: none;
     cursor: pointer; padding: 0;
     display: grid; place-items: center;
+    /* Held at full size: the row they sit in is positioned, and a flex item
+       that is allowed to shrink collapses back to the width of the dot. */
+    flex: 0 0 24px;
 }
 .wk-hero-carousel .wk-carousel-dot::after,
 .wk-carousel-dot::after {
@@ -646,7 +666,7 @@ img { max-width: 100%; display: block; }
         gap: 24px;
         padding-top: 36px; padding-bottom: 52px;
     }
-    .wk-hero-slide-img { order: -1; min-height: 240px; }
+    .wk-hero-slide-img { order: -1; min-height: 240px; min-width: 0; }
     .wk-hero-slide-img img { max-height: 240px; }
     .wk-hero-name { font-size: 28px; }
     .wk-hero-price-current { font-size: 26px; }
@@ -827,7 +847,8 @@ img { max-width: 100%; display: block; }
 .wk-cookie-cat-name { font-size: 13px; font-weight: 800; }
 .wk-cookie-cat-desc { font-size: 11.5px; line-height: 1.45; color: var(--wk-muted); margin: 2px 0 0; }
 .wk-cookie-always {
-    font-size: 11px; font-weight: 800; color: var(--wk-green);
+    /* The pale green behind it needs a darker green in front to be read. */
+    font-size: 11px; font-weight: 800; color: #047857;
     background: var(--wk-green-soft); padding: 3px 9px; border-radius: 999px;
 }
 .wk-cookie-switch { position: relative; display: inline-block; width: 40px; height: 22px; flex: 0 0 auto; cursor: pointer; }
@@ -1281,3 +1302,7 @@ input.wk-field-invalid { border-color: #ef4444 !important; }
     background: var(--wk-surface); color: var(--wk-text);
 }
 .wk-lead-field .wk-phone-field select:focus { outline: none; border-color: var(--wk-purple-ink); }
+
+/* Footer links sit close together on a phone, and a 19px line of text is not
+   something a thumb can hit reliably. The padding is the target, not the ink. */
+.wk-footer-inner a { display: inline-block; padding: 4px 2px; min-height: 24px; }

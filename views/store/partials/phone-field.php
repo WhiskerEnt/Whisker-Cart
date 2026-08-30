@@ -27,6 +27,7 @@ $wkPhoneSelSty = $wkPhone['selectStyle'] !== '' ? $wkPhone['selectStyle'] : $wkP
     <input type="tel" name="<?= $wkPhoneEsc($wkPhone['name']) ?>"
            value="<?= $wkPhoneEsc($wkPhoneParts['number']) ?>"
            placeholder="98765 43210" autocomplete="tel" maxlength="24"
+           aria-label="Phone number"
            data-wk-validate="phone"<?= $wkPhone['required'] ? ' required' : '' ?>
            style="<?= $wkPhoneEsc($wkPhone['inputStyle']) ?>">
 </div>

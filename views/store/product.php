@@ -48,7 +48,7 @@ foreach ($variants['combos'] ?? [] as $combo) {
             <div>
                 <div id="mainImage" style="background:var(--wk-bg);border-radius:var(--radius);overflow:hidden;aspect-ratio:1;display:flex;align-items:center;justify-content:center;margin-bottom:12px;border:2px solid var(--wk-border)">
                     <?php if (!empty($images)): ?>
-                        <img src="<?= $url('storage/uploads/products/'.$images[0]['image_path']) ?>" alt="<?= $e($p['name']) ?>" style="width:100%;height:100%;object-fit:cover" id="mainImg">
+                        <?= \Core\View::productImage($images[0]['image_path'], $p['name'], ['eager' => true, 'no_webp' => true, 'id' => 'mainImg', 'style' => 'width:100%;height:100%;object-fit:cover']) ?>
                     <?php else: ?>
                         <span style="font-size:80px;opacity:.15">📦</span>
                     <?php endif; ?>
@@ -144,7 +144,7 @@ foreach ($variants['combos'] ?? [] as $combo) {
                         <span style="width:8px;height:8px;border-radius:50%;background:#10b981"></span>
                         <span style="color:#10b981">In Stock</span>
                     <?php else: ?>
-                        <span style="width:8px;height:8px;border-radius:50%;background:#ef4444"></span>
+                        <span style="width:8px;height:8px;border-radius:50%;background:#dc2626"></span>
                         <span style="color:#ef4444">Out of Stock</span>
                     <?php endif; ?>
                     <!-- Filled in with the selected variant's availability. -->
@@ -189,7 +189,7 @@ foreach ($variants['combos'] ?? [] as $combo) {
                 <?php foreach ($related as $rp): $rprc = $rp['sale_price'] ?: $rp['price']; ?>
                 <div class="wk-product-card" onclick="window.location='<?= $url('product/'.$rp['slug']) ?>'">
                     <div class="wk-product-img">
-                        <?php if ($rp['image']): ?><img src="<?= $url('storage/uploads/products/'.$rp['image']) ?>" alt="<?= $e($rp['name']) ?>"><?php else: ?><div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:48px;opacity:.15">📦</div><?php endif; ?>
+                        <?php if ($rp['image']): ?><?= \Core\View::productImage($rp['image'], $rp['name']) ?><?php else: ?><div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:48px;opacity:.15">📦</div><?php endif; ?>
                     </div>
                     <div class="wk-product-info">
                         <div class="wk-product-name"><?= $e($rp['name']) ?></div>

@@ -27,7 +27,7 @@ $gridProducts = $products;
             <!-- Background image -->
             <?php if ($p['image']): ?>
             <div class="wk-hero-slide-bg">
-                <img src="<?= $url('storage/uploads/products/'.$p['image']) ?>" alt="">
+                <?= \Core\View::productImage($p['image'], '', ['eager' => $i === 0]) ?>
             </div>
             <?php endif; ?>
             <!-- Gradient overlay -->
@@ -44,7 +44,7 @@ $gridProducts = $products;
                         <?php if ($hasSale): ?><span class="wk-hero-price-original"><?= $price($p['price']) ?></span><?php endif; ?>
                     </div>
                     <div class="wk-hero-actions">
-                        <a href="<?= $url('product/'.urlencode($p['slug'])) ?>" class="wk-hero-btn-primary">View Product →</a>
+                        <a href="<?= $url('product/'.urlencode($p['slug'])) ?>" class="wk-hero-btn-primary" aria-label="View <?= $e($p['name']) ?>">View Product →</a>
                         <?php if ($p['stock_quantity'] > 0 && ($p['variant_count'] ?? 0) == 0): ?>
                         <button class="wk-hero-btn-cart" data-add-to-cart="<?= $p['id'] ?>">🛒 Add to Cart</button>
                         <?php endif; ?>
@@ -52,7 +52,7 @@ $gridProducts = $products;
                 </div>
                 <div class="wk-hero-slide-img" onclick="window.location='<?= $url('product/'.urlencode($p['slug'])) ?>'">
                     <?php if ($p['image']): ?>
-                    <img src="<?= $url('storage/uploads/products/'.$p['image']) ?>" alt="<?= $e($p['name']) ?>">
+                    <?= \Core\View::productImage($p['image'], $p['name'], ['eager' => $i === 0]) ?>
                     <?php endif; ?>
                 </div>
             </div>
@@ -115,7 +115,7 @@ $gridProducts = $products;
                 <h2 class="wk-section-title" style="margin-bottom:0">🔥 On Sale</h2>
                 <p class="wk-section-sub" style="margin-top:4px">Limited time offers</p>
             </div>
-            <a href="<?= $url('shop?sort=price_low') ?>" style="font-size:14px;font-weight:700;color:var(--wk-purple-ink);text-decoration:none">View All →</a>
+            <a href="<?= $url('shop?sort=price_low') ?>" aria-label="View all deals" style="font-size:14px;font-weight:700;color:var(--wk-purple-ink);text-decoration:none;padding:4px 0;display:inline-block">View All →</a>
         </div>
         <div style="display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:12px;-webkit-overflow-scrolling:touch">
             <?php foreach ($saleProducts as $p):
@@ -125,11 +125,11 @@ $gridProducts = $products;
             <div style="flex:0 0 220px;scroll-snap-align:start;background:var(--wk-card);border:2px solid var(--wk-border);border-radius:16px;overflow:hidden;transition:all .2s">
                 <div onclick="window.location='<?= $url('product/'.urlencode($p['slug'])) ?>'" style="height:180px;overflow:hidden;cursor:pointer;position:relative;background:var(--wk-bg)">
                     <?php if ($p['image']): ?>
-                    <img src="<?= $url('storage/uploads/products/'.$p['image']) ?>" alt="<?= $e($p['name']) ?>" style="width:100%;height:100%;object-fit:cover">
+                    <?= \Core\View::productImage($p['image'], $p['name'], ['style' => 'width:100%;height:100%;object-fit:cover']) ?>
                     <?php else: ?>
                     <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:40px;opacity:.15">📦</div>
                     <?php endif; ?>
-                    <span style="position:absolute;top:10px;left:10px;background:#ef4444;color:#fff;font-size:12px;font-weight:800;padding:4px 10px;border-radius:8px"><?= $discPct ?>% OFF</span>
+                    <span style="position:absolute;top:10px;left:10px;background:#dc2626;color:#fff;font-size:12px;font-weight:800;padding:4px 10px;border-radius:8px"><?= $discPct ?>% OFF</span>
                 </div>
                 <div onclick="window.location='<?= $url('product/'.urlencode($p['slug'])) ?>'" style="padding:14px 16px;cursor:pointer">
                     <div style="font-weight:800;font-size:14px;color:var(--wk-text);margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><?= $e($p['name']) ?></div>
@@ -153,7 +153,7 @@ $gridProducts = $products;
                 <h2 class="wk-section-title" style="margin-bottom:0">New Arrivals</h2>
                 <p class="wk-section-sub" style="margin-top:4px"><?= count($gridProducts) ?> product<?= count($gridProducts) !== 1 ? 's' : '' ?></p>
             </div>
-            <a href="<?= $url('shop') ?>" style="font-size:14px;font-weight:700;color:var(--wk-purple-ink);text-decoration:none">View All →</a>
+            <a href="<?= $url('shop') ?>" aria-label="View all products" style="font-size:14px;font-weight:700;color:var(--wk-purple-ink);text-decoration:none;padding:4px 0;display:inline-block">View All →</a>
         </div>
         <?php if (empty($gridProducts)): ?>
             <div style="text-align:center;padding:60px 0;color:var(--wk-muted)">
@@ -170,12 +170,12 @@ $gridProducts = $products;
                 <div class="wk-product-card">
                     <div class="wk-product-img" onclick="window.location='<?= $url('product/'.urlencode($p['slug'])) ?>'">
                         <?php if ($p['image']): ?>
-                            <img src="<?= $url('storage/uploads/products/'.$p['image']) ?>" alt="<?= $e($p['name']) ?>">
+                            <?= \Core\View::productImage($p['image'], $p['name']) ?>
                         <?php else: ?>
                             <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:48px;opacity:.15">📦</div>
                         <?php endif; ?>
                         <?php if ($p['stock_quantity'] <= 0): ?>
-                            <span class="wk-product-badge" style="background:#ef4444">Sold Out</span>
+                            <span class="wk-product-badge" style="background:#dc2626">Sold Out</span>
                         <?php elseif ($hasSale): ?>
                             <span class="wk-product-badge">Sale</span>
                         <?php elseif ($p['is_featured']): ?>
@@ -204,7 +204,7 @@ $gridProducts = $products;
                 <?php endforeach; ?>
             </div>
             <div style="text-align:center;margin-top:40px">
-                <a href="<?= $url('shop') ?>" style="display:inline-block;padding:16px 40px;background:var(--wk-purple);color:#fff;border-radius:14px;font-weight:800;text-decoration:none;font-size:15px;transition:all .2s">Browse All Products →</a>
+                <a href="<?= $url('shop') ?>" style="display:inline-block;padding:16px 40px;background:var(--wk-purple-ink);color:#fff;border-radius:14px;font-weight:800;text-decoration:none;font-size:15px;transition:all .2s">Browse All Products →</a>
             </div>
         <?php endif; ?>
     </div>
