@@ -699,7 +699,7 @@ picture { display: contents; }
     .wk-cart-drawer { width: 100vw; }
     .wk-hero h1 { font-size: 28px; }
 }
-@media (max-width: 480px) { .wk-product-grid { grid-template-columns: 1fr; } }
+@media (max-width: 340px) { .wk-product-grid { grid-template-columns: 1fr; } }
 /* ── Header search ─────────────────────────────── */
 .wk-search { position: relative; flex: 0 1 240px; min-width: 140px; }
 .wk-search-icon {
@@ -1306,3 +1306,52 @@ input.wk-field-invalid { border-color: #ef4444 !important; }
 /* Footer links sit close together on a phone, and a 19px line of text is not
    something a thumb can hit reliably. The padding is the target, not the ink. */
 .wk-footer-inner a { display: inline-block; padding: 4px 2px; min-height: 24px; }
+
+
+/* ── Phones ───────────────────────────────────
+   Written last so it settles anything above it. The screen is 375px wide and
+   about 70 of those were going to margins and a strip of icons. */
+@media (max-width: 768px) {
+    /* The bar folds into its button here whatever the shopkeeper chose for
+       desktop, and the page stops reserving a column for it. */
+    .wk-social-inner { display: none; }
+    .wk-social.is-open .wk-social-inner { display: flex; }
+    body.wk-has-social-left  .wk-container,
+    body.wk-has-social-right .wk-container { padding-left: 16px; padding-right: 16px; }
+    .wk-container { padding-left: 16px; padding-right: 16px; }
+
+    /* Logo, account and cart on one line instead of three. */
+    .wk-header-inner { gap: 10px 12px; padding-top: 10px; padding-bottom: 10px; }
+    .wk-logo { font-size: 17px; gap: 7px; }
+    .wk-logo svg { width: 24px; height: 24px; }
+    .wk-cart-btn { padding: 7px 11px; font-size: 13px; }
+    .wk-header-inner { padding-left: 16px; padding-right: 16px; }
+
+    /* Icons alone in the header. The words are what pushed the logo, the
+       account menu and the cart onto three separate rows. */
+    .wk-btn-label { display: none; }
+
+    /* Sections were spaced for a desktop page and read as gaps on a phone. */
+    .wk-section { padding: 32px 0; }
+    .wk-section-title { font-size: 22px; }
+    .wk-section-sub { font-size: 13px; }
+
+    /* The smallest labels were 11px, which is below comfortable reading. */
+    .wk-product-cat { font-size: 12px; }
+    .wk-product-badge { font-size: 12px; }
+    .wk-product-name { font-size: 14px; }
+
+    /* Anything laid out in two columns for a desktop form gets one here. */
+    .wk-phone-field { grid-template-columns: minmax(0, 1fr); }
+    .wk-footer-inner { gap: 18px; }
+}
+
+@media (max-width: 380px) {
+    .wk-hero-name { font-size: 24px; }
+    .wk-hero-price-current { font-size: 22px; }
+    .wk-hero-actions { flex-direction: column; align-items: stretch; }
+}
+
+/* A slide is dragged, so nothing inside it should look selectable. */
+.wk-carousel-track { user-select: none; -webkit-user-select: none; touch-action: pan-y; }
+.wk-carousel-track a, .wk-carousel-track img { -webkit-user-drag: none; }

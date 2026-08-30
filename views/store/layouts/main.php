@@ -191,9 +191,9 @@ $currentSymbol = $currentCurrency === $baseCurrency
             <div style="position:relative" id="accountMenu">
                 <button type="button" onclick="wkToggleAccount()" id="accountToggle" aria-haspopup="true" aria-expanded="false" style="background:none;border:2px solid var(--wk-border);border-radius:8px;padding:6px 12px;cursor:pointer;font-family:var(--font);font-size:13px;font-weight:800;color:var(--wk-purple-ink);display:flex;align-items:center;gap:6px;white-space:nowrap">
                     <?php if ($isLoggedIn): ?>
-                        👋 <?= $e($customer['first_name'] ?? 'Account') ?> ▾
+                        👋 <span class="wk-btn-label"><?= $e($customer['first_name'] ?? 'Account') ?></span> ▾
                     <?php else: ?>
-                        👤 Account ▾
+                        👤 <span class="wk-btn-label">Account</span> ▾
                     <?php endif; ?>
                 </button>
                 <div id="accountDrop" style="display:none;position:absolute;right:0;top:calc(100% + 8px);background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,.1);width:200px;z-index:200;overflow:hidden">
@@ -232,7 +232,7 @@ $currentSymbol = $currentCurrency === $baseCurrency
             </script>
 
             <button class="wk-cart-btn" data-cart-open>
-                🛒 Cart <span class="wk-cart-count" style="display:none">0</span>
+                🛒 <span class="wk-btn-label">Cart</span> <span class="wk-cart-count" style="display:none">0</span>
             </button>
         </div>
     </div>

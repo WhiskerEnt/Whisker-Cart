@@ -258,6 +258,65 @@ const WhiskerStore = {
         wrap?.querySelector('.wk-carousel-prev')?.addEventListener('click', () => go(current - 1));
         wrap?.querySelector('.wk-carousel-next')?.addEventListener('click', () => go(current + 1));
 
+        // ── Dragging ─────────────────────────────
+        // On a phone the arrows are the only way through the slides, and
+        // nobody looks for them — the gesture people try first is a swipe.
+        // Pointer events cover finger, pen and a held mouse button alike.
+        let startX = 0, startY = 0, dragging = false, moved = false, width = 1;
+
+        const beginDrag = (e) => {
+            if (e.pointerType === 'mouse' && e.buttons !== 1) return;
+            dragging = true; moved = false;
+            startX = e.clientX; startY = e.clientY;
+            width = track.getBoundingClientRect().width || 1;
+            stop();
+            track.style.transition = 'none';
+        };
+
+        const duringDrag = (e) => {
+            if (!dragging) return;
+            const dx = e.clientX - startX;
+            // Until the movement is clearly sideways, leave it alone — the
+            // page still has to scroll under a finger moving up or down.
+            if (!moved && Math.abs(dx) < Math.abs(e.clientY - startY)) return;
+            if (Math.abs(dx) > 4) moved = true;
+            if (!moved) return;
+
+            // Pull against the ends rather than sliding into empty space.
+            const atEnd = (current === 0 && dx > 0) || (current === total - 1 && dx < 0);
+            track.style.transform =
+                `translateX(calc(${-current * 100}% + ${atEnd ? dx / 3 : dx}px))`;
+        };
+
+        const endDrag = (e) => {
+            if (!dragging) return;
+            dragging = false;
+            track.style.transition = '';
+            const dx = (e.clientX ?? startX) - startX;
+
+            // A short flick counts; a long drag that comes back does not.
+            if (moved && Math.abs(dx) > Math.min(60, width * 0.15)) {
+                go(dx < 0 ? current + 1 : current - 1);
+            } else {
+                go(current);
+            }
+            setTimeout(start, 3000);
+        };
+
+        track.style.touchAction = 'pan-y';
+        track.querySelectorAll('img').forEach((img) => { img.draggable = false; });
+        track.addEventListener('pointerdown', beginDrag);
+        track.addEventListener('pointermove', duringDrag);
+        track.addEventListener('pointerup', endDrag);
+        track.addEventListener('pointercancel', endDrag);
+        track.addEventListener('pointerleave', endDrag);
+
+        // A slide is a link to the product. Letting go after a swipe must not
+        // also count as tapping whatever ended up under the finger.
+        track.addEventListener('click', (e) => {
+            if (moved) { e.preventDefault(); e.stopPropagation(); }
+        }, true);
+
         function start() { stop(); timer = setInterval(() => go(current + 1), 5000); }
         function stop() { if (timer) clearInterval(timer); }
 

@@ -22,17 +22,15 @@ $collapsed = SocialService::collapsed();
 <div class="wk-social wk-social-<?= $e($position) ?><?= $collapsed ? ' wk-social-collapsible' : '' ?>"
      id="wkSocialBar" data-side="<?= $e($position) ?>" data-collapsed="<?= $collapsed ? '1' : '0' ?>">
 
-    <?php if ($collapsed): ?>
-        <button type="button" class="wk-social-toggle" id="wkSocialToggle"
+    <button type="button" class="wk-social-toggle" id="wkSocialToggle"
                 aria-expanded="false" aria-controls="wkSocialLinks" aria-label="Contact us">
-            <svg class="wk-social-toggle-open" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M12 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4m0 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4m0 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4"/>
-            </svg>
-            <svg class="wk-social-toggle-close" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-            </svg>
-        </button>
-    <?php endif; ?>
+        <svg class="wk-social-toggle-open" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4m0 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4m0 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4"/>
+        </svg>
+        <svg class="wk-social-toggle-close" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+        </svg>
+    </button>
 
     <nav class="wk-social-inner" id="wkSocialLinks" aria-label="Contact us" <?= $collapsed ? 'hidden' : '' ?>>
         <?php foreach ($links as $i => $l): ?>
