@@ -7,7 +7,7 @@
     <div style="background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:var(--radius);padding:32px">
         <form method="POST" action="<?= $url('account/register') ?>" id="registerForm">
             <?= \Core\Session::csrfField() ?>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="wk-cols-2" style="gap:12px">
                 <div><label style="display:block;font-size:11px;font-weight:800;text-transform:uppercase;color:var(--wk-muted);margin-bottom:4px">First Name</label><input type="text" name="first_name" required placeholder="John" style="width:100%;padding:10px 14px;border:2px solid var(--wk-border);border-radius:8px;font-family:var(--font);font-size:14px;font-weight:600;outline:none"></div>
                 <div><label style="display:block;font-size:11px;font-weight:800;text-transform:uppercase;color:var(--wk-muted);margin-bottom:4px">Last Name</label><input type="text" name="last_name" required placeholder="Doe" style="width:100%;padding:10px 14px;border:2px solid var(--wk-border);border-radius:8px;font-family:var(--font);font-size:14px;font-weight:600;outline:none"></div>
             </div>

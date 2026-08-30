@@ -330,7 +330,7 @@ if ($chatbotEnabled !== '0'):
 <div id="wkChatbot">
     <button id="wkChatToggle" onclick="toggleChat()" style="position:fixed;bottom:24px;right:24px;width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,var(--wk-purple),var(--wk-pink));border:none;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,.2);z-index:9999;display:flex;align-items:center;justify-content:center;font-size:24px;transition:transform .2s" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">💬</button>
 
-    <div id="wkChatWindow" style="display:none;position:fixed;bottom:96px;right:24px;width:380px;max-height:520px;background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.15);z-index:9999;overflow:hidden;display:none;flex-direction:column">
+    <div id="wkChatWindow" class="wk-chat-window" style="display:none;position:fixed;bottom:96px;right:24px;width:380px;max-height:520px;background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.15);z-index:9999;overflow:hidden;display:none;flex-direction:column">
         <div style="background:linear-gradient(135deg,var(--wk-purple),var(--wk-pink));color:#fff;padding:16px 20px;display:flex;align-items:center;justify-content:space-between">
             <div><div style="font-weight:800;font-size:15px"><?= $e($chatbotName) ?></div><div style="font-size:11px;opacity:.8">Online • Ask me anything</div></div>
             <button onclick="toggleChat()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:14px">✕</button>

@@ -20,7 +20,7 @@
     <?php endif; ?>
 
     <!-- Stats -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:28px">
+    <div class="wk-cols-2" style="gap:16px;margin-bottom:28px">
         <div style="background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:var(--radius);padding:24px">
             <div style="font-size:12px;font-weight:800;text-transform:uppercase;color:var(--wk-muted);margin-bottom:6px">Total Orders</div>
             <div style="font-size:28px;font-weight:900;font-family:var(--font-mono)"><?= $c['total_orders'] ?></div>
@@ -32,7 +32,7 @@
     </div>
 
     <!-- Quick Links -->
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:28px">
+    <div class="wk-cols-3" style="gap:12px;margin-bottom:28px">
         <a href="<?= $url('account/profile') ?>" style="background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:var(--radius);padding:20px;text-align:center;text-decoration:none;transition:border-color .2s">
             <div style="font-size:24px;margin-bottom:8px">👤</div>
             <div style="font-weight:800;font-size:14px;color:var(--wk-text)">My Profile</div>

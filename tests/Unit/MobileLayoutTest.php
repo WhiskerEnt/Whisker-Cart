@@ -156,4 +156,80 @@ class MobileLayoutTest extends TestCase
         $this->assertStringContainsString('.wk-phone-field { grid-template-columns: minmax(0, 1fr); }', $mobile,
             'the country picker and the number share a line too narrow for either');
     }
+
+    // ── Layouts that have to be able to collapse ─────────────────────────
+
+    /**
+     * A column count written onto the element cannot be changed by a media
+     * query, so every one of these is a layout that stays two or three columns
+     * wide on a 375px screen. They belong in the stylesheet.
+     */
+    public function testNoStorefrontViewHardCodesItsColumns(): void
+    {
+        $offenders = [];
+        $dir = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator(WK_ROOT . '/views/store', \FilesystemIterator::SKIP_DOTS)
+        );
+
+        foreach ($dir as $file) {
+            if ($file->getExtension() !== 'php') continue;
+            $src = (string) file_get_contents($file->getPathname());
+
+            preg_match_all('/style="[^"]*grid-template-columns:\s*([^;"]+)/i', $src, $m);
+            foreach ($m[1] as $value) {
+                // auto-fill and auto-fit already adapt to the space available.
+                if (stripos($value, 'auto-fi') !== false) continue;
+                if (preg_match('/fr\s+[\d.]*fr|repeat\(\s*[2-9]/', $value)) {
+                    $rel = str_replace('\\', '/', substr($file->getPathname(), strlen(WK_ROOT) + 1));
+                    $offenders[] = "{$rel}: {$value}";
+                }
+            }
+        }
+
+        $this->assertSame([], $offenders,
+            "these layouts cannot collapse on a phone:\n  " . implode("\n  ", $offenders));
+    }
+
+    /** The product page put an 80px picture beside the details on a phone. */
+    public function testTheProductPageStacksOnAPhone(): void
+    {
+        $product = (string) file_get_contents(WK_ROOT . '/views/store/product.php');
+        $this->assertStringContainsString('class="wk-product-layout"', $product);
+        $this->assertStringContainsString('class="wk-buy-row"', $product);
+
+        $mobile = substr($this->css(), strrpos($this->css(), '/* ── Product page'));
+        $this->assertStringContainsString('.wk-product-layout { grid-template-columns: minmax(0, 1fr)', $mobile);
+        $this->assertStringContainsString('.wk-buy-row .wk-buy-cta { flex: 1 0 100%;', $mobile,
+            'the buy button stays wedged beside the quantity stepper');
+    }
+
+    /**
+     * Sizing on the element beats the stylesheet, so the buy button could not
+     * be widened for a phone while it carried its own flex value.
+     */
+    public function testTheBuyButtonIsSizedFromTheStylesheet(): void
+    {
+        $product = (string) file_get_contents(WK_ROOT . '/views/store/product.php');
+        $button = substr($product, strpos($product, 'id="addToCartBtn"'), 300);
+
+        $this->assertStringNotContainsString('flex:1', $button,
+            'an inline flex value here cannot be overridden for a narrow screen');
+        $this->assertStringContainsString('wk-buy-cta', $button);
+    }
+
+    /** A panel wider than the phone it opens on hangs off the side. */
+    public function testTheChatPanelFitsTheScreen(): void
+    {
+        $css = $this->css();
+        $this->assertStringContainsString('.wk-chat-window', $css);
+        $this->assertMatchesRegularExpression(
+            '/@media \(max-width: 430px\) \{\s*\.wk-chat-window \{\s*width: auto !important/',
+            $css,
+            'the panel keeps its fixed 380px on a 375px screen'
+        );
+
+        $layout = (string) file_get_contents(WK_ROOT . '/views/store/layouts/main.php');
+        $this->assertStringContainsString('class="wk-chat-window"', $layout,
+            'the rule has nothing to attach to');
+    }
 }

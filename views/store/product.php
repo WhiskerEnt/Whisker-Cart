@@ -42,7 +42,7 @@ foreach ($variants['combos'] ?? [] as $combo) {
 <section class="wk-section">
     <div class="wk-container">
         <a href="<?= $url('') ?>" style="color:var(--wk-purple-ink);font-weight:700;font-size:13px;margin-bottom:20px;display:inline-block">← Back to Shop</a>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:start">
+        <div class="wk-product-layout">
 
             <!-- Images -->
             <div>
@@ -153,13 +153,13 @@ foreach ($variants['combos'] ?? [] as $combo) {
 
                 <!-- Quantity + Add to Cart -->
                 <?php if ($totalStock > 0): ?>
-                <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px">
+                <div class="wk-buy-row">
                     <div class="wk-qty-ctrl" style="border-width:2px">
                         <button type="button" class="wk-qty-btn" style="width:40px;height:36px;font-size:18px" onclick="let i=document.getElementById('product-qty');i.value=Math.max(1,parseInt(i.value)-1)">−</button>
                         <input type="number" id="product-qty" class="wk-qty-val" value="1" min="1" max="<?= $totalStock ?>" style="width:48px;height:36px;font-size:15px">
                         <button type="button" class="wk-qty-btn" style="width:40px;height:36px;font-size:18px" onclick="let i=document.getElementById('product-qty');i.value=Math.min(999,parseInt(i.value)+1)">+</button>
                     </div>
-                    <button id="addToCartBtn" class="wk-add-btn" data-add-to-cart="<?= $p['id'] ?>" <?= $hasVariants ? 'disabled style="flex:1;border-radius:var(--radius-sm);font-size:15px;padding:16px;opacity:.5;cursor:not-allowed"' : 'style="flex:1;border-radius:var(--radius-sm);font-size:15px;padding:16px"' ?>>
+                    <button id="addToCartBtn" class="wk-add-btn wk-buy-cta" data-add-to-cart="<?= $p['id'] ?>" <?= $hasVariants ? 'disabled style="opacity:.5;cursor:not-allowed"' : '' ?>>
                         <?= $hasVariants ? 'Select options above' : '🛒 Add to Cart' ?>
                     </button>
                 </div>

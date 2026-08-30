@@ -8,11 +8,11 @@ $is='width:100%;padding:12px 16px;border:2px solid var(--wk-border);border-radiu
     <div style="background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:var(--radius);padding:32px">
         <form method="POST" action="<?= $url('account/tickets/store') ?>">
             <?= \Core\Session::csrfField() ?>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+            <div class="wk-cols-2" style="gap:14px;margin-bottom:14px">
                 <div><label style="display:block;font-size:12px;font-weight:800;text-transform:uppercase;color:var(--wk-muted);margin-bottom:6px">Name *</label><input type="text" name="name" required value="<?= $e(($c['first_name']??'').' '.($c['last_name']??'')) ?>" style="<?= $is ?>"></div>
                 <div><label style="display:block;font-size:12px;font-weight:800;text-transform:uppercase;color:var(--wk-muted);margin-bottom:6px">Email *</label><input type="email" name="email" required value="<?= $e($c['email']??'') ?>" data-wk-validate="email" style="<?= $is ?>"></div>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+            <div class="wk-cols-2" style="gap:14px;margin-bottom:14px">
                 <div>
                     <label style="display:block;font-size:12px;font-weight:800;text-transform:uppercase;color:var(--wk-muted);margin-bottom:6px">Phone</label>
                     <?php

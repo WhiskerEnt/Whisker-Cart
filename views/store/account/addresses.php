@@ -11,7 +11,7 @@ $ls = 'display:block;font-size:11px;font-weight:800;text-transform:uppercase;let
 
     <!-- Existing Addresses -->
     <?php if (!empty($addresses)): ?>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+    <div class="wk-cols-2" style="gap:16px;margin-bottom:24px">
         <?php foreach ($addresses as $addr): ?>
         <div style="background:var(--wk-surface);border:2px solid <?= $addr['is_default']?'var(--wk-purple)':'var(--wk-border)' ?>;border-radius:var(--radius);padding:20px;position:relative">
             <?php if ($addr['is_default']): ?><span style="position:absolute;top:10px;right:10px;font-size:10px;font-weight:800;background:var(--wk-purple-soft);color:var(--wk-purple-ink);padding:2px 8px;border-radius:10px">DEFAULT</span><?php endif; ?>
@@ -36,7 +36,7 @@ $ls = 'display:block;font-size:11px;font-weight:800;text-transform:uppercase;let
         <h2 style="font-size:17px;font-weight:900;margin-bottom:20px">Add New Address</h2>
         <form method="POST" action="<?= $url('account/addresses/store') ?>">
             <?= \Core\Session::csrfField() ?>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div class="wk-cols-2" style="gap:14px">
                 <div><label style="<?= $ls ?>">Label</label><select name="label" style="<?= $is ?>;cursor:pointer"><option>Home</option><option>Work</option><option>Other</option></select></div>
                 <div><label style="<?= $ls ?>">Country</label><select name="country" style="<?= $is ?>;cursor:pointer">
                     <?php foreach ($countries as $code => $info): ?><option value="<?= $code ?>" <?= $code==='IN'?'selected':'' ?>><?= $e($info['name']) ?></option><?php endforeach; ?>
@@ -44,7 +44,7 @@ $ls = 'display:block;font-size:11px;font-weight:800;text-transform:uppercase;let
             </div>
             <div style="margin-top:14px"><label style="<?= $ls ?>">Address Line 1</label><input type="text" name="address_line1" required placeholder="Street address" style="<?= $is ?>"></div>
             <div style="margin-top:14px"><label style="<?= $ls ?>">Address Line 2 <span style="font-weight:500;text-transform:none">(optional)</span></label><input type="text" name="address_line2" placeholder="Apartment, suite, etc." style="<?= $is ?>"></div>
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:14px">
+            <div class="wk-cols-3" style="gap:14px;margin-top:14px">
                 <div><label style="<?= $ls ?>">City</label><input type="text" name="city" required style="<?= $is ?>"></div>
                 <div><label style="<?= $ls ?>">State</label><input type="text" name="state" required style="<?= $is ?>"></div>
                 <div><label style="<?= $ls ?>">Postal Code</label><input type="text" name="postal_code" required style="<?= $is ?>"></div>

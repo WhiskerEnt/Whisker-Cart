@@ -28,7 +28,7 @@ $ls = 'display:block;font-size:11px;font-weight:800;text-transform:uppercase;let
         <h2 style="font-size:17px;font-weight:900;margin-bottom:20px">Personal Information</h2>
         <form method="POST" action="<?= $url('account/profile') ?>">
             <?= \Core\Session::csrfField() ?>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div class="wk-cols-2" style="gap:14px">
                 <div><label style="<?= $ls ?>">First Name</label><input type="text" name="first_name" value="<?= $e($c['first_name']) ?>" required style="<?= $is ?>"></div>
                 <div><label style="<?= $ls ?>">Last Name</label><input type="text" name="last_name" value="<?= $e($c['last_name']) ?>" required style="<?= $is ?>"></div>
             </div>
@@ -51,7 +51,7 @@ $ls = 'display:block;font-size:11px;font-weight:800;text-transform:uppercase;let
         <form method="POST" action="<?= $url('account/set-password') ?>">
             <?= \Core\Session::csrfField() ?>
             <div style="margin-bottom:14px"><label style="<?= $ls ?>">Current Password</label><input type="password" name="current_password" required placeholder="Your existing password" autocomplete="current-password" style="<?= $is ?>"></div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div class="wk-cols-2" style="gap:14px">
                 <div><label style="<?= $ls ?>">New Password</label><input type="password" name="new_password" required minlength="8" placeholder="Min 8 characters" autocomplete="new-password" style="<?= $is ?>"></div>
                 <div><label style="<?= $ls ?>">Confirm Password</label><input type="password" name="confirm_password" required placeholder="Type again" autocomplete="new-password" style="<?= $is ?>"></div>
             </div>

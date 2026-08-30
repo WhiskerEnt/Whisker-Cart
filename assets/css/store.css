@@ -1355,3 +1355,58 @@ input.wk-field-invalid { border-color: #ef4444 !important; }
 /* A slide is dragged, so nothing inside it should look selectable. */
 .wk-carousel-track { user-select: none; -webkit-user-select: none; touch-action: pan-y; }
 .wk-carousel-track a, .wk-carousel-track img { -webkit-user-drag: none; }
+
+
+/* ── Product page ─────────────────────────────
+   The gallery beside the details, until there is no room for two of anything. */
+.wk-product-layout {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: start;
+}
+.wk-buy-row { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+/* Sizing lives here rather than on the element, so a narrow screen can put the
+   button on its own line instead of squeezing it beside the stepper. */
+.wk-buy-cta { flex: 1; border-radius: var(--radius-sm); font-size: 15px; padding: 16px; }
+
+@media (max-width: 768px) {
+    /* Side by side, these were an 80px picture next to a column of text and a
+       buy button 75px wide with its label broken over three lines. */
+    .wk-product-layout { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+
+    /* The quantity stepper keeps its size; the button takes the row below it
+       and the full width, which is where a thumb expects it. */
+    .wk-buy-row { flex-wrap: wrap; gap: 12px; }
+    .wk-buy-row .wk-buy-cta { flex: 1 0 100%; width: 100%; }
+
+    /* Folded away, the contact button sat over the middle of the page. Down in
+       the corner it is still to hand and over nothing. */
+    .wk-social:not(.is-open) { top: auto; bottom: 84px; transform: none; }
+    .wk-social-left:not(.is-open)  { left: 12px; }
+    .wk-social-right:not(.is-open) { right: 12px; }
+}
+
+
+/* ── Column layouts ───────────────────────────
+   Forms and panels were laid out in two and three columns written straight
+   onto the element, so a phone got two 140px columns of a shipping address
+   rather than one readable one. */
+.wk-cols-2 { display: grid; grid-template-columns: 1fr 1fr; }
+.wk-cols-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; }
+.wk-checkout-layout { display: grid; grid-template-columns: 1.3fr 1fr; }
+
+@media (max-width: 768px) {
+    .wk-cols-2,
+    .wk-cols-3,
+    .wk-checkout-layout { grid-template-columns: minmax(0, 1fr); }
+}
+
+
+/* The chat panel is a fixed 380px, which is wider than the phone it opens on.
+   Inline width wins over a plain rule, so this one has to insist. */
+@media (max-width: 430px) {
+    .wk-chat-window {
+        width: auto !important;
+        left: 12px !important;
+        right: 12px !important;
+        max-height: 70vh !important;
+    }
+}

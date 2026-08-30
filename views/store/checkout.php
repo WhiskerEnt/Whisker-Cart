@@ -38,18 +38,18 @@ $defAddr = !empty($addrs) ? $addrs[0] : [];
             </div>
         <?php else: ?>
 
-        <form method="POST" action="<?= $url('checkout/process') ?>" style="display:grid;grid-template-columns:1.3fr 1fr;gap:28px">
+        <form method="POST" action="<?= $url('checkout/process') ?>" class="wk-checkout-layout" style="gap:28px">
             <?= \Core\Session::csrfField() ?>
 
             <div>
                 <!-- Contact -->
                 <div style="background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:var(--radius);padding:28px;margin-bottom:20px">
                     <h2 style="font-size:17px;font-weight:900;margin-bottom:20px">Contact Information</h2>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+                    <div class="wk-cols-2" style="gap:14px">
                         <div><label style="<?= $ls ?>">First Name</label><input type="text" name="first_name" required value="<?= $e($cust['first_name']??'') ?>" placeholder="John" style="<?= $is ?>"></div>
                         <div><label style="<?= $ls ?>">Last Name</label><input type="text" name="last_name" required value="<?= $e($cust['last_name']??'') ?>" placeholder="Doe" style="<?= $is ?>"></div>
                     </div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px">
+                    <div class="wk-cols-2" style="gap:14px;margin-top:14px">
                         <div><label style="<?= $ls ?>">Email</label><input type="email" name="email" required value="<?= $e($cust['email']??'') ?>" placeholder="john@example.com" data-wk-validate="email" style="<?= $is ?>"></div>
                         <div>
                             <label style="<?= $ls ?>">Phone</label>
@@ -114,11 +114,11 @@ $defAddr = !empty($addrs) ? $addrs[0] : [];
 
                     <div><label style="<?= $ls ?>">Address</label><input type="text" name="address1" id="ship_addr" required value="<?= $e($defAddr['address_line1']??'') ?>" placeholder="123 Main Street" style="<?= $is ?>"></div>
                     <div style="margin-top:14px"><label style="<?= $ls ?>">Apartment, suite, etc. <span style="font-weight:500;text-transform:none;color:var(--wk-muted)">(optional)</span></label><input type="text" name="address2" id="ship_addr2" value="<?= $e($defAddr['address_line2']??'') ?>" placeholder="Flat 4B" style="<?= $is ?>"></div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px">
+                    <div class="wk-cols-2" style="gap:14px;margin-top:14px">
                         <div><label style="<?= $ls ?>">City</label><input type="text" name="city" id="ship_city" required value="<?= $e($defAddr['city']??'') ?>" style="<?= $is ?>"></div>
                         <div><label style="<?= $ls ?>">State</label><input type="text" name="state" id="ship_state" required value="<?= $e($defAddr['state']??'') ?>" style="<?= $is ?>"></div>
                     </div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px">
+                    <div class="wk-cols-2" style="gap:14px;margin-top:14px">
                         <div><label style="<?= $ls ?>">Country</label><select name="country" id="ship_country" style="<?= $is ?> cursor:pointer">
                             <?php
                             // Only what the store will post to. A single option is
@@ -159,11 +159,11 @@ $defAddr = !empty($addrs) ? $addrs[0] : [];
                         <?php endif; ?>
                         <div><label style="<?= $ls ?>">Address</label><input type="text" name="billing_address1" id="bill_addr" placeholder="123 Main Street" style="<?= $is ?>"></div>
                         <div style="margin-top:14px"><label style="<?= $ls ?>">Apartment, suite, etc. <span style="font-weight:500;text-transform:none;color:var(--wk-muted)">(optional)</span></label><input type="text" name="billing_address2" id="bill_addr2" placeholder="Flat 4B" style="<?= $is ?>"></div>
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px">
+                        <div class="wk-cols-2" style="gap:14px;margin-top:14px">
                             <div><label style="<?= $ls ?>">City</label><input type="text" name="billing_city" id="bill_city" style="<?= $is ?>"></div>
                             <div><label style="<?= $ls ?>">State</label><input type="text" name="billing_state" id="bill_state" style="<?= $is ?>"></div>
                         </div>
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px">
+                        <div class="wk-cols-2" style="gap:14px;margin-top:14px">
                             <div><label style="<?= $ls ?>">Country</label><select name="billing_country" id="bill_country" style="<?= $is ?> cursor:pointer">
                                 <?php
                                 // Billing is not restricted: you can pay from a
