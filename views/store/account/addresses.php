@@ -6,7 +6,7 @@ $ls = 'display:block;font-size:11px;font-weight:800;text-transform:uppercase;let
 <section class="wk-section"><div class="wk-container" style="max-width:700px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
         <h1 style="font-size:24px;font-weight:900">My Addresses</h1>
-        <a href="<?= $url('account') ?>" style="font-size:13px;font-weight:700;color:var(--wk-purple)">← Back to Account</a>
+        <a href="<?= $url('account') ?>" style="font-size:13px;font-weight:700;color:var(--wk-purple-ink)">← Back to Account</a>
     </div>
 
     <!-- Existing Addresses -->
@@ -14,7 +14,7 @@ $ls = 'display:block;font-size:11px;font-weight:800;text-transform:uppercase;let
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
         <?php foreach ($addresses as $addr): ?>
         <div style="background:var(--wk-surface);border:2px solid <?= $addr['is_default']?'var(--wk-purple)':'var(--wk-border)' ?>;border-radius:var(--radius);padding:20px;position:relative">
-            <?php if ($addr['is_default']): ?><span style="position:absolute;top:10px;right:10px;font-size:10px;font-weight:800;background:var(--wk-purple-soft);color:var(--wk-purple);padding:2px 8px;border-radius:10px">DEFAULT</span><?php endif; ?>
+            <?php if ($addr['is_default']): ?><span style="position:absolute;top:10px;right:10px;font-size:10px;font-weight:800;background:var(--wk-purple-soft);color:var(--wk-purple-ink);padding:2px 8px;border-radius:10px">DEFAULT</span><?php endif; ?>
             <div style="font-weight:800;margin-bottom:4px"><?= $e($addr['label']) ?></div>
             <div style="font-size:14px;color:var(--wk-muted);line-height:1.6">
                 <?= $e($addr['address_line1']) ?><br>

@@ -54,15 +54,15 @@
     <div style="background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:var(--radius)">
         <div style="padding:18px 22px;border-bottom:1px solid var(--wk-border);display:flex;align-items:center;justify-content:space-between">
             <h2 style="font-size:16px;font-weight:800">Recent Orders</h2>
-            <a href="<?= $url('account/orders') ?>" style="font-size:13px;font-weight:700;color:var(--wk-purple)">View All →</a>
+            <a href="<?= $url('account/orders') ?>" style="font-size:13px;font-weight:700;color:var(--wk-purple-ink)">View All →</a>
         </div>
         <?php if (empty($recentOrders)): ?>
-            <div style="text-align:center;padding:40px;color:var(--wk-muted)"><p style="font-weight:700">No orders yet</p><p style="font-size:13px"><a href="<?= $url('') ?>" style="color:var(--wk-purple)">Start shopping →</a></p></div>
+            <div style="text-align:center;padding:40px;color:var(--wk-muted)"><p style="font-weight:700">No orders yet</p><p style="font-size:13px"><a href="<?= $url('') ?>" style="color:var(--wk-purple-ink)">Start shopping →</a></p></div>
         <?php else: ?>
             <?php foreach ($recentOrders as $o): ?>
             <a href="<?= $url('account/order/'.$o['id']) ?>" style="display:flex;align-items:center;justify-content:space-between;padding:14px 22px;border-bottom:1px solid var(--wk-border);text-decoration:none;transition:background .1s">
                 <div>
-                    <div style="font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--wk-purple)"><?= $e($o['order_number']) ?></div>
+                    <div style="font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--wk-purple-ink)"><?= $e($o['order_number']) ?></div>
                     <div style="font-size:12px;color:var(--wk-muted)"><?= date('M j, Y', strtotime($o['created_at'])) ?></div>
                 </div>
                 <div style="text-align:right">

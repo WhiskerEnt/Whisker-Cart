@@ -3,7 +3,9 @@
    Light & airy with vibrant accents
    ============================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
+/* The font is requested from the page head. An @import here would only be
+   found once this file had downloaded and parsed, delaying the first paint by
+   a second request the browser could not have known about in advance. */
 
 :root {
     --wk-purple:      #8b5cf6;

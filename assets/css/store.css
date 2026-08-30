@@ -3,10 +3,16 @@
    Purple / Pink / Green on light airy white
    ============================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
+/* The font is requested from the page head, not from here. An @import is only
+   discovered once this file has downloaded and parsed, so it holds up the
+   first paint twice over: once for this stylesheet, then again for that one. */
 
 :root {
     --wk-purple:     #8b5cf6;
+    /* The accent as text. The fill colour above is tuned to look right in a
+       button or a gradient; as small text on a pale page it is too light to
+       read, so links and labels use this darker tone of the same hue. */
+    --wk-purple-ink: #7c3aed;
     --wk-purple-soft:#ede9fe;
     --wk-pink:       #ec4899;
     --wk-pink-soft:  #fce7f3;
@@ -19,7 +25,10 @@
     --wk-text:       #1e1b2e;
     --wk-muted:      #6b7280;
     --wk-border:     #e8e5df;
-    --font:          'Nunito', sans-serif;
+    /* The font arrives without blocking the first paint, so text is drawn in
+       the fallback first. These are the faces closest to Nunito's proportions
+       on each platform, which keeps the swap from moving the page. */
+    --font:          'Nunito', 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
     --font-mono:     'JetBrains Mono', monospace;
     --radius:        14px;
     --radius-sm:     8px;
@@ -29,6 +38,10 @@
 /* Ocean Blue */
 [data-theme="ocean"] {
     --wk-purple:     #0ea5e9;
+    /* The accent as text. The fill colour above is tuned to look right in a
+       button or a gradient; as small text on a pale page it is too light to
+       read, so links and labels use this darker tone of the same hue. */
+    --wk-purple-ink: #0369a1;
     --wk-purple-soft:#e0f2fe;
     --wk-pink:       #06b6d4;
     --wk-pink-soft:  #cffafe;
@@ -46,6 +59,10 @@
 /* Forest Green */
 [data-theme="forest"] {
     --wk-purple:     #16a34a;
+    /* The accent as text. The fill colour above is tuned to look right in a
+       button or a gradient; as small text on a pale page it is too light to
+       read, so links and labels use this darker tone of the same hue. */
+    --wk-purple-ink: #15803d;
     --wk-purple-soft:#dcfce7;
     --wk-pink:       #ca8a04;
     --wk-pink-soft:  #fef9c3;
@@ -63,6 +80,10 @@
 /* Sunset Orange */
 [data-theme="sunset"] {
     --wk-purple:     #f97316;
+    /* The accent as text. The fill colour above is tuned to look right in a
+       button or a gradient; as small text on a pale page it is too light to
+       read, so links and labels use this darker tone of the same hue. */
+    --wk-purple-ink: #c2410c;
     --wk-purple-soft:#fff7ed;
     --wk-pink:       #e11d48;
     --wk-pink-soft:  #ffe4e6;
@@ -80,6 +101,10 @@
 /* Midnight Dark */
 [data-theme="midnight"] {
     --wk-purple:     #a78bfa;
+    /* The accent as text. The fill colour above is tuned to look right in a
+       button or a gradient; as small text on a pale page it is too light to
+       read, so links and labels use this darker tone of the same hue. */
+    --wk-purple-ink: #7c3aed;
     --wk-purple-soft:#1e1b3a;
     --wk-pink:       #f472b6;
     --wk-pink-soft:  #2a1528;
@@ -143,7 +168,7 @@ img { max-width: 100%; display: block; }
 .wk-header-nav.wk-nav-ready { overflow: visible; }
 /* Each nav label stays on one line — long names wrap as whole items, never mid-label. */
 .wk-header-nav > a, .wk-nav-dropdown-trigger { font-size: 14px; font-weight: 700; color: var(--wk-muted); transition: color .2s; text-decoration: none; white-space: nowrap; }
-.wk-header-nav > a:hover, .wk-nav-dropdown-trigger:hover { color: var(--wk-purple); }
+.wk-header-nav > a:hover, .wk-nav-dropdown-trigger:hover { color: var(--wk-purple-ink); }
 
 /* Category Dropdown */
 .wk-nav-dropdown { position: relative; }
@@ -166,7 +191,7 @@ img { max-width: 100%; display: block; }
     display: block; padding: 8px 20px; font-size: 13px; font-weight: 600; color: var(--wk-text);
     transition: all .15s; text-decoration: none;
 }
-.wk-nav-dropdown-menu a:hover { background: var(--wk-purple-soft); color: var(--wk-purple); }
+.wk-nav-dropdown-menu a:hover { background: var(--wk-purple-soft); color: var(--wk-purple-ink); }
 .wk-nav-dropdown:hover .wk-nav-dropdown-menu { display: block; }
 /* Invisible bridge so mouse can travel from trigger to menu */
 .wk-nav-dropdown::after { content: ''; position: absolute; top: 100%; left: 0; right: 0; height: 12px; }
@@ -179,7 +204,7 @@ img { max-width: 100%; display: block; }
     color: var(--wk-text); display: flex; align-items: center; gap: 6px;
     transition: all .2s;
 }
-.wk-cart-btn:hover { border-color: var(--wk-purple); color: var(--wk-purple); }
+.wk-cart-btn:hover { border-color: var(--wk-purple-ink); color: var(--wk-purple-ink); }
 .wk-cart-count {
     background: linear-gradient(135deg, var(--wk-purple), var(--wk-pink));
     color: #fff; font-size: 10px; font-weight: 900;
@@ -255,7 +280,7 @@ img { max-width: 100%; display: block; }
 
 .wk-product-card:hover {
     transform: translateY(-6px);
-    border-color: var(--wk-purple);
+    border-color: var(--wk-purple-ink);
     box-shadow: 0 12px 40px rgba(139,92,246,.12);
 }
 
@@ -278,7 +303,7 @@ img { max-width: 100%; display: block; }
 .wk-product-info { padding: 16px 18px; }
 .wk-product-cat {
     font-size: 11px; font-weight: 800; text-transform: uppercase;
-    letter-spacing: 1px; color: var(--wk-purple); margin-bottom: 4px;
+    letter-spacing: 1px; color: var(--wk-purple-ink); margin-bottom: 4px;
 }
 .wk-product-name { font-size: 15px; font-weight: 800; margin-bottom: 8px; line-height: 1.3; }
 .wk-product-price { display: flex; align-items: center; gap: 8px; }
@@ -333,7 +358,7 @@ img { max-width: 100%; display: block; }
     cursor: pointer; font-size: 14px; font-weight: 800;
     color: var(--wk-text); transition: all .2s;
 }
-.wk-cart-close:hover { border-color: var(--wk-purple); color: var(--wk-purple); }
+.wk-cart-close:hover { border-color: var(--wk-purple-ink); color: var(--wk-purple-ink); }
 
 .wk-cart-items { flex: 1; overflow-y: auto; padding: 16px 24px; }
 
@@ -362,7 +387,7 @@ img { max-width: 100%; display: block; }
     cursor: pointer; font-size: 14px; font-weight: 800; color: var(--wk-text);
     transition: background .15s;
 }
-.wk-qty-btn:hover { background: var(--wk-purple-soft); color: var(--wk-purple); }
+.wk-qty-btn:hover { background: var(--wk-purple-soft); color: var(--wk-purple-ink); }
 .wk-qty-val {
     width: 32px; height: 28px; text-align: center; border: none;
     background: var(--wk-surface); font-family: var(--font-mono); font-size: 13px; font-weight: 700;
@@ -500,7 +525,7 @@ img { max-width: 100%; display: block; }
     display: inline-flex; align-items: center; gap: 8px;
     padding: 14px 32px;
     background: #fff;
-    color: var(--wk-purple);
+    color: var(--wk-purple-ink);
     border-radius: 12px;
     font-weight: 800; font-size: 15px;
     text-decoration: none;
@@ -537,6 +562,10 @@ img { max-width: 100%; display: block; }
     display: flex; align-items: center; justify-content: center;
     cursor: pointer;
     position: relative;
+    /* Hold the space the image will take. Without it the hero is empty until
+       the picture arrives and then grows by its full height, shoving the rest
+       of the page down — the single largest layout shift on the front page. */
+    min-height: 400px;
 }
 .wk-hero-slide-img img {
     max-height: 400px;
@@ -572,24 +601,34 @@ img { max-width: 100%; display: block; }
 
 /* Hero dots */
 .wk-hero-carousel .wk-carousel-dots {
-    display: flex; justify-content: center; gap: 8px;
-    position: absolute; bottom: 20px; left: 0; right: 0;
+    display: flex; justify-content: center; gap: 4px;
+    position: absolute; bottom: 14px; left: 0; right: 0;
     z-index: 3;
     padding: 0;
 }
+/* The dot stays the size it looks; the button around it is big enough to hit
+   with a thumb. A 10px target is a miss for most people on a phone. */
 .wk-hero-carousel .wk-carousel-dot,
 .wk-carousel-dot {
-    width: 10px; height: 10px; border-radius: 50%;
-    background: rgba(255,255,255,.3); border: none;
-    cursor: pointer; transition: all .3s;
-    padding: 0;
+    width: 24px; height: 24px; border-radius: 50%;
+    background: none; border: none;
+    cursor: pointer; padding: 0;
+    display: grid; place-items: center;
 }
-.wk-hero-carousel .wk-carousel-dot.active,
-.wk-carousel-dot.active {
+.wk-hero-carousel .wk-carousel-dot::after,
+.wk-carousel-dot::after {
+    content: ''; display: block;
+    width: 10px; height: 10px; border-radius: 50%;
+    background: rgba(255,255,255,.3);
+    transition: background .3s, transform .3s, box-shadow .3s;
+}
+.wk-hero-carousel .wk-carousel-dot.active::after,
+.wk-carousel-dot.active::after {
     background: #fff;
     transform: scale(1.2);
     box-shadow: 0 0 12px rgba(255,255,255,.5);
 }
+.wk-carousel-dot:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 
 /* Slide counter */
 .wk-hero-counter {
@@ -607,7 +646,7 @@ img { max-width: 100%; display: block; }
         gap: 24px;
         padding-top: 36px; padding-bottom: 52px;
     }
-    .wk-hero-slide-img { order: -1; }
+    .wk-hero-slide-img { order: -1; min-height: 240px; }
     .wk-hero-slide-img img { max-height: 240px; }
     .wk-hero-name { font-size: 28px; }
     .wk-hero-price-current { font-size: 26px; }
@@ -659,11 +698,11 @@ img { max-width: 100%; display: block; }
 .wk-search-input::placeholder { color: var(--wk-muted); font-weight: 600; }
 .wk-search-input::-webkit-search-cancel-button { -webkit-appearance: none; }
 .wk-search-input:focus {
-    border-color: var(--wk-purple); background: var(--wk-surface);
+    border-color: var(--wk-purple-ink); background: var(--wk-surface);
     box-shadow: 0 0 0 4px var(--wk-purple-soft);
 }
 .wk-search-input:focus + .wk-search-icon,
-.wk-search:focus-within .wk-search-icon { color: var(--wk-purple); }
+.wk-search:focus-within .wk-search-icon { color: var(--wk-purple-ink); }
 /* The nav "Search" link is redundant once the box is present. */
 .wk-search-link { display: none !important; }
 
@@ -689,7 +728,7 @@ img { max-width: 100%; display: block; }
     font-size: 13px; font-weight: 800; line-height: 1.3;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.wk-search-name mark { background: transparent; color: var(--wk-purple); font-weight: 900; }
+.wk-search-name mark { background: transparent; color: var(--wk-purple-ink); font-weight: 900; }
 .wk-search-meta {
     font-size: 11px; color: var(--wk-muted); font-weight: 700;
     text-transform: uppercase; letter-spacing: .3px;
@@ -701,7 +740,7 @@ img { max-width: 100%; display: block; }
 .wk-search-oos { color: var(--wk-red); }
 .wk-search-foot {
     display: block; padding: 11px 14px; text-align: center;
-    font-size: 12px; font-weight: 800; color: var(--wk-purple);
+    font-size: 12px; font-weight: 800; color: var(--wk-purple-ink);
     text-decoration: none; background: var(--wk-bg);
     border-top: 1px solid var(--wk-border);
 }
@@ -762,7 +801,7 @@ img { max-width: 100%; display: block; }
 .wk-cookie-copy { flex: 1 1 320px; min-width: 0; }
 .wk-cookie-title { font-size: 14px; font-weight: 900; margin: 0 0 3px; }
 .wk-cookie-text { font-size: 13px; line-height: 1.55; color: var(--wk-muted); margin: 0; }
-.wk-cookie-link { color: var(--wk-purple); font-weight: 700; text-decoration: underline; }
+.wk-cookie-link { color: var(--wk-purple-ink); font-weight: 700; text-decoration: underline; }
 .wk-cookie-actions { display: flex; gap: 10px; flex: 0 0 auto; }
 .wk-cookie-btn {
     font: inherit; font-size: 13px; font-weight: 800; cursor: pointer;
@@ -771,8 +810,8 @@ img { max-width: 100%; display: block; }
     color: var(--wk-text); transition: border-color .15s ease, background .15s ease;
 }
 .wk-cookie-btn:hover { border-color: var(--wk-text); }
-.wk-cookie-btn-accept { background: var(--wk-purple); border-color: var(--wk-purple); color: #fff; }
-.wk-cookie-btn-accept:hover { filter: brightness(1.08); border-color: var(--wk-purple); }
+.wk-cookie-btn-accept { background: var(--wk-purple); border-color: var(--wk-purple-ink); color: #fff; }
+.wk-cookie-btn-accept:hover { filter: brightness(1.08); border-color: var(--wk-purple-ink); }
 .wk-cookie-btn:focus-visible { outline: 3px solid var(--wk-purple); outline-offset: 2px; }
 /* Category preferences, revealed by Customise */
 .wk-cookie-prefs {
@@ -867,7 +906,7 @@ img { max-width: 100%; display: block; }
     margin: 12px 0 0; padding: 12px 14px; background: var(--wk-bg);
     border-left: 3px solid var(--wk-purple); border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
-.wk-review-reply-who { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--wk-purple); }
+.wk-review-reply-who { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--wk-purple-ink); }
 .wk-review-reply p { font-size: 13px; line-height: 1.7; margin: 4px 0 0; white-space: pre-line; }
 
 .wk-review-form-wrap {
@@ -887,7 +926,7 @@ img { max-width: 100%; display: block; }
     background: var(--wk-bg); color: var(--wk-text); width: 100%;
 }
 .wk-review-form textarea { resize: vertical; min-height: 96px; }
-.wk-review-form input:focus, .wk-review-form textarea:focus { outline: none; border-color: var(--wk-purple); }
+.wk-review-form input:focus, .wk-review-form textarea:focus { outline: none; border-color: var(--wk-purple-ink); }
 /* The storefront has no generic .wk-btn — that is an admin class — so the
    submit button carries its own styling in the store's button language. */
 .wk-review-submit {
@@ -935,7 +974,7 @@ img { max-width: 100%; display: block; }
 
 /* Rating an item straight from the customer's order */
 .wk-order-rate summary {
-    font-size: 12.5px; font-weight: 800; color: var(--wk-purple); cursor: pointer;
+    font-size: 12.5px; font-weight: 800; color: var(--wk-purple-ink); cursor: pointer;
     display: inline-block; padding: 4px 0;
 }
 .wk-order-rate-form { display: grid; gap: 10px; margin-top: 10px; max-width: 460px; }
@@ -945,7 +984,7 @@ img { max-width: 100%; display: block; }
     background: var(--wk-bg); color: var(--wk-text); width: 100%;
 }
 .wk-order-rate-form textarea { resize: vertical; }
-.wk-order-rate-form input:focus, .wk-order-rate-form textarea:focus { outline: none; border-color: var(--wk-purple); }
+.wk-order-rate-form input:focus, .wk-order-rate-form textarea:focus { outline: none; border-color: var(--wk-purple-ink); }
 .wk-order-rate-form .wk-rating-input label { font-size: 24px; }
 .wk-order-rate-form .wk-review-submit { padding: 10px 22px; font-size: 13px; }
 .wk-order-rate-note { font-size: 12px; color: var(--wk-muted); margin: 0; line-height: 1.55; }
@@ -954,7 +993,7 @@ img { max-width: 100%; display: block; }
 .wk-qa { margin-top: 48px; padding-top: 36px; border-top: 2px solid var(--wk-border); scroll-margin-top: 90px; }
 .wk-qa-heading { font-size: 22px; font-weight: 900; margin: 0 0 22px; display: flex; align-items: center; gap: 10px; }
 .wk-qa-count {
-    font-size: 12px; font-weight: 800; color: var(--wk-purple);
+    font-size: 12px; font-weight: 800; color: var(--wk-purple-ink);
     background: var(--wk-purple-soft); padding: 3px 10px; border-radius: 99px;
 }
 .wk-qa-empty { color: var(--wk-muted); font-size: 14px; margin: 0 0 24px; }
@@ -991,7 +1030,7 @@ img { max-width: 100%; display: block; }
     background: var(--wk-bg); color: var(--wk-text); width: 100%;
 }
 .wk-qa-form textarea { resize: vertical; min-height: 80px; }
-.wk-qa-form input:focus, .wk-qa-form textarea:focus { outline: none; border-color: var(--wk-purple); }
+.wk-qa-form input:focus, .wk-qa-form textarea:focus { outline: none; border-color: var(--wk-purple-ink); }
 .wk-qa-form input.is-bad { border-color: var(--wk-red); }
 .wk-qa-form input.is-ok  { border-color: var(--wk-green); }
 .wk-qa-form small.is-bad { color: var(--wk-red); font-weight: 700; }
@@ -1153,7 +1192,7 @@ img { max-width: 100%; display: block; }
     background: var(--wk-purple-soft); border: 2px dashed var(--wk-purple);
     border-radius: var(--radius-sm); padding: 14px; margin-bottom: 18px;
 }
-.wk-lead-offer-value { display: block; font-size: 26px; font-weight: 900; color: var(--wk-purple); line-height: 1.1; }
+.wk-lead-offer-value { display: block; font-size: 26px; font-weight: 900; color: var(--wk-purple-ink); line-height: 1.1; }
 .wk-lead-offer-note { font-size: 12px; font-weight: 700; color: var(--wk-muted); }
 
 .wk-lead-form { display: grid; gap: 12px; }
@@ -1163,7 +1202,7 @@ img { max-width: 100%; display: block; }
     border: 2px solid var(--wk-border); border-radius: var(--radius-sm);
     background: var(--wk-bg); color: var(--wk-text); width: 100%;
 }
-.wk-lead-field input:focus { outline: none; border-color: var(--wk-purple); }
+.wk-lead-field input:focus { outline: none; border-color: var(--wk-purple-ink); }
 .wk-lead-hint { font-size: 11.5px; color: var(--wk-muted); margin: -4px 0 0; text-align: left; }
 .wk-lead-submit {
     font: inherit; font-size: 15px; font-weight: 800; cursor: pointer; padding: 13px;
@@ -1182,7 +1221,7 @@ img { max-width: 100%; display: block; }
 .wk-lead-done.is-bad { color: var(--wk-red); font-weight: 700; }
 .wk-lead-code {
     display: inline-block; font-family: var(--font-mono); font-size: 18px;
-    background: var(--wk-purple-soft); color: var(--wk-purple);
+    background: var(--wk-purple-soft); color: var(--wk-purple-ink);
     padding: 4px 12px; border-radius: 6px; margin-top: 8px;
 }
 @media (prefers-reduced-motion: reduce) {
@@ -1193,7 +1232,7 @@ img { max-width: 100%; display: block; }
 /* Link from the description to the questions further down the page */
 .wk-ask-link {
     display: inline-flex; align-items: center; gap: 7px;
-    font-size: 13px; font-weight: 700; color: var(--wk-purple);
+    font-size: 13px; font-weight: 700; color: var(--wk-purple-ink);
     text-decoration: none; margin-bottom: 18px;
     padding: 7px 12px; border-radius: 999px;
     background: var(--wk-purple-soft); transition: filter .15s ease;
@@ -1241,4 +1280,4 @@ input.wk-field-invalid { border-color: #ef4444 !important; }
     font-family: var(--font); font-size: 13px; font-weight: 700;
     background: var(--wk-surface); color: var(--wk-text);
 }
-.wk-lead-field .wk-phone-field select:focus { outline: none; border-color: var(--wk-purple); }
+.wk-lead-field .wk-phone-field select:focus { outline: none; border-color: var(--wk-purple-ink); }

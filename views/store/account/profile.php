@@ -7,7 +7,7 @@ $ls = 'display:block;font-size:11px;font-weight:800;text-transform:uppercase;let
 <section class="wk-section"><div class="wk-container" style="max-width:700px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
         <h1 style="font-size:24px;font-weight:900">My Profile</h1>
-        <a href="<?= $url('account') ?>" style="font-size:13px;font-weight:700;color:var(--wk-purple)">← Back to Account</a>
+        <a href="<?= $url('account') ?>" style="font-size:13px;font-weight:700;color:var(--wk-purple-ink)">← Back to Account</a>
     </div>
 
     <?php if (!$hasSetPassword): ?>

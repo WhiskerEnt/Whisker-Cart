@@ -11,12 +11,12 @@
             <div style="margin-top:14px">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
                     <label style="font-size:11px;font-weight:800;text-transform:uppercase;color:var(--wk-muted)">Password</label>
-                    <a href="<?= $url('account/forgot-password') ?>" style="font-size:11px;font-weight:700;color:var(--wk-purple)">Forgot password?</a>
+                    <a href="<?= $url('account/forgot-password') ?>" style="font-size:11px;font-weight:700;color:var(--wk-purple-ink)">Forgot password?</a>
                 </div>
                 <input type="password" name="password" required style="width:100%;padding:10px 14px;border:2px solid var(--wk-border);border-radius:8px;font-family:var(--font);font-size:14px;font-weight:600">
             </div>
             <button type="submit" class="wk-checkout-btn" style="margin-top:20px">Sign In →</button>
         </form>
     </div>
-    <p style="text-align:center;margin-top:16px;font-size:14px;color:var(--wk-muted)">Don't have an account? <a href="<?= $url('account/register') ?>" style="color:var(--wk-purple);font-weight:700">Create one</a></p>
+    <p style="text-align:center;margin-top:16px;font-size:14px;color:var(--wk-muted)">Don't have an account? <a href="<?= $url('account/register') ?>" style="color:var(--wk-purple-ink);font-weight:700">Create one</a></p>
 </div></section>

@@ -69,8 +69,17 @@ $currentSymbol = $currentCurrency === $baseCurrency
     <?php else: ?>
     <link rel="icon" type="image/svg+xml" href="<?= \Core\View::asset('img/favicon.svg') ?>">
     <?php endif; ?>
+    <?php
+    // The font stylesheet lives on someone else's server, so fetching it costs
+    // a DNS lookup, a connection and a round trip before the page can paint.
+    // It is loaded without blocking instead: the page draws in the fallback
+    // face and swaps when the real one lands.
+    $wkFonts = 'https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap';
+    ?>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="<?= $e($wkFonts) ?>" media="print" onload="this.media='all';this.onload=null">
+    <noscript><link rel="stylesheet" href="<?= $e($wkFonts) ?>"></noscript>
     <link rel="stylesheet" href="<?= \Core\View::asset('css/store.css') ?>">
 </head>
 <?php $storeTheme = \Core\Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='store_theme'") ?: 'purple'; ?>
@@ -120,7 +129,7 @@ $currentSymbol = $currentCurrency === $baseCurrency
                 <div class="wk-nav-dropdown">
                     <a href="<?= $url('category/' . $cat['slug']) ?>" class="wk-nav-dropdown-trigger"><?= $e($cat['name']) ?> <span style="font-size:9px;opacity:.5">▼</span></a>
                     <div class="wk-nav-dropdown-menu">
-                        <a href="<?= $url('category/' . $cat['slug']) ?>" style="font-weight:800;color:var(--wk-purple)">All <?= $e($cat['name']) ?></a>
+                        <a href="<?= $url('category/' . $cat['slug']) ?>" style="font-weight:800;color:var(--wk-purple-ink)">All <?= $e($cat['name']) ?></a>
                         <?php foreach ($children as $child): ?>
                         <a href="<?= $url('category/' . $child['slug']) ?>"><?= $e($child['name']) ?></a>
                         <?php endforeach; ?>
@@ -180,7 +189,7 @@ $currentSymbol = $currentCurrency === $baseCurrency
             $wkMenuItem = 'display:block;padding:12px 16px;font-size:13px;font-weight:700;color:var(--wk-text);border-bottom:1px solid var(--wk-border)';
             ?>
             <div style="position:relative" id="accountMenu">
-                <button type="button" onclick="wkToggleAccount()" id="accountToggle" aria-haspopup="true" aria-expanded="false" style="background:none;border:2px solid var(--wk-border);border-radius:8px;padding:6px 12px;cursor:pointer;font-family:var(--font);font-size:13px;font-weight:800;color:var(--wk-purple);display:flex;align-items:center;gap:6px;white-space:nowrap">
+                <button type="button" onclick="wkToggleAccount()" id="accountToggle" aria-haspopup="true" aria-expanded="false" style="background:none;border:2px solid var(--wk-border);border-radius:8px;padding:6px 12px;cursor:pointer;font-family:var(--font);font-size:13px;font-weight:800;color:var(--wk-purple-ink);display:flex;align-items:center;gap:6px;white-space:nowrap">
                     <?php if ($isLoggedIn): ?>
                         👋 <?= $e($customer['first_name'] ?? 'Account') ?> ▾
                     <?php else: ?>
@@ -199,7 +208,7 @@ $currentSymbol = $currentCurrency === $baseCurrency
                         </form>
                     <?php else: ?>
                         <a href="<?= $url('account/login') ?>" style="<?= $wkMenuItem ?>">↪ Sign In</a>
-                        <a href="<?= $url('account/register') ?>" style="<?= $wkMenuItem ?>;color:var(--wk-purple)">✨ Create Account</a>
+                        <a href="<?= $url('account/register') ?>" style="<?= $wkMenuItem ?>;color:var(--wk-purple-ink)">✨ Create Account</a>
                         <a href="<?= $url('track') ?>" style="<?= $wkMenuItem ?>">📦 Track Order</a>
                     <?php endif; ?>
                 </div>
@@ -305,7 +314,7 @@ $currentSymbol = $currentCurrency === $baseCurrency
                 <a href="<?= $url('account/register') ?>" style="color:rgba(255,255,255,.5)">Create Account</a>
             <?php endif; ?>
         </div>
-        <div class="wk-footer-brand">🐱 Powered by <a href="https://github.com" style="color:var(--wk-purple);margin-left:4px">Whisker</a></div>
+        <div class="wk-footer-brand">🐱 Powered by <a href="https://github.com" style="color:var(--wk-purple-ink);margin-left:4px">Whisker</a></div>
         <div style="font-size:12px">&copy; <?= date('Y') ?> <?= $e($siteName) ?>. All rights reserved.</div>
     </div>
 </footer>
@@ -392,7 +401,7 @@ function addMessage(text, from, actions) {
                           // url goes through wkSafeUrl which only returns
                           // scheme-safe strings, and we re-escape it for the
                           // attribute context.
-                          return '<a href="' + wkEscapeHtml(safe) + '"' + targetAttr + ' style="color:var(--wk-purple);font-weight:700;text-decoration:underline">' + label + '</a>';
+                          return '<a href="' + wkEscapeHtml(safe) + '"' + targetAttr + ' style="color:var(--wk-purple-ink);font-weight:700;text-decoration:underline">' + label + '</a>';
                       })
                       .replace(/\n/g, '<br>');
     bubble.innerHTML = html;
@@ -404,7 +413,7 @@ function addMessage(text, from, actions) {
         actions.forEach(a => {
             const btn = document.createElement('button');
             btn.textContent = a.label;
-            btn.style.cssText = 'background:var(--wk-surface);border:2px solid var(--wk-purple);color:var(--wk-purple);padding:6px 12px;border-radius:20px;font-family:var(--font);font-size:11px;font-weight:700;cursor:pointer;transition:all .15s';
+            btn.style.cssText = 'background:var(--wk-surface);border:2px solid var(--wk-purple);color:var(--wk-purple-ink);padding:6px 12px;border-radius:20px;font-family:var(--font);font-size:11px;font-weight:700;cursor:pointer;transition:all .15s';
             btn.onmouseover = () => { btn.style.background='var(--wk-purple)'; btn.style.color='#fff'; };
             btn.onmouseout = () => { btn.style.background='var(--wk-surface)'; btn.style.color='var(--wk-purple)'; };
             btn.onclick = () => sendChat(a.value);

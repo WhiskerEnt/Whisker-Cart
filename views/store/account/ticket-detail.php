@@ -2,9 +2,9 @@
 $sm=['open'=>'🟢 Open','in_progress'=>'🔵 In Progress','waiting'=>'🟡 Waiting','resolved'=>'✅ Resolved','closed'=>'⚫ Closed'];
 ?>
 <section class="wk-section"><div class="wk-container" style="max-width:800px">
-    <a href="<?= $url('account/tickets') ?>" style="color:var(--wk-purple);font-weight:700;font-size:13px;margin-bottom:16px;display:inline-block">← My Tickets</a>
+    <a href="<?= $url('account/tickets') ?>" style="color:var(--wk-purple-ink);font-weight:700;font-size:13px;margin-bottom:16px;display:inline-block">← My Tickets</a>
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
-        <span style="font-family:var(--font-mono);font-size:14px;color:var(--wk-purple);font-weight:800"><?= $e($t['ticket_number']) ?></span>
+        <span style="font-family:var(--font-mono);font-size:14px;color:var(--wk-purple-ink);font-weight:800"><?= $e($t['ticket_number']) ?></span>
         <span style="font-size:13px;font-weight:700"><?= $sm[$t['status']]??$t['status'] ?></span>
     </div>
     <h1 style="font-size:22px;font-weight:900;margin-bottom:24px"><?= $e($t['subject']) ?></h1>

@@ -6,7 +6,7 @@ $canCancel = \App\Services\CancellationService::customerCanCancel($o);
 $countries = \App\Services\CurrencyService::countries();
 ?>
 <section class="wk-section"><div class="wk-container" style="max-width:700px">
-    <a href="<?= $url('account/orders') ?>" style="color:var(--wk-purple);font-weight:700;font-size:13px;margin-bottom:16px;display:inline-block">← My Orders</a>
+    <a href="<?= $url('account/orders') ?>" style="color:var(--wk-purple-ink);font-weight:700;font-size:13px;margin-bottom:16px;display:inline-block">← My Orders</a>
 
     <!-- Order Header — always visible -->
     <div style="background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:var(--radius);padding:24px;margin-bottom:16px">
@@ -189,14 +189,14 @@ $countries = \App\Services\CurrencyService::countries();
         <div class="wk-collapse-body">
             <?php if (!empty($notes['tracking_number'])): ?>
                 <div style="background:var(--wk-bg);border-radius:8px;padding:16px;margin-bottom:12px">
-                    <div style="font-size:11px;font-weight:800;text-transform:uppercase;color:var(--wk-purple);margin-bottom:8px">Shipment Info</div>
+                    <div style="font-size:11px;font-weight:800;text-transform:uppercase;color:var(--wk-purple-ink);margin-bottom:8px">Shipment Info</div>
                     <div style="display:flex;justify-content:space-between;padding:4px 0">
                         <span style="color:var(--wk-muted)">Carrier</span>
                         <span style="font-weight:700"><?= $e($notes['shipping_carrier']??'') ?></span>
                     </div>
                     <div style="display:flex;justify-content:space-between;padding:4px 0">
                         <span style="color:var(--wk-muted)">Tracking Number</span>
-                        <span style="font-family:var(--font-mono);font-weight:700;color:var(--wk-purple)"><?= $e($notes['tracking_number']) ?></span>
+                        <span style="font-family:var(--font-mono);font-weight:700;color:var(--wk-purple-ink)"><?= $e($notes['tracking_number']) ?></span>
                     </div>
                     <?php if (!empty($notes['shipped_at'])): ?>
                     <div style="display:flex;justify-content:space-between;padding:4px 0">

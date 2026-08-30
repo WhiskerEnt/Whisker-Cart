@@ -229,9 +229,16 @@ const WhiskerStore = {
         const counter = wrap?.querySelector('.wk-hero-counter-current');
 
         if (dots) {
+            dots.setAttribute('role', 'tablist');
             for (let i = 0; i < total; i++) {
                 const d = document.createElement('button');
                 d.className = 'wk-carousel-dot' + (i === 0 ? ' active' : '');
+                d.type = 'button';
+                // A dot is a coloured circle with no text in it, so without
+                // this a screen reader announces it as an unnamed button.
+                d.setAttribute('role', 'tab');
+                d.setAttribute('aria-label', `Go to slide ${i + 1} of ${total}`);
+                d.setAttribute('aria-selected', i === 0 ? 'true' : 'false');
                 d.onclick = () => go(i);
                 dots.appendChild(d);
             }
@@ -240,7 +247,11 @@ const WhiskerStore = {
         function go(i) {
             current = ((i % total) + total) % total;
             track.style.transform = `translateX(-${current * 100}%)`;
-            dots?.querySelectorAll('.wk-carousel-dot').forEach((d, j) => d.classList.toggle('active', j === current));
+            dots?.querySelectorAll('.wk-carousel-dot').forEach((d, j) => {
+                const on = j === current;
+                d.classList.toggle('active', on);
+                d.setAttribute('aria-selected', on ? 'true' : 'false');
+            });
             if (counter) counter.textContent = current + 1;
         }
 

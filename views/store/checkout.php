@@ -34,7 +34,7 @@ $defAddr = !empty($addrs) ? $addrs[0] : [];
             <div style="text-align:center;padding:60px;color:var(--wk-muted)">
                 <div style="font-size:48px;margin-bottom:12px;opacity:.4">🛒</div>
                 <p style="font-weight:800;margin-bottom:8px">Your cart is empty</p>
-                <a href="<?= $url('') ?>" style="color:var(--wk-purple);font-weight:700">Continue shopping →</a>
+                <a href="<?= $url('') ?>" style="color:var(--wk-purple-ink);font-weight:700">Continue shopping →</a>
             </div>
         <?php else: ?>
 
@@ -66,11 +66,11 @@ $defAddr = !empty($addrs) ? $addrs[0] : [];
                 <div style="background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:var(--radius);padding:28px;margin-bottom:20px">
                     <h2 style="font-size:17px;font-weight:900;margin-bottom:16px">Delivery Method</h2>
                     <label style="display:flex;align-items:center;gap:12px;padding:14px;border:2px solid var(--wk-purple);border-radius:8px;cursor:pointer;margin-bottom:10px;background:rgba(139,92,246,.03)" id="wkDelivShipLabel">
-                        <input type="radio" name="delivery_method" value="shipping" checked onchange="wkDeliveryToggle()" style="accent-color:var(--wk-purple)">
+                        <input type="radio" name="delivery_method" value="shipping" checked onchange="wkDeliveryToggle()" style="accent-color:var(--wk-purple-ink)">
                         <div><div style="font-weight:800;font-size:14px">🏠 Home Delivery</div><div style="font-size:12px;color:var(--wk-muted)">Delivered to your address</div></div>
                     </label>
                     <label style="display:flex;align-items:center;gap:12px;padding:14px;border:2px solid var(--wk-border);border-radius:8px;cursor:pointer" id="wkDelivPickupLabel">
-                        <input type="radio" name="delivery_method" value="pickup" onchange="wkDeliveryToggle()" style="accent-color:var(--wk-purple)">
+                        <input type="radio" name="delivery_method" value="pickup" onchange="wkDeliveryToggle()" style="accent-color:var(--wk-purple-ink)">
                         <div><div style="font-weight:800;font-size:14px">📦 Pickup Point / Locker</div><div style="font-size:12px;color:var(--wk-muted)">Collect from a nearby pickup location</div></div>
                     </label>
                     <div id="wkPickupBox" style="display:none;margin-top:16px">
@@ -181,7 +181,7 @@ $defAddr = !empty($addrs) ? $addrs[0] : [];
                     <h2 style="font-size:17px;font-weight:900;margin-bottom:16px">Payment Method</h2>
                     <?php foreach ($gateways as $i => $gw): ?>
                     <label style="display:flex;align-items:center;gap:12px;padding:14px;border:2px solid var(--wk-border);border-radius:8px;cursor:pointer;margin-bottom:10px;transition:all .2s" onclick="this.parentElement.querySelectorAll('label').forEach(l=>{l.style.borderColor='var(--wk-border)';l.style.background='transparent'});this.style.borderColor='var(--wk-purple)';this.style.background='rgba(139,92,246,.03)'">
-                        <input type="radio" name="payment_gateway" value="<?= $gw['gateway_code'] ?>" <?= $i===0?'checked':'' ?> style="accent-color:var(--wk-purple)">
+                        <input type="radio" name="payment_gateway" value="<?= $gw['gateway_code'] ?>" <?= $i===0?'checked':'' ?> style="accent-color:var(--wk-purple-ink)">
                         <div><div style="font-weight:800;font-size:14px"><?= $e($gw['display_name']) ?></div><div style="font-size:12px;color:var(--wk-muted)"><?= $e($gw['description']) ?></div></div>
                     </label>
                     <?php endforeach; ?>
@@ -206,7 +206,7 @@ $defAddr = !empty($addrs) ? $addrs[0] : [];
                         <div style="flex:1">
                             <div style="font-weight:700"><?= $e($item['name']) ?></div>
                             <?php if (!empty($item['variant_label'])): ?>
-                                <div style="font-size:12px;color:var(--wk-purple);font-weight:700"><?= $e($item['variant_label']) ?></div>
+                                <div style="font-size:12px;color:var(--wk-purple-ink);font-weight:700"><?= $e($item['variant_label']) ?></div>
                             <?php endif; ?>
                             <div style="font-size:12px;color:var(--wk-muted)">Qty: <?= $item['quantity'] ?></div>
                         </div>
@@ -220,7 +220,7 @@ $defAddr = !empty($addrs) ? $addrs[0] : [];
                             <span style="font-weight:700" id="wk-sum-subtotal"><?= $showPrice($totals['subtotal']) ?></span>
                         </div>
                         <div style="display:flex;justify-content:space-between;padding:6px 0" id="wk-sum-discount-row" <?= $totals['discount'] > 0 ? '' : 'hidden' ?>>
-                            <span style="color:var(--wk-muted)">Discount<?= !empty($totals['discount_code']) ? ' <span style="color:var(--wk-purple);font-weight:700">(' . $e($totals['discount_code']) . ')</span>' : '' ?></span>
+                            <span style="color:var(--wk-muted)">Discount<?= !empty($totals['discount_code']) ? ' <span style="color:var(--wk-purple-ink);font-weight:700">(' . $e($totals['discount_code']) . ')</span>' : '' ?></span>
                             <span style="font-weight:700;color:#16a34a" id="wk-sum-discount">− <?= $showPrice($totals['discount']) ?></span>
                         </div>
                         <div style="display:flex;justify-content:space-between;padding:6px 0">

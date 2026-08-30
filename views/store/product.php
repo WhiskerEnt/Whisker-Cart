@@ -41,7 +41,7 @@ foreach ($variants['combos'] ?? [] as $combo) {
 ?>
 <section class="wk-section">
     <div class="wk-container">
-        <a href="<?= $url('') ?>" style="color:var(--wk-purple);font-weight:700;font-size:13px;margin-bottom:20px;display:inline-block">← Back to Shop</a>
+        <a href="<?= $url('') ?>" style="color:var(--wk-purple-ink);font-weight:700;font-size:13px;margin-bottom:20px;display:inline-block">← Back to Shop</a>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:start">
 
             <!-- Images -->

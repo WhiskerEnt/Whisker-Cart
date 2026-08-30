@@ -3,7 +3,7 @@ $c = $customer;
 $is='width:100%;padding:12px 16px;border:2px solid var(--wk-border);border-radius:10px;font-family:var(--font);font-size:14px;font-weight:600;outline:none;background:var(--wk-surface)';
 ?>
 <section class="wk-section"><div class="wk-container" style="max-width:700px">
-    <a href="<?= $url('account/tickets') ?>" style="color:var(--wk-purple);font-weight:700;font-size:13px;margin-bottom:16px;display:inline-block">← My Tickets</a>
+    <a href="<?= $url('account/tickets') ?>" style="color:var(--wk-purple-ink);font-weight:700;font-size:13px;margin-bottom:16px;display:inline-block">← My Tickets</a>
     <h1 style="font-size:24px;font-weight:900;margin-bottom:24px">New Support Ticket</h1>
     <div style="background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:var(--radius);padding:32px">
         <form method="POST" action="<?= $url('account/tickets/store') ?>">

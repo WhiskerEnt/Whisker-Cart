@@ -74,7 +74,7 @@ $gridProducts = $products;
     <div class="wk-container" style="position:relative;text-align:center">
         <h1 style="font-size:clamp(32px,5vw,52px);font-weight:900;color:#fff;margin-bottom:12px;line-height:1.1"><?= $e($heroTitle ?? $siteName) ?></h1>
         <p style="font-size:clamp(16px,2vw,20px);color:rgba(255,255,255,.85);max-width:600px;margin:0 auto 28px;font-weight:500"><?= $e($heroSubtitle ?? $tagline) ?></p>
-        <a href="<?= $url('shop') ?>" style="display:inline-block;padding:16px 40px;background:#fff;color:var(--wk-purple);border-radius:14px;font-weight:800;font-size:16px;text-decoration:none;box-shadow:0 4px 20px rgba(0,0,0,.15)"><?= $e($heroCta ?? 'Shop Now') ?> →</a>
+        <a href="<?= $url('shop') ?>" style="display:inline-block;padding:16px 40px;background:#fff;color:var(--wk-purple-ink);border-radius:14px;font-weight:800;font-size:16px;text-decoration:none;box-shadow:0 4px 20px rgba(0,0,0,.15)"><?= $e($heroCta ?? 'Shop Now') ?> →</a>
     </div>
 </section>
 <?php endif; ?>
@@ -115,7 +115,7 @@ $gridProducts = $products;
                 <h2 class="wk-section-title" style="margin-bottom:0">🔥 On Sale</h2>
                 <p class="wk-section-sub" style="margin-top:4px">Limited time offers</p>
             </div>
-            <a href="<?= $url('shop?sort=price_low') ?>" style="font-size:14px;font-weight:700;color:var(--wk-purple);text-decoration:none">View All →</a>
+            <a href="<?= $url('shop?sort=price_low') ?>" style="font-size:14px;font-weight:700;color:var(--wk-purple-ink);text-decoration:none">View All →</a>
         </div>
         <div style="display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:12px;-webkit-overflow-scrolling:touch">
             <?php foreach ($saleProducts as $p):
@@ -153,7 +153,7 @@ $gridProducts = $products;
                 <h2 class="wk-section-title" style="margin-bottom:0">New Arrivals</h2>
                 <p class="wk-section-sub" style="margin-top:4px"><?= count($gridProducts) ?> product<?= count($gridProducts) !== 1 ? 's' : '' ?></p>
             </div>
-            <a href="<?= $url('shop') ?>" style="font-size:14px;font-weight:700;color:var(--wk-purple);text-decoration:none">View All →</a>
+            <a href="<?= $url('shop') ?>" style="font-size:14px;font-weight:700;color:var(--wk-purple-ink);text-decoration:none">View All →</a>
         </div>
         <?php if (empty($gridProducts)): ?>
             <div style="text-align:center;padding:60px 0;color:var(--wk-muted)">

@@ -68,14 +68,14 @@ $ship  = $order ? (json_decode($order['shipping_address'] ?? '{}', true) ?: []) 
 
                 <?php if (!empty($notes['tracking_number'])): ?>
                 <div style="padding:18px 24px;border-bottom:1px solid var(--wk-border);background:var(--wk-purple-soft)">
-                    <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--wk-purple);margin-bottom:4px">Shipment</div>
+                    <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--wk-purple-ink);margin-bottom:4px">Shipment</div>
                     <?php if (!empty($notes['shipping_carrier'])): ?>
                         <div style="font-size:14px;font-weight:700"><?= $e($notes['shipping_carrier']) ?></div>
                     <?php endif; ?>
                     <div style="font-family:var(--font-mono);font-size:14px;font-weight:700"><?= $e($notes['tracking_number']) ?></div>
                     <?php if (!empty($notes['tracking_url'])): ?>
                         <a href="<?= \Core\View::safeUrl($notes['tracking_url']) ?>" target="_blank" rel="noopener noreferrer"
-                           style="display:inline-block;margin-top:8px;font-size:13px;font-weight:800;color:var(--wk-purple)">Track with carrier ↗</a>
+                           style="display:inline-block;margin-top:8px;font-size:13px;font-weight:800;color:var(--wk-purple-ink)">Track with carrier ↗</a>
                     <?php endif; ?>
                 </div>
                 <?php endif; ?>
@@ -113,7 +113,7 @@ $ship  = $order ? (json_decode($order['shipping_address'] ?? '{}', true) ?: []) 
             </div>
 
             <p style="text-align:center;font-size:13px;color:var(--wk-muted);margin-top:20px">
-                Questions about this order? <a href="<?= $url('contact') ?>" style="color:var(--wk-purple);font-weight:700">Contact us</a>
+                Questions about this order? <a href="<?= $url('contact') ?>" style="color:var(--wk-purple-ink);font-weight:700">Contact us</a>
             </p>
         <?php endif; ?>
     </div>

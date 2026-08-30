@@ -12,5 +12,5 @@
             <button type="submit" class="wk-checkout-btn" style="margin-top:20px">Send Reset Link</button>
         </form>
     </div>
-    <p style="text-align:center;margin-top:16px;font-size:14px;color:var(--wk-muted)">Remember your password? <a href="<?= $url('account/login') ?>" style="color:var(--wk-purple);font-weight:700">Sign in</a></p>
+    <p style="text-align:center;margin-top:16px;font-size:14px;color:var(--wk-muted)">Remember your password? <a href="<?= $url('account/login') ?>" style="color:var(--wk-purple-ink);font-weight:700">Sign in</a></p>
 </div></section>

@@ -17,7 +17,7 @@
                 It may have been cut short by your email app. Get in touch and we will take you off the list.
             </p>
         <?php endif; ?>
-        <a href="<?= $url('') ?>" style="display:inline-block;margin-top:22px;color:var(--wk-purple);font-weight:800;text-decoration:none">
+        <a href="<?= $url('') ?>" style="display:inline-block;margin-top:22px;color:var(--wk-purple-ink);font-weight:800;text-decoration:none">
             Back to the shop
         </a>
     </div>

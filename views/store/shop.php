@@ -71,7 +71,7 @@ $buildUrl = function($overrides = []) use ($url, $currentParams, $isSearch) {
             <div style="text-align:center;padding:60px 0;color:var(--wk-muted)">
                 <div style="font-size:48px;margin-bottom:12px;opacity:.3">📦</div>
                 <p style="font-weight:800;margin-bottom:4px">No products found</p>
-                <p style="font-size:14px">Try a different category or <a href="<?= $url('shop') ?>" style="color:var(--wk-purple);font-weight:700">browse all products</a></p>
+                <p style="font-size:14px">Try a different category or <a href="<?= $url('shop') ?>" style="color:var(--wk-purple-ink);font-weight:700">browse all products</a></p>
             </div>
         <?php else: ?>
             <div class="wk-product-grid">
