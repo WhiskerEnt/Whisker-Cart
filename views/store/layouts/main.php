@@ -324,7 +324,7 @@ $currentSymbol = $currentCurrency === $baseCurrency
                 <a href="<?= $url('account/register') ?>" style="color:rgba(255,255,255,.5)">Create Account</a>
             <?php endif; ?>
         </div>
-        <div class="wk-footer-brand">🐱 Powered by <a href="https://github.com" style="color:var(--wk-purple-ink);margin-left:4px">Whisker</a></div>
+        <div class="wk-footer-brand">🐱 Powered by <a href="https://github.com/WhiskerEnt/Whisker-Cart" target="_blank" rel="noopener" style="color:var(--wk-purple-ink);margin-left:4px">Whisker</a></div>
         <div style="font-size:12px">&copy; <?= date('Y') ?> <?= $e($siteName) ?>. All rights reserved.</div>
     </div>
 </footer>
