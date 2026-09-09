@@ -176,6 +176,7 @@ $router->group(['prefix' => '/admin', 'middleware' => ['auth', 'csrf']], functio
     $r->get('/pages',             [\App\Controllers\Admin\PageController::class, 'index']);
     $r->get('/pages/create',      [\App\Controllers\Admin\PageController::class, 'create']);
     $r->post('/pages/store',      [\App\Controllers\Admin\PageController::class, 'store']);
+    $r->post('/pages/add-recommended', [\App\Controllers\Admin\PageController::class, 'addRecommended']);
     $r->get('/pages/edit/{id}',   [\App\Controllers\Admin\PageController::class, 'edit']);
     $r->post('/pages/update/{id}',[\App\Controllers\Admin\PageController::class, 'update']);
     $r->post('/pages/delete/{id}',[\App\Controllers\Admin\PageController::class, 'delete']);
