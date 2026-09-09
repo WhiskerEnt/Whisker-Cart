@@ -226,10 +226,27 @@ class CartController
     private function getCart(): array
     {
         $sid = Session::cartId();
+        $custId = Session::customerId();
+
         $cart = Database::fetch("SELECT id FROM wk_carts WHERE session_id=? AND status='active'", [$sid]);
+
+        // A cart used to belong to a browser session and nothing else, so
+        // signing in on a second device — or coming back after the cookie had
+        // gone — showed an empty basket while the real one sat in the database
+        // under this customer. Signed in, the customer's own cart is the one
+        // that counts.
+        if ($custId) {
+            $theirs = self::customerCart($custId, $sid);
+            if ($theirs) {
+                $cart = $cart
+                    ? self::mergeCarts((int) $theirs['id'], (int) $cart['id'], $sid)
+                    : self::adoptCart((int) $theirs['id'], $sid);
+            }
+        }
+
         if (!$cart) {
             $id = Database::insert('wk_carts', [
-                'session_id'=>$sid, 'customer_id'=>Session::customerId(),
+                'session_id'=>$sid, 'customer_id'=>$custId,
                 'status'=>'active', 'expires_at'=>date('Y-m-d H:i:s', strtotime('+7 days')),
             ]);
             $cart = ['id'=>$id];
@@ -338,5 +355,89 @@ class CartController
         } catch (\Exception $e) {
             return [];
         }
+    }
+
+    /**
+     * This customer's own active cart, from any session but this one.
+     *
+     * The newest is the one they were last using; older ones are left where
+     * they are rather than being stitched together, which would resurrect
+     * things they had moved on from.
+     */
+    private static function customerCart(int $customerId, string $exceptSession): ?array
+    {
+        try {
+            $row = Database::fetch(
+                "SELECT id FROM wk_carts
+                  WHERE customer_id = ? AND status = 'active' AND session_id <> ?
+                  ORDER BY updated_at DESC, id DESC LIMIT 1",
+                [$customerId, $exceptSession]
+            );
+            return $row ?: null;
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
+    /** Bring an existing cart into this session, rather than copying it. */
+    private static function adoptCart(int $cartId, string $sid): array
+    {
+        try {
+            Database::query("UPDATE wk_carts SET session_id = ? WHERE id = ?", [$sid, $cartId]);
+        } catch (\Exception $e) {}
+        return ['id' => $cartId];
+    }
+
+    /**
+     * Two live carts for one person: what they just put in this browser, and
+     * what was already waiting from before.
+     *
+     * Everything ends up in the cart this session is already using. A line for
+     * something already there raises its quantity rather than appearing twice,
+     * which is what somebody adding the same thing on two devices means.
+     */
+    private static function mergeCarts(int $fromId, int $intoId, string $sid): array
+    {
+        if ($fromId === $intoId) return ['id' => $intoId];
+
+        try {
+            $incoming = Database::fetchAll(
+                "SELECT product_id, variant_combo_id, quantity, unit_price
+                   FROM wk_cart_items WHERE cart_id = ?", [$fromId]
+            );
+
+            foreach ($incoming as $line) {
+                $existing = Database::fetch(
+                    "SELECT id, quantity FROM wk_cart_items
+                      WHERE cart_id = ? AND product_id = ?
+                        AND (variant_combo_id <=> ?) LIMIT 1",
+                    [$intoId, $line['product_id'], $line['variant_combo_id']]
+                );
+
+                if ($existing) {
+                    Database::query(
+                        "UPDATE wk_cart_items SET quantity = quantity + ? WHERE id = ?",
+                        [(int) $line['quantity'], $existing['id']]
+                    );
+                } else {
+                    Database::insert('wk_cart_items', [
+                        'cart_id'          => $intoId,
+                        'product_id'       => $line['product_id'],
+                        'variant_combo_id' => $line['variant_combo_id'],
+                        'quantity'         => $line['quantity'],
+                        'unit_price'       => $line['unit_price'],
+                    ]);
+                }
+            }
+
+            // The cart it came from is spent, not abandoned — nobody walked
+            // away from it, so the recovery emails must leave it alone.
+            Database::query("UPDATE wk_carts SET status = 'merged' WHERE id = ?", [$fromId]);
+        } catch (\Exception $e) {
+            // A merge that cannot complete must not cost anybody the basket
+            // they are looking at.
+        }
+
+        return ['id' => $intoId];
     }
 }

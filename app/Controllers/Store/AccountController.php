@@ -133,14 +133,19 @@ class AccountController
 
     public function logout(Request $request, array $params = []): void
     {
-        // Before wiping the session, move the customer's current cart to its
-        // 'abandoned' terminal state so it isn't left 'active' under a
-        // session_id that no longer exists.
+        // A signed-in customer's cart is theirs, and it is found by who they
+        // are rather than which browser session they were in — so signing out
+        // leaves it alone and they find it again next time they sign in.
+        //
+        // A cart with nobody attached has only the session to be found by, and
+        // that session is about to be destroyed, so it goes to its terminal
+        // state rather than sitting active under an id nothing can reach.
         try {
             $sid = Session::cartId();
             if ($sid) {
                 Database::query(
-                    "UPDATE wk_carts SET status='abandoned' WHERE session_id=? AND status='active'",
+                    "UPDATE wk_carts SET status='abandoned'
+                      WHERE session_id = ? AND status = 'active' AND customer_id IS NULL",
                     [$sid]
                 );
             }
