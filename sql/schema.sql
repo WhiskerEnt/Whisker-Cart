@@ -102,6 +102,8 @@ CREATE TABLE IF NOT EXISTS wk_product_images (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     product_id INT UNSIGNED NOT NULL,
     image_path VARCHAR(500) NOT NULL,
+    width SMALLINT UNSIGNED NULL,
+    height SMALLINT UNSIGNED NULL,
     alt_text VARCHAR(255),
     sort_order INT DEFAULT 0,
     is_primary TINYINT(1) DEFAULT 0,
@@ -187,11 +189,18 @@ CREATE TABLE IF NOT EXISTS wk_carts (
     status ENUM('active','merged','abandoned','converted') DEFAULT 'active',
     reminder_sent_at DATETIME DEFAULT NULL,
     reminder_count INT UNSIGNED DEFAULT 0,
+    recovery_token CHAR(40) DEFAULT NULL,
+    phone VARCHAR(40) DEFAULT NULL,
+    abandoned_at DATETIME DEFAULT NULL,
+    recovered_at DATETIME DEFAULT NULL,
+    recovered_order_id INT UNSIGNED DEFAULT NULL,
     expires_at DATETIME,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (customer_id) REFERENCES wk_customers(id) ON DELETE SET NULL,
-    INDEX idx_session (session_id)
+    UNIQUE KEY uniq_recovery_token (recovery_token),
+    INDEX idx_session (session_id),
+    INDEX idx_status_abandoned (status, abandoned_at)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS wk_cart_items (
@@ -212,6 +221,7 @@ CREATE TABLE IF NOT EXISTS wk_cart_items (
 CREATE TABLE IF NOT EXISTS wk_orders (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     order_number VARCHAR(30) NOT NULL UNIQUE,
+    idempotency_key CHAR(64) NULL,
     customer_id INT UNSIGNED DEFAULT NULL,
     status ENUM('pending','processing','paid','shipped','delivered','cancelled','refunded','payment_failed') DEFAULT 'pending',
     subtotal DECIMAL(12,2) NOT NULL DEFAULT 0.00,
@@ -231,10 +241,13 @@ CREATE TABLE IF NOT EXISTS wk_orders (
     customer_email VARCHAR(255),
     customer_phone VARCHAR(20),
     notes TEXT,
+    customer_note TEXT NULL,
+    terms_accepted_at DATETIME NULL,
     ip_address VARCHAR(45),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (customer_id) REFERENCES wk_customers(id) ON DELETE SET NULL,
+    UNIQUE KEY uniq_idempotency (idempotency_key),
     INDEX idx_order_number (order_number),
     INDEX idx_status (status)
 ) ENGINE=InnoDB;
