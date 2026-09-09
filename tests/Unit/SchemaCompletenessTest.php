@@ -68,6 +68,32 @@ class SchemaCompletenessTest extends TestCase
             "a fresh install would not have these columns:\n  " . implode("\n  ", $missing));
     }
 
+    /**
+     * A table a migration creates has to be in schema.sql too, for the same
+     * reason a column does. Six were not, so a fresh install had no reviews,
+     * questions, refunds, shipping zones, leads or suppressions until an admin
+     * happened to open the dashboard.
+     */
+    public function testEveryTableAMigrationCreatesAlsoExistsInTheFreshSchema(): void
+    {
+        $schema = $this->schema();
+        $missing = [];
+
+        foreach (glob(WK_ROOT . '/sql/migrations/*.sql') as $file) {
+            $sql = (string) file_get_contents($file);
+            preg_match_all('/CREATE TABLE (?:IF NOT EXISTS )?`?(wk_\w+)`?/i', $sql, $m);
+
+            foreach ($m[1] as $table) {
+                if (!str_contains($schema, "CREATE TABLE IF NOT EXISTS {$table} ")) {
+                    $missing[] = "{$table} (created by " . basename($file) . ')';
+                }
+            }
+        }
+
+        $this->assertSame([], array_values(array_unique($missing)),
+            "a fresh install would not have these tables:\n  " . implode("\n  ", array_unique($missing)));
+    }
+
     /** The sweep is worthless if it is not actually finding the migrations. */
     public function testTheSweepIsLookingAtSomething(): void
     {
