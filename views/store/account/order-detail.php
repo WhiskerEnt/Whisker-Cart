@@ -247,6 +247,11 @@ $countries = \App\Services\CurrencyService::countries();
         </div>
     </div>
 
+    <a href="<?= $url('account/order/' . $o['id'] . '/invoice') ?>" target="_blank" rel="noopener"
+       style="display:block;width:100%;padding:14px;margin-bottom:12px;background:none;border:2px solid var(--wk-border);border-radius:8px;color:var(--wk-text);font-family:var(--font);font-size:14px;font-weight:800;text-align:center;text-decoration:none">
+        Download invoice
+    </a>
+
     <?php $cancelBy = \App\Services\CancellationService::deadlineToShow($o); ?>
     <?php if ($canCancel): ?>
     <?php if ($cancelBy): ?>

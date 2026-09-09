@@ -354,6 +354,34 @@ class AccountController
         ], 'store/layouts/main');
     }
 
+    /**
+     * The customer's own invoice.
+     *
+     * The same document the admin sees, gated on the order belonging to whoever
+     * is asking — an id is easy to change in a URL. Tax authorities in several
+     * markets require the buyer be able to obtain this, and everywhere else it
+     * is a support ticket that need not have been raised.
+     */
+    public function invoice(Request $request, array $params = []): void
+    {
+        if (!Session::customerId()) {
+            Response::redirect(View::url('account/login'));
+            return;
+        }
+
+        $owns = Database::fetchValue(
+            "SELECT id FROM wk_orders WHERE id = ? AND customer_id = ?",
+            [(int) $params['id'], Session::customerId()]
+        );
+        if (!$owns) { Response::notFound(); return; }
+
+        $html = \App\Services\InvoiceService::generateHTML((int) $params['id']);
+        if (!$html) { Response::notFound(); return; }
+
+        echo $html;
+        exit;
+    }
+
     public function cancelOrder(Request $request, array $params = []): void
     {
         if (!Session::customerId() || !Session::verifyCsrf($request->input('wk_csrf'))) {
