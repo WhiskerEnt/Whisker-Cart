@@ -249,11 +249,9 @@ class CartController
 
         $cart = Database::fetch("SELECT id FROM wk_carts WHERE session_id=? AND status='active'", [$sid]);
 
-        // A cart used to belong to a browser session and nothing else, so
-        // signing in on a second device — or coming back after the cookie had
-        // gone — showed an empty basket while the real one sat in the database
-        // under this customer. Signed in, the customer's own cart is the one
-        // that counts.
+        // Signed in, the customer's own cart is the one that counts: theirs
+        // follows them between devices and outlives the session cookie, where a
+        // cart keyed only to the browser would not.
         if ($custId) {
             $theirs = self::customerCart($custId, $sid);
             if ($theirs) {

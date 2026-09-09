@@ -312,9 +312,6 @@ class ProductController
                 Response::json(['success' => false, 'message' => 'Failed to save temp file'], 500);
                 return;
             }
-            // Re-encoded, brought down to a sensible size, and given a WebP
-            // alongside it. The re-encode is what strips anything embedded in
-            // the file besides the picture.
             \App\Services\ImageService::process($uploadDir . $tempName, $ext);
             $tempImages = Session::get('wk_temp_images', []);
             $tempImages[] = ['tmp_path' => $uploadDir . $tempName, 'ext' => $ext];
@@ -526,8 +523,6 @@ class ProductController
             Response::json(['success' => false, 'message' => 'Upload failed'], 500);
             return;
         }
-        // A swatch is an image like any other: redrawn, brought down to size,
-        // and given a WebP beside it.
         $prepared = \App\Services\ImageService::process($uploadDir . $filename, $ext);
 
         $imageId = \App\Services\VariantService::uploadOptionImage($productId, $optionId, $filename);

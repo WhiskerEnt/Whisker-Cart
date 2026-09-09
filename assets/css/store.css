@@ -38,9 +38,6 @@
 /* Ocean Blue */
 [data-theme="ocean"] {
     --wk-purple:     #0ea5e9;
-    /* The accent as text. The fill colour above is tuned to look right in a
-       button or a gradient; as small text on a pale page it is too light to
-       read, so links and labels use this darker tone of the same hue. */
     --wk-purple-ink: #0369a1;
     --wk-purple-soft:#e0f2fe;
     --wk-pink:       #06b6d4;
@@ -59,9 +56,6 @@
 /* Forest Green */
 [data-theme="forest"] {
     --wk-purple:     #16a34a;
-    /* The accent as text. The fill colour above is tuned to look right in a
-       button or a gradient; as small text on a pale page it is too light to
-       read, so links and labels use this darker tone of the same hue. */
     --wk-purple-ink: #15803d;
     --wk-purple-soft:#dcfce7;
     --wk-pink:       #ca8a04;
@@ -80,9 +74,6 @@
 /* Sunset Orange */
 [data-theme="sunset"] {
     --wk-purple:     #f97316;
-    /* The accent as text. The fill colour above is tuned to look right in a
-       button or a gradient; as small text on a pale page it is too light to
-       read, so links and labels use this darker tone of the same hue. */
     --wk-purple-ink: #c2410c;
     --wk-purple-soft:#fff7ed;
     --wk-pink:       #e11d48;
@@ -101,9 +92,6 @@
 /* Midnight Dark */
 [data-theme="midnight"] {
     --wk-purple:     #a78bfa;
-    /* The accent as text. The fill colour above is tuned to look right in a
-       button or a gradient; as small text on a pale page it is too light to
-       read, so links and labels use this darker tone of the same hue. */
     --wk-purple-ink: #7c3aed;
     --wk-purple-soft:#1e1b3a;
     --wk-pink:       #f472b6;

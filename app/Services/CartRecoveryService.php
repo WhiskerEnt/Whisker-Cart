@@ -59,9 +59,9 @@ class CartRecoveryService
     /**
      * Mark carts abandoned once they have been untouched long enough.
      *
-     * Carts were previously only ever marked by hand, which left the pruner —
-     * which only touches terminal states — unable to clear anything, so the
-     * table grew without limit.
+     * The pruner only removes carts in a terminal state, so something has to
+     * put them there; left to hand-marking alone the table grows without
+     * limit.
      *
      * @return int how many carts changed
      */

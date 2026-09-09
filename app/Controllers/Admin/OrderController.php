@@ -84,9 +84,8 @@ class OrderController
             return;
         }
         // Cancelling is not just a status: stock comes back, the customer's
-        // totals are corrected, and the money may need returning. It ran as a
-        // plain status write before, so an order cancelled from here left its
-        // stock deducted while the same cancellation by the customer did not.
+        // totals are corrected, and the money may need returning. Both sides of
+        // the shop cancel through the one service so they agree on all three.
         if ($status === 'cancelled') {
             $existing = Database::fetch("SELECT * FROM wk_orders WHERE id=?", [$params['id']]);
             if ($existing) {
