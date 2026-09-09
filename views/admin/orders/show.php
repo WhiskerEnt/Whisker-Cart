@@ -78,6 +78,16 @@ $s=$sm[$o['status']]??['info','?'];
             </div>
         </div>
 
+        <?php if (!empty($o['customer_note'])): ?>
+        <!-- What the customer asked for -->
+        <div class="wk-card">
+            <div class="wk-card-header"><h2>📝 Delivery notes from the customer</h2></div>
+            <div class="wk-card-body">
+                <p style="margin:0;white-space:pre-wrap;line-height:1.6"><?= $e($o['customer_note']) ?></p>
+            </div>
+        </div>
+        <?php endif; ?>
+
         <!-- Shipping & Tracking -->
         <div class="wk-card">
             <div class="wk-card-header"><h2>📦 Shipping & Tracking</h2></div>

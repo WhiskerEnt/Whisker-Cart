@@ -73,8 +73,13 @@ class OrderIdempotencyTest extends TestCase
 
         $this->assertStringContainsString('$twin = self::orderForAttempt($attemptKey);', $block);
         $this->assertStringContainsString('order-success?order=', $block);
-        $this->assertStringContainsString("unset(\$orderData['idempotency_key']);", $block,
-            'on a database without the column the order must still be placeable');
+        // The fallback drops every column the pending migrations add, so the
+        // assertion is that this one is among them rather than the exact list.
+        $this->assertMatchesRegularExpression(
+            "/unset\(\\\$orderData\['idempotency_key'\][^)]*\);/",
+            $block,
+            'on a database without the column the order must still be placeable'
+        );
     }
 
     /** A shop that has not run the migration must keep taking orders. */

@@ -127,6 +127,14 @@ class CheckoutController
             Response::redirect(View::url('checkout')); return;
         }
 
+        // A shop with published terms must not be able to take an order that
+        // did not agree to them. Checked here rather than only in the browser,
+        // where the box can simply be removed.
+        if (self::termsPage() !== null && $request->input('accept_terms') !== '1') {
+            Session::flash('error', 'Please agree to the terms before placing your order.');
+            Response::redirect(View::url('checkout')); return;
+        }
+
         $phoneError = \App\Services\CountryService::phoneError(
             $request->clean('phone_code'), $request->clean('phone')
         );
@@ -282,6 +290,12 @@ class CheckoutController
                 ];
                 if ($attemptKey !== '') $orderData['idempotency_key'] = $attemptKey;
 
+                // Kept apart from wk_orders.notes, which the shopkeeper writes
+                // carrier and tracking into.
+                $note = trim((string) $request->clean('customer_note'));
+                if ($note !== '') $orderData['customer_note'] = mb_substr($note, 0, 500);
+                if (self::termsPage() !== null) $orderData['terms_accepted_at'] = date('Y-m-d H:i:s');
+
                 try {
                     $orderId = Database::insert('wk_orders', $orderData);
                 } catch (\Exception $e) {
@@ -293,10 +307,10 @@ class CheckoutController
                         Response::redirect(View::url('order-success?order=' . urlencode($twin)));
                         return;
                     }
-                    // Otherwise the column simply is not there yet — the
-                    // migration ships alongside this — so place the order the
+                    // Otherwise the columns simply are not there yet — the
+                    // migrations ship alongside this — so place the order the
                     // way it was placed before.
-                    unset($orderData['idempotency_key']);
+                    unset($orderData['idempotency_key'], $orderData['customer_note'], $orderData['terms_accepted_at']);
                     $orderId = Database::insert('wk_orders', $orderData);
                 }
 
@@ -1088,5 +1102,27 @@ class CheckoutController
             // submission behaves as it always did rather than failing.
             return null;
         }
+    }
+
+    /**
+     * The shop's published terms, if it has any.
+     *
+     * Whether a shopper is asked to agree to something is decided by whether
+     * there is something to agree to, rather than by a setting that can say
+     * yes while the page it points at does not exist.
+     */
+    private static function termsPage(): ?array
+    {
+        static $page = false;
+        if ($page !== false) return $page;
+
+        try {
+            $page = Database::fetch(
+                "SELECT slug, title FROM wk_pages WHERE is_active = 1 AND slug LIKE '%terms%' LIMIT 1"
+            ) ?: null;
+        } catch (\Exception $e) {
+            $page = null;
+        }
+        return $page;
     }
 }

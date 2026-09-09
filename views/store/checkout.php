@@ -194,6 +194,16 @@ $defAddr = !empty($addrs) ? $addrs[0] : [];
                 <?php endif; ?>
             </div>
 
+                <!-- Anything the courier needs to know -->
+                <div style="background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:var(--radius);padding:28px;margin-bottom:20px">
+                    <h2 style="font-size:17px;font-weight:900;margin-bottom:6px">Delivery notes <span style="font-weight:500;font-size:13px;color:var(--wk-muted);text-transform:none">(optional)</span></h2>
+                    <p style="font-size:13px;color:var(--wk-muted);margin:0 0 14px">Gate code, a safe place to leave it, when you are usually in.</p>
+                    <textarea name="customer_note" rows="3" maxlength="500"
+                              placeholder="Leave with the neighbour at number 14"
+                              style="<?= $is ?>resize:vertical;line-height:1.5"></textarea>
+                </div>
+            </div>
+
             <!-- Order Summary -->
             <div>
                 <div style="background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:var(--radius);padding:28px;position:sticky;top:84px">
@@ -241,6 +251,28 @@ $defAddr = !empty($addrs) ? $addrs[0] : [];
                             <span style="font-weight:900;font-family:var(--font-mono)" id="wk-sum-total"><?= $showPrice($totals['total']) ?></span>
                         </div>
                     </div>
+
+                    <?php
+                    // Only asked for where there is something to agree to. A
+                    // shop with no published terms has nothing to hold anybody
+                    // to, and a tick box pointing at a missing page is worse
+                    // than no tick box.
+                    $wkTerms = null;
+                    try {
+                        $wkTerms = \Core\Database::fetch(
+                            "SELECT slug, title FROM wk_pages
+                              WHERE is_active = 1 AND slug LIKE '%terms%' LIMIT 1"
+                        ) ?: null;
+                    } catch (\Exception $ex) {}
+                    ?>
+                    <?php if ($wkTerms): ?>
+                    <label class="wk-terms">
+                        <input type="checkbox" name="accept_terms" value="1" required>
+                        <span>I have read and agree to the
+                            <a href="<?= $url('page/' . $wkTerms['slug']) ?>" target="_blank" rel="noopener"><?= $e($wkTerms['title']) ?></a>.
+                        </span>
+                    </label>
+                    <?php endif; ?>
 
                     <button type="submit" class="wk-checkout-btn" style="margin-top:20px" id="wk-pay-btn">Pay <?= $price($totals['total']) ?> →</button>
                     <p id="wkPayNote" class="wk-pay-note" role="status" aria-live="polite"></p>

@@ -247,6 +247,13 @@ $countries = \App\Services\CurrencyService::countries();
         </div>
     </div>
 
+    <?php if (!empty($o['customer_note'])): ?>
+    <div style="background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:var(--radius);padding:20px;margin-bottom:16px">
+        <div style="font-size:11px;font-weight:800;text-transform:uppercase;color:var(--wk-muted);margin-bottom:6px">Your delivery notes</div>
+        <p style="margin:0;white-space:pre-wrap;line-height:1.6;font-size:14px"><?= $e($o['customer_note']) ?></p>
+    </div>
+    <?php endif; ?>
+
     <a href="<?= $url('account/order/' . $o['id'] . '/invoice') ?>" target="_blank" rel="noopener"
        style="display:block;width:100%;padding:14px;margin-bottom:12px;background:none;border:2px solid var(--wk-border);border-radius:8px;color:var(--wk-text);font-family:var(--font);font-size:14px;font-weight:800;text-align:center;text-decoration:none">
         Download invoice

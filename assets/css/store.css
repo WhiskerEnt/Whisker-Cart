@@ -1481,3 +1481,8 @@ input.wk-field-invalid { border-color: #ef4444 !important; }
 
 /* Said once the order is on its way, so the wait has an explanation. */
 .wk-pay-note { font-size: 12px; font-weight: 700; color: var(--wk-muted); margin: 10px 0 0; min-height: 16px; line-height: 1.5; }
+
+/* Asked for once, right where the order is placed. */
+.wk-terms { display: flex; gap: 10px; align-items: flex-start; margin-top: 18px; font-size: 13px; line-height: 1.5; cursor: pointer; }
+.wk-terms input { margin-top: 2px; width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--wk-purple-ink); cursor: pointer; }
+.wk-terms a { color: var(--wk-purple-ink); font-weight: 700; }
