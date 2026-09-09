@@ -38,8 +38,13 @@ $defAddr = !empty($addrs) ? $addrs[0] : [];
             </div>
         <?php else: ?>
 
-        <form method="POST" action="<?= $url('checkout/process') ?>" class="wk-checkout-layout" style="gap:28px">
+        <form method="POST" action="<?= $url('checkout/process') ?>" class="wk-checkout-layout" style="gap:28px" id="wkCheckoutForm">
             <?= \Core\Session::csrfField() ?>
+            <?php
+            // Names this attempt to place an order. Two submissions carrying
+            // the same token are the same attempt, however they arrived.
+            ?>
+            <input type="hidden" name="order_attempt" value="<?= $e(bin2hex(random_bytes(32))) ?>">
 
             <div>
                 <!-- Contact -->
@@ -238,6 +243,7 @@ $defAddr = !empty($addrs) ? $addrs[0] : [];
                     </div>
 
                     <button type="submit" class="wk-checkout-btn" style="margin-top:20px" id="wk-pay-btn">Pay <?= $price($totals['total']) ?> →</button>
+                    <p id="wkPayNote" class="wk-pay-note" role="status" aria-live="polite"></p>
                 </div>
             </div>
         </form>
@@ -415,4 +421,32 @@ document.addEventListener('DOMContentLoaded', function() {
         wkRecalcTotals();
     }
 });
+</script>
+<script>
+// The button goes quiet on the first press. The token on the form is what
+// actually prevents a second order — this is so the shopper can see why
+// nothing is happening yet, and stops them pressing it again.
+(function () {
+    var form = document.getElementById('wkCheckoutForm');
+    var btn  = document.getElementById('wk-pay-btn');
+    var note = document.getElementById('wkPayNote');
+    if (!form || !btn) return;
+
+    form.addEventListener('submit', function () {
+        if (btn.disabled) return;
+        btn.disabled = true;
+        btn.dataset.label = btn.textContent;
+        btn.textContent = 'Placing your order…';
+        if (note) note.textContent = 'Placing your order — please do not go back or refresh.';
+    });
+
+    // Coming back to a cached copy of this page leaves the button as it was
+    // left. Restore it, or the shopper is looking at a dead button.
+    window.addEventListener('pageshow', function (e) {
+        if (!e.persisted || !btn.disabled) return;
+        btn.disabled = false;
+        if (btn.dataset.label) btn.textContent = btn.dataset.label;
+        if (note) note.textContent = '';
+    });
+})();
 </script>

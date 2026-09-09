@@ -75,6 +75,19 @@ class CheckoutController
             Response::redirect(View::url('checkout'));
             return;
         }
+        // One order per attempt. The form carries a token minted when it was
+        // rendered; if an order already exists against it, this is the same
+        // attempt arriving twice — a double tap, a retried request, a back
+        // button — and the answer is the order that was already placed.
+        $attemptKey = self::attemptKey($request);
+        if ($attemptKey !== '') {
+            $already = self::orderForAttempt($attemptKey);
+            if ($already !== null) {
+                Response::redirect(View::url('order-success?order=' . urlencode($already)));
+                return;
+            }
+        }
+
         $cart = $this->getCartData();
         if (empty($cart['items'])) {
             Session::flash('error','Your cart is empty.');
@@ -243,7 +256,7 @@ class CheckoutController
                         'country'=>$request->clean('country'),
                     ];
 
-                $orderId = Database::insert('wk_orders', [
+                $orderData = [
                     'order_number'=>$orderNumber, 'customer_id'=>$customerId,
                     'status'=>'pending', 'subtotal'=>$cart['subtotal'],
                     'tax_amount'=>$tax, 'shipping_amount'=>$shipping,
@@ -266,7 +279,26 @@ class CheckoutController
                         : $shippingAddress
                     ),
                     'ip_address'=>$request->ip(),
-                ]);
+                ];
+                if ($attemptKey !== '') $orderData['idempotency_key'] = $attemptKey;
+
+                try {
+                    $orderId = Database::insert('wk_orders', $orderData);
+                } catch (\Exception $e) {
+                    // Two submissions of the same attempt racing each other:
+                    // the unique index let one through, and this is the other.
+                    // Hand it the order its twin created.
+                    $twin = self::orderForAttempt($attemptKey);
+                    if ($twin !== null) {
+                        Response::redirect(View::url('order-success?order=' . urlencode($twin)));
+                        return;
+                    }
+                    // Otherwise the column simply is not there yet — the
+                    // migration ships alongside this — so place the order the
+                    // way it was placed before.
+                    unset($orderData['idempotency_key']);
+                    $orderId = Database::insert('wk_orders', $orderData);
+                }
 
                 // Delivery columns are added by the v1.3.2 migration; keep the
                 // order insert working on not-yet-migrated databases.
@@ -1027,5 +1059,34 @@ class CheckoutController
             return true;
         }
         return hash_equals((string)$expected, $clientGatewayOrderId);
+    }
+
+    /**
+     * The token identifying one attempt to place an order.
+     *
+     * Minted when the checkout form is rendered and carried on it, so every
+     * submission of that form — the first, and the one from a second tap or a
+     * retried request — names the same attempt.
+     */
+    private static function attemptKey(Request $request): string
+    {
+        $key = trim((string) $request->input('order_attempt'));
+        return preg_match('/^[a-f0-9]{64}$/', $key) === 1 ? $key : '';
+    }
+
+    /** The order already placed against this attempt, if there is one. */
+    private static function orderForAttempt(string $key): ?string
+    {
+        if ($key === '') return null;
+        try {
+            $number = Database::fetchValue(
+                "SELECT order_number FROM wk_orders WHERE idempotency_key = ? LIMIT 1", [$key]
+            );
+            return $number !== false && $number !== null ? (string) $number : null;
+        } catch (\Exception $e) {
+            // The column arrives with a migration. Until it does, a repeated
+            // submission behaves as it always did rather than failing.
+            return null;
+        }
     }
 }
