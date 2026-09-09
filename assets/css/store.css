@@ -1410,3 +1410,71 @@ input.wk-field-invalid { border-color: #ef4444 !important; }
         max-height: 70vh !important;
     }
 }
+
+/* ── Cart page ────────────────────────────────
+   The drawer is for a glance; this is the page a recovery email links to and
+   the one somebody returns to with the back button. */
+.wk-cart-page { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 32px; align-items: start; }
+
+.wk-cart-lines { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.wk-cart-line {
+    display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: 16px; align-items: start;
+    grid-template-areas: "img info total";
+    background: var(--wk-surface); border: 2px solid var(--wk-border);
+    border-radius: var(--radius); padding: 16px;
+}
+.wk-cart-line-img {
+    grid-area: img;
+    width: 96px; height: 96px; border-radius: 10px; overflow: hidden; background: var(--wk-bg);
+    display: flex; align-items: center; justify-content: center; font-size: 26px; flex-shrink: 0;
+}
+.wk-cart-line-img img { width: 100%; height: 100%; object-fit: cover; }
+.wk-cart-line-info { grid-area: info; min-width: 0; }
+.wk-cart-line-name { font-weight: 800; font-size: 15px; color: var(--wk-text); text-decoration: none; display: block; }
+.wk-cart-line-name:hover { color: var(--wk-purple-ink); }
+.wk-cart-line-variant { font-size: 12px; font-weight: 700; color: var(--wk-muted); margin-top: 3px; }
+.wk-cart-line-unit { font-size: 13px; color: var(--wk-muted); margin-top: 4px; }
+.wk-cart-line-controls { display: flex; align-items: center; gap: 14px; margin-top: 12px; flex-wrap: wrap; }
+.wk-cart-line-remove {
+    background: none; border: none; padding: 6px 2px; cursor: pointer;
+    font-family: var(--font); font-size: 13px; font-weight: 700; color: var(--wk-muted);
+    text-decoration: underline; text-underline-offset: 2px;
+}
+.wk-cart-line-remove:hover { color: #dc2626; }
+.wk-cart-line-total { grid-area: total; font-weight: 900; font-size: 16px; font-family: var(--font-mono); white-space: nowrap; }
+
+.wk-cart-summary {
+    background: var(--wk-surface); border: 2px solid var(--wk-border);
+    border-radius: var(--radius); padding: 24px; position: sticky; top: 90px;
+}
+.wk-cart-summary h2 { font-size: 17px; font-weight: 900; margin: 0 0 16px; }
+.wk-cart-summary-row { display: flex; justify-content: space-between; align-items: baseline; font-size: 15px; }
+.wk-cart-summary-row strong { font-family: var(--font-mono); font-size: 20px; font-weight: 900; }
+.wk-cart-summary-note { font-size: 12px; color: var(--wk-muted); margin: 10px 0 18px; line-height: 1.5; }
+.wk-cart-keep-shopping {
+    display: block; text-align: center; margin-top: 12px; padding: 6px 0; min-height: 24px;
+    font-size: 13px; font-weight: 700; color: var(--wk-purple-ink); text-decoration: none;
+}
+
+/* How close the basket is to free delivery. */
+.wk-ship-progress {
+    background: var(--wk-purple-soft); border-radius: var(--radius);
+    padding: 14px 18px; margin-bottom: 18px;
+}
+.wk-ship-progress p { margin: 0 0 10px; font-size: 13px; font-weight: 700; color: var(--wk-text); }
+.wk-ship-bar { height: 6px; border-radius: 99px; background: rgba(0,0,0,.08); overflow: hidden; }
+.wk-ship-bar span { display: block; height: 100%; border-radius: 99px; background: var(--wk-purple); transition: width .4s ease; }
+
+@media (max-width: 768px) {
+    .wk-cart-page { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+    .wk-cart-summary { position: static; }
+    /* Two columns and the total on its own row: squeezed into three, the
+       middle column was 129px for a name, a variant and a quantity stepper. */
+    .wk-cart-line {
+        grid-template-columns: 76px minmax(0, 1fr);
+        grid-template-areas: "img info" "total total";
+        gap: 10px 12px; padding: 12px;
+    }
+    .wk-cart-line-img { width: 76px; height: 76px; }
+    .wk-cart-line-total { text-align: right; font-size: 17px; }
+}

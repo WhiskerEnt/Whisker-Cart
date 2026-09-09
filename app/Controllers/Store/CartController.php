@@ -4,7 +4,30 @@ use Core\{Request, Response, Session, Database};
 
 class CartController
 {
+    /**
+     * The cart as a page.
+     *
+     * The drawer is quicker for a glance, but it cannot be linked to, shared,
+     * or returned to with the back button, and a recovery email has to send
+     * somebody somewhere. This is that somewhere.
+     */
     public function show(Request $request, array $params = []): void
+    {
+        $cart  = $this->getCart();
+        $items = $this->getItems($cart['id']);
+        $subtotal = array_reduce($items, fn($s, $i) => $s + ($i['unit_price'] * $i['quantity']), 0);
+
+        \Core\View::render('store/cart', [
+            'pageTitle'    => 'Your Cart',
+            'items'        => $items,
+            'subtotal'     => (float) $subtotal,
+            'freeShipping' => self::freeShippingProgress((float) $subtotal),
+            'alsoLike'     => self::alsoLike($items),
+        ], 'store/layouts/main');
+    }
+
+    /** The same cart, as data, for the drawer and the counter. */
+    public function data(Request $request, array $params = []): void
     {
         $cart = $this->getCart();
         $items = $this->getItems($cart['id']);
@@ -247,6 +270,73 @@ class CartController
                         (SELECT image_path FROM wk_product_images WHERE product_id=p.id AND is_primary=1 LIMIT 1) AS image
                  FROM wk_cart_items ci JOIN wk_products p ON p.id=ci.product_id WHERE ci.cart_id=?", [$cartId]
             );
+        }
+    }
+
+    /**
+     * How far off free delivery this basket is.
+     *
+     * The threshold belongs to a shipping zone, and no destination has been
+     * chosen yet on the cart page, so the shop's own country is used — which
+     * is where most orders go. Once an address is entered at checkout the
+     * real zone applies.
+     *
+     * @return array{threshold:float,remaining:float,qualified:bool}|null
+     *         null when the shop has no threshold, so nothing is promised
+     */
+    private static function freeShippingProgress(float $subtotal): ?array
+    {
+        try {
+            $zone = \App\Services\ShippingZoneService::forCountry(
+                \App\Services\CountryService::storeCountry()
+            );
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        $threshold = (float) ($zone['free_threshold'] ?? 0);
+        if ($threshold <= 0) return null;
+
+        return [
+            'threshold' => $threshold,
+            'remaining' => max(0, $threshold - $subtotal),
+            'qualified' => $subtotal >= $threshold,
+        ];
+    }
+
+    /**
+     * A few things to add before checking out, from the same categories as
+     * what is already in the basket. Nothing already in it, and nothing out
+     * of stock — offering either wastes the space.
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    private static function alsoLike(array $items, int $limit = 4): array
+    {
+        if (!$items) return [];
+
+        $productIds = array_values(array_unique(array_column($items, 'product_id')));
+        if (!$productIds) return [];
+
+        $in = implode(',', array_fill(0, count($productIds), '?'));
+        try {
+            return Database::fetchAll(
+                "SELECT p.id, p.name, p.slug, p.price, p.sale_price,
+                        (SELECT image_path FROM wk_product_images
+                          WHERE product_id = p.id AND is_primary = 1 LIMIT 1) AS image
+                   FROM wk_products p
+                  WHERE p.is_active = 1
+                    AND p.stock_quantity > 0
+                    AND p.id NOT IN ({$in})
+                    AND p.category_id IN (
+                        SELECT category_id FROM wk_products WHERE id IN ({$in}) AND category_id IS NOT NULL
+                    )
+                  ORDER BY p.is_featured DESC, RAND()
+                  LIMIT {$limit}",
+                array_merge($productIds, $productIds)
+            );
+        } catch (\Exception $e) {
+            return [];
         }
     }
 }

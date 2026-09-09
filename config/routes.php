@@ -28,6 +28,7 @@ $router->post('/track',              [\App\Controllers\Store\TrackController::cl
 // 'show' stays GET (no middleware needed). Storefront JS sends the token
 // either as 'wk_csrf' in FormData (default path) or as X-CSRF-Token header.
 $router->get('/cart',                [CartController::class, 'show']);
+$router->get('/cart/data',           [CartController::class, 'data']);
 $router->post('/cart/add',           [CartController::class, 'add'],          ['csrf']);
 $router->post('/cart/update',        [CartController::class, 'update'],       ['csrf']);
 $router->post('/cart/remove',        [CartController::class, 'remove'],       ['csrf']);

@@ -149,7 +149,7 @@ const WhiskerStore = {
     // ── Load Cart ────────────────────────────
     async loadCart() {
         try {
-            const res = await fetch(this.base('cart'));
+            const res = await fetch(this.base('cart/data'));
             const data = await res.json();
             if (data.success) {
                 this.renderItems(data.items);
