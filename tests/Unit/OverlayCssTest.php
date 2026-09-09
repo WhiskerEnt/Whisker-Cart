@@ -4,13 +4,10 @@ namespace Tests\Unit;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Full-viewport overlays are the one place a CSS mistake takes the whole page
- * down: an author `display` declaration beats the `hidden` attribute, so a
- * base `display: flex` on a `position: fixed; inset: 0` element leaves an
- * invisible sheet over everything, swallowing every click.
- *
- * Any overlay that hides itself with the hidden attribute must either not set
- * display in its base rule, or say what hidden means explicitly.
+ * An author `display` declaration beats the `hidden` attribute. On a
+ * full-viewport overlay that leaves an invisible sheet over the page
+ * swallowing every click; on a panel of links it leaves them invisible but
+ * still clickable. Both have happened, so both are guarded here.
  */
 class OverlayCssTest extends TestCase
 {
@@ -28,6 +25,11 @@ class OverlayCssTest extends TestCase
             $out[$sel] = $r[2];
         }
         return $out;
+    }
+
+    private function setsDisplay(string $body): bool
+    {
+        return (bool) preg_match('/(?:^|;)\s*display:\s*(?:flex|block|grid|inline-flex|inline-block)/', $body);
     }
 
     public function testNoFullScreenOverlayDefeatsTheHiddenAttribute(): void
@@ -58,11 +60,8 @@ class OverlayCssTest extends TestCase
                 if (!$covers) continue;
                 $examined++;
 
-                $setsDisplay = preg_match('/(?:^|;)\s*display:\s*(?:flex|block|grid|inline-flex)/', $body);
-                if (!$setsDisplay) continue;
+                if (!$this->setsDisplay($body)) continue;
 
-                // Setting display is fine unless the element is hidden via the
-                // attribute, in which case the declaration would win over it.
                 $this->assertArrayHasKey(
                     $class,
                     $hasInertState,
@@ -94,13 +93,60 @@ class OverlayCssTest extends TestCase
             'a hidden modal must not be laid out'
         );
 
-        $this->assertArrayNotHasKey(
-            '.wk-modal',
-            array_filter($rules, fn($body, $sel) => $sel === '.wk-modal'
-                && preg_match('/(?:^|;)\s*display:\s*(?:flex|block|grid)/', $body),
-                ARRAY_FILTER_USE_BOTH),
+        $base = $rules['.wk-modal'] ?? '';
+        $this->assertFalse(
+            $this->setsDisplay($base),
             'the base .wk-modal rule must not set a display that overrides [hidden]'
         );
+    }
+
+    /**
+     * Anything a view hides with the hidden attribute must have a matching
+     * [hidden] rule if its own styling sets display. Otherwise it stays laid
+     * out while "hidden" — invisible, and for links, still taking clicks.
+     */
+    public function testElementsHiddenByAttributeAreActuallyHidden(): void
+    {
+        $rules = array_merge($this->rules('store.css'), $this->rules('admin.css'));
+
+        // Scanned line by line rather than by tag, because the attribute is
+        // usually emitted by a PHP expression, and the closing tag of that
+        // expression ends any tag-shaped match early.
+        $hiddenClasses = [];
+        foreach (glob(WK_ROOT . '/views/store/partials/*.php') as $view) {
+            $lines = file($view) ?: [];
+            foreach ($lines as $i => $line) {
+                if (!preg_match("/(?:^|\s|')hidden(?:'|\s|>)/", $line)) continue;
+
+                // The class may sit a line or two above, on a wrapped tag.
+                $window = implode(' ', array_slice($lines, max(0, $i - 2), 3));
+                if (!preg_match('/class="([^"]+)"/', $window, $c)) continue;
+
+                foreach (preg_split('/\s+/', trim($c[1])) as $class) {
+                    if ($class !== '' && !str_contains($class, '<')) {
+                        $hiddenClasses['.' . $class] = basename($view);
+                    }
+                }
+            }
+        }
+        $this->assertNotEmpty($hiddenClasses, 'no attribute-hidden elements found — update the parser in this test');
+
+        foreach ($hiddenClasses as $class => $view) {
+            $base = $rules[$class] ?? null;
+            if ($base === null || !$this->setsDisplay($base)) continue;
+
+            $this->assertArrayHasKey(
+                $class . '[hidden]',
+                $rules,
+                "{$view}: {$class} is hidden with the attribute but its own rule sets display, "
+                . "which overrides it. Add {$class}[hidden] { display: none }."
+            );
+            $this->assertMatchesRegularExpression(
+                '/display:\s*none/',
+                $rules[$class . '[hidden]'],
+                "{$class}[hidden] must set display: none"
+            );
+        }
     }
 
     /** Overlays hidden by a class must stop taking clicks in that state. */
@@ -114,6 +160,60 @@ class OverlayCssTest extends TestCase
                 $rules[$sel],
                 "{$file}: {$sel} fades out but would still swallow clicks without pointer-events: none"
             );
+        }
+    }
+
+    /**
+     * A menu that opens past the edge of its parent needs every ancestor to
+     * leave its overflow alone: one clipping ancestor cuts the menu off, and
+     * setting either axis to a clipping value makes the other one clip too.
+     *
+     * The header row clips itself only while the script measures which items
+     * fit, so the clip has to be lifted again for the category menus to open.
+     */
+    public function testTheHeaderRowStopsClippingOnceItHasBeenMeasured(): void
+    {
+        $rules = $this->rules('store.css');
+
+        $clips = static fn(string $body): bool
+            => (bool) preg_match('/overflow(?:-x|-y)?:\s*(hidden|clip|auto|scroll)/', $body);
+
+        $this->assertArrayHasKey('.wk-nav-dropdown-menu', $rules);
+        $this->assertMatchesRegularExpression(
+            '/position:\s*absolute/',
+            $rules['.wk-nav-dropdown-menu'],
+            'the menu is positioned out of the row, so an ancestor clip would hide it'
+        );
+
+        // Whichever ancestors clip must each name a state that lifts it.
+        foreach ($rules as $sel => $body) {
+            if (!preg_match('/^(\.wk-header-nav|\.wk-nav-dropdown)$/', $sel) || !$clips($body)) continue;
+
+            $lifted = false;
+            foreach ($rules as $other => $otherBody) {
+                if ($other !== $sel && str_starts_with($other, $sel)
+                    && preg_match('/overflow:\s*visible/', $otherBody)) {
+                    $lifted = true;
+
+                    // A rule nothing ever matches lifts nothing.
+                    preg_match('/^' . preg_quote($sel, '/') . '\.([\w-]+)/', $other, $m);
+                    $js = (string) file_get_contents(WK_ROOT . '/assets/js/store.js');
+                    $this->assertStringContainsString(
+                        "classList.add('{$m[1]}')",
+                        $js,
+                        "{$other} lifts the clip but nothing ever adds .{$m[1]}"
+                    );
+                    // Every path out of the measurement has to restore it,
+                    // including the one where everything already fits.
+                    $this->assertSame(
+                        2,
+                        substr_count($js, "classList.add('{$m[1]}')"),
+                        "one way out of layout() leaves .{$m[1]} off and the menus clipped"
+                    );
+                }
+            }
+
+            $this->assertTrue($lifted, "{$sel} clips its overflow and nothing ever lifts it, so the category menus cannot open");
         }
     }
 }

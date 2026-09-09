@@ -41,14 +41,33 @@ foreach ($variants['combos'] ?? [] as $combo) {
 ?>
 <section class="wk-section">
     <div class="wk-container">
-        <a href="<?= $url('') ?>" style="color:var(--wk-purple);font-weight:700;font-size:13px;margin-bottom:20px;display:inline-block">← Back to Shop</a>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:start">
+        <?php
+        // The trail was already being published for search engines and never
+        // shown to anyone actually on the page.
+        ?>
+        <nav class="wk-crumbs" aria-label="Breadcrumb">
+            <ol>
+                <li><a href="<?= $url('') ?>">Home</a></li>
+                <?php if (!empty($p['category_name'])): ?>
+                    <li>
+                        <?php $catSlug = \Core\Database::fetchValue("SELECT slug FROM wk_categories WHERE id = ?", [$p['category_id']]); ?>
+                        <?php if ($catSlug): ?>
+                            <a href="<?= $url('category/' . urlencode($catSlug)) ?>"><?= $e($p['category_name']) ?></a>
+                        <?php else: ?>
+                            <span><?= $e($p['category_name']) ?></span>
+                        <?php endif; ?>
+                    </li>
+                <?php endif; ?>
+                <li><span aria-current="page"><?= $e($p['name']) ?></span></li>
+            </ol>
+        </nav>
+        <div class="wk-product-layout">
 
             <!-- Images -->
             <div>
                 <div id="mainImage" style="background:var(--wk-bg);border-radius:var(--radius);overflow:hidden;aspect-ratio:1;display:flex;align-items:center;justify-content:center;margin-bottom:12px;border:2px solid var(--wk-border)">
                     <?php if (!empty($images)): ?>
-                        <img src="<?= $url('storage/uploads/products/'.$images[0]['image_path']) ?>" alt="<?= $e($p['name']) ?>" style="width:100%;height:100%;object-fit:cover" id="mainImg">
+                        <?= \Core\View::productImage($images[0]['image_path'], $p['name'], ['eager' => true, 'no_webp' => true, 'id' => 'mainImg', 'style' => 'width:100%;height:100%;object-fit:cover']) ?>
                     <?php else: ?>
                         <span style="font-size:80px;opacity:.15">📦</span>
                     <?php endif; ?>
@@ -100,6 +119,18 @@ foreach ($variants['combos'] ?? [] as $combo) {
                     <p style="color:var(--wk-muted);margin-bottom:20px;line-height:1.7;font-size:15px"><?= $e($p['short_description']) ?></p>
                 <?php endif; ?>
 
+                <?php if (!empty($questionsOn)):
+                    // The answers live further down the page; this is how anyone
+                    // reading the description finds out they are there.
+                    $qCount = count($questions ?? []); ?>
+                    <a href="#questions" class="wk-ask-link">
+                        <span aria-hidden="true">&#128172;</span>
+                        <?= $qCount > 0
+                            ? $qCount . ' question' . ($qCount === 1 ? '' : 's') . ' answered about this'
+                            : 'Ask a question about this product' ?>
+                    </a>
+                <?php endif; ?>
+
                 <!-- Variant Selectors -->
                 <?php if ($hasVariants): ?>
                 <div id="variantSelector" style="margin-bottom:20px">
@@ -128,11 +159,21 @@ foreach ($variants['combos'] ?? [] as $combo) {
                 <!-- Stock Status -->
                 <div id="stockDisplay" style="display:flex;align-items:center;gap:8px;margin-bottom:20px;font-size:14px;font-weight:700">
                     <?php $totalStock = $hasVariants ? array_sum(array_column($variants['combos'], 'stock_quantity')) : $p['stock_quantity']; ?>
-                    <?php if ($totalStock > 0): ?>
+                    <?php
+                    // The shop already decides what counts as running low, per
+                    // product, and has only ever told itself. Saying so is the
+                    // difference between "in stock" and a reason to decide now.
+                    $lowAt = (int) ($p['low_stock_threshold'] ?? 5);
+                    $isLow = $totalStock > 0 && $lowAt > 0 && $totalStock <= $lowAt;
+                    ?>
+                    <?php if ($isLow): ?>
+                        <span style="width:8px;height:8px;border-radius:50%;background:#d97706"></span>
+                        <span style="color:#b45309">Only <?= (int) $totalStock ?> left</span>
+                    <?php elseif ($totalStock > 0): ?>
                         <span style="width:8px;height:8px;border-radius:50%;background:#10b981"></span>
                         <span style="color:#10b981">In Stock</span>
                     <?php else: ?>
-                        <span style="width:8px;height:8px;border-radius:50%;background:#ef4444"></span>
+                        <span style="width:8px;height:8px;border-radius:50%;background:#dc2626"></span>
                         <span style="color:#ef4444">Out of Stock</span>
                     <?php endif; ?>
                     <!-- Filled in with the selected variant's availability. -->
@@ -141,13 +182,13 @@ foreach ($variants['combos'] ?? [] as $combo) {
 
                 <!-- Quantity + Add to Cart -->
                 <?php if ($totalStock > 0): ?>
-                <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px">
+                <div class="wk-buy-row">
                     <div class="wk-qty-ctrl" style="border-width:2px">
                         <button type="button" class="wk-qty-btn" style="width:40px;height:36px;font-size:18px" onclick="let i=document.getElementById('product-qty');i.value=Math.max(1,parseInt(i.value)-1)">−</button>
                         <input type="number" id="product-qty" class="wk-qty-val" value="1" min="1" max="<?= $totalStock ?>" style="width:48px;height:36px;font-size:15px">
                         <button type="button" class="wk-qty-btn" style="width:40px;height:36px;font-size:18px" onclick="let i=document.getElementById('product-qty');i.value=Math.min(999,parseInt(i.value)+1)">+</button>
                     </div>
-                    <button id="addToCartBtn" class="wk-add-btn" data-add-to-cart="<?= $p['id'] ?>" <?= $hasVariants ? 'disabled style="flex:1;border-radius:var(--radius-sm);font-size:15px;padding:16px;opacity:.5;cursor:not-allowed"' : 'style="flex:1;border-radius:var(--radius-sm);font-size:15px;padding:16px"' ?>>
+                    <button id="addToCartBtn" class="wk-add-btn wk-buy-cta" data-add-to-cart="<?= $p['id'] ?>" <?= $hasVariants ? 'disabled style="opacity:.5;cursor:not-allowed"' : '' ?>>
                         <?= $hasVariants ? 'Select options above' : '🛒 Add to Cart' ?>
                     </button>
                 </div>
@@ -177,7 +218,7 @@ foreach ($variants['combos'] ?? [] as $combo) {
                 <?php foreach ($related as $rp): $rprc = $rp['sale_price'] ?: $rp['price']; ?>
                 <div class="wk-product-card" onclick="window.location='<?= $url('product/'.$rp['slug']) ?>'">
                     <div class="wk-product-img">
-                        <?php if ($rp['image']): ?><img src="<?= $url('storage/uploads/products/'.$rp['image']) ?>" alt="<?= $e($rp['name']) ?>"><?php else: ?><div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:48px;opacity:.15">📦</div><?php endif; ?>
+                        <?php if ($rp['image']): ?><?= \Core\View::productImage($rp['image'], $rp['name']) ?><?php else: ?><div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:48px;opacity:.15">📦</div><?php endif; ?>
                     </div>
                     <div class="wk-product-info">
                         <div class="wk-product-name"><?= $e($rp['name']) ?></div>
@@ -189,6 +230,22 @@ foreach ($variants['combos'] ?? [] as $combo) {
                 <?php endforeach; ?>
             </div>
         </div>
+        <?php endif; ?>
+
+        <?php
+        $wkFaq = \App\Services\ProductFaqService::parse($p['faq'] ?? null);
+        if ($wkFaq): ?>
+        <section class="wk-faq" id="faq">
+            <h2 class="wk-faq-heading">Frequently Asked Questions</h2>
+            <div class="wk-faq-list">
+                <?php foreach ($wkFaq as $wkItem): ?>
+                    <details class="wk-faq-item">
+                        <summary><?= $e($wkItem['q']) ?></summary>
+                        <p><?= nl2br($e($wkItem['a'])) ?></p>
+                    </details>
+                <?php endforeach; ?>
+            </div>
+        </section>
         <?php endif; ?>
 
         <?php if (!empty($reviewsOn)) require __DIR__ . '/partials/reviews.php'; ?>
@@ -304,3 +361,116 @@ function findMatchingCombo() {
 }
 </script>
 <?php endif; ?>
+<?php
+// ── Recently viewed ─────────────────────────────────────────────────────
+// Kept in the browser rather than on the server: it is one person's browsing
+// on one device, nobody else needs it, and it needs no consent to store.
+// Prices are deliberately not kept — a remembered price goes stale and shows
+// somebody a number the shop will not honour.
+?>
+<section class="wk-container" id="wkRecentlyViewed" hidden style="margin-bottom:48px">
+    <h2 class="wk-section-title" style="font-size:20px;margin-bottom:16px">Recently viewed</h2>
+    <div class="wk-recent-strip" id="wkRecentStrip"></div>
+</section>
+
+<div class="wk-lightbox" id="wkLightbox" hidden>
+    <button type="button" class="wk-lightbox-close" id="wkLightboxClose" aria-label="Close image">&times;</button>
+    <img id="wkLightboxImg" alt="">
+</div>
+
+<script>
+(function () {
+    // ── Bigger picture ──────────────────────────────────────────────────
+    var box   = document.getElementById('wkLightbox');
+    var full  = document.getElementById('wkLightboxImg');
+    var main  = document.getElementById('mainImg');
+    var close = document.getElementById('wkLightboxClose');
+    var lastFocus = null;
+
+    if (main && box && full) {
+        main.style.cursor = 'zoom-in';
+        main.setAttribute('role', 'button');
+        main.setAttribute('tabindex', '0');
+        main.setAttribute('aria-label', 'View larger image');
+
+        var open = function () {
+            lastFocus = document.activeElement;
+            full.src = main.currentSrc || main.src;
+            full.alt = main.alt;
+            box.hidden = false;
+            document.body.style.overflow = 'hidden';
+            close.focus();
+        };
+        var shut = function () {
+            box.hidden = true;
+            document.body.style.overflow = '';
+            if (lastFocus) lastFocus.focus();
+        };
+
+        main.addEventListener('click', open);
+        main.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+        });
+        close.addEventListener('click', shut);
+        box.addEventListener('click', function (e) { if (e.target === box) shut(); });
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !box.hidden) shut(); });
+    }
+
+    // ── Recently viewed ─────────────────────────────────────────────────
+    var KEY = 'wk_recent_v1';
+    var KEEP = 8;
+
+    var me = {
+        slug: <?= json_encode($p['slug']) ?>,
+        name: <?= json_encode($p['name']) ?>,
+        image: <?= json_encode(!empty($images) ? $images[0]['image_path'] : null) ?>
+    };
+
+    var seen = [];
+    try { seen = JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) { seen = []; }
+    if (!Array.isArray(seen)) seen = [];
+
+    // Everything except this one, so revisiting moves it to the front rather
+    // than listing it twice.
+    var others = seen.filter(function (x) { return x && x.slug && x.slug !== me.slug; });
+
+    var strip = document.getElementById('wkRecentStrip');
+    var panel = document.getElementById('wkRecentlyViewed');
+    var base  = <?= json_encode(rtrim(\Core\View::url(''), '/')) ?>;
+
+    if (strip && others.length) {
+        others.slice(0, KEEP).forEach(function (x) {
+            var a = document.createElement('a');
+            a.href = base + '/product/' + encodeURIComponent(x.slug);
+            a.className = 'wk-recent-card';
+
+            var imgWrap = document.createElement('span');
+            imgWrap.className = 'wk-recent-img';
+            if (x.image) {
+                var img = document.createElement('img');
+                img.src = base + '/storage/uploads/products/' + encodeURIComponent(x.image);
+                img.alt = '';
+                img.loading = 'lazy';
+                img.decoding = 'async';
+                imgWrap.appendChild(img);
+            }
+
+            var name = document.createElement('span');
+            name.className = 'wk-recent-name';
+            name.textContent = x.name;
+
+            a.appendChild(imgWrap);
+            a.appendChild(name);
+            strip.appendChild(a);
+        });
+        panel.hidden = false;
+    }
+
+    try {
+        localStorage.setItem(KEY, JSON.stringify([me].concat(others).slice(0, KEEP + 1)));
+    } catch (e) {
+        // Private browsing, or storage turned off. Nothing here is worth
+        // interrupting the page for.
+    }
+})();
+</script>

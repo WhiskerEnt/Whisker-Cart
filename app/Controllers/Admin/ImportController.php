@@ -14,6 +14,7 @@ class ImportController
     {
         if (!Session::verifyCsrf($request->input('wk_csrf'))) {
             Session::flash('error', 'Session expired.');
+            \App\Services\SeoService::markSitemapStale();
             Response::redirect(View::url('admin/import'));
             return;
         }
@@ -101,10 +102,10 @@ class ImportController
                 break;
 
             case 'products':
-                fputcsv($out, ['sku', 'name', 'category', 'price', 'sale_price', 'stock_quantity', 'description', 'short_description', 'weight', 'is_active', 'is_featured', 'meta_title', 'meta_description', 'meta_keywords']);
-                fputcsv($out, ['TSH-001', 'Classic White Tee', 'T-Shirts', '999.00', '799.00', '50', 'Premium cotton white t-shirt.', 'Premium white tee', '0.2', '1', '1', '', '', '']);
-                fputcsv($out, ['TSH-002', 'Black Graphic Tee', 'T-Shirts', '1299.00', '', '30', 'Bold graphic print on cotton.', 'Bold graphic tee', '0.22', '1', '0', '', '', '']);
-                fputcsv($out, ['JNS-001', 'Slim Fit Denim', 'Jeans', '2499.00', '1999.00', '25', 'Stretch denim slim fit.', 'Slim fit denim', '0.6', '1', '1', '', '', '']);
+                fputcsv($out, ['sku', 'name', 'category', 'price', 'sale_price', 'stock_quantity', 'description', 'short_description', 'weight', 'is_active', 'is_featured', 'faq', 'meta_title', 'meta_description', 'meta_keywords']);
+                fputcsv($out, ['TSH-001', 'Classic White Tee', 'T-Shirts', '999.00', '799.00', '50', 'Premium cotton white t-shirt.', 'Premium white tee', '0.2', '1', '1', 'Does it shrink? :: Not if you wash cold and hang it to dry. || Is it true to size? :: Yes, order your usual size.', '', '', '']);
+                fputcsv($out, ['TSH-002', 'Black Graphic Tee', 'T-Shirts', '1299.00', '', '30', 'Bold graphic print on cotton.', 'Bold graphic tee', '0.22', '1', '0', 'Will the print crack? :: Not if you wash it inside out.', '', '', '']);
+                fputcsv($out, ['JNS-001', 'Slim Fit Denim', 'Jeans', '2499.00', '1999.00', '25', 'Stretch denim slim fit.', 'Slim fit denim', '0.6', '1', '1', '', '', '', '']);
                 break;
 
             case 'variants':
@@ -117,21 +118,21 @@ class ImportController
                 break;
 
             case 'all':
-                fputcsv($out, ['row_type', 'name', 'parent', 'sku', 'category', 'price', 'sale_price', 'stock_quantity', 'description', 'short_description', 'weight', 'is_active', 'is_featured', 'variant_group', 'options', 'combo_sku', 'combo_price', 'combo_stock', 'meta_title', 'meta_description', 'meta_keywords']);
+                fputcsv($out, ['row_type', 'name', 'parent', 'sku', 'category', 'price', 'sale_price', 'stock_quantity', 'description', 'short_description', 'weight', 'is_active', 'is_featured', 'faq', 'variant_group', 'options', 'combo_sku', 'combo_price', 'combo_stock', 'meta_title', 'meta_description', 'meta_keywords']);
                 // Categories
-                fputcsv($out, ['category', 'Clothing', '', '', '', '', '', '', 'All clothing items', '', '', '1', '', '', '', '', '', '', '', '', '']);
-                fputcsv($out, ['category', 'T-Shirts', 'Clothing', '', '', '', '', '', 'Casual tees', '', '', '1', '', '', '', '', '', '', '', '', '']);
-                fputcsv($out, ['category', 'Jeans', 'Clothing', '', '', '', '', '', 'Denim collection', '', '', '1', '', '', '', '', '', '', '', '', '']);
+                fputcsv($out, ['category', 'Clothing', '', '', '', '', '', '', 'All clothing items', '', '', '1', '', '', '', '', '', '', '', '', '', '']);
+                fputcsv($out, ['category', 'T-Shirts', 'Clothing', '', '', '', '', '', 'Casual tees', '', '', '1', '', '', '', '', '', '', '', '', '', '']);
+                fputcsv($out, ['category', 'Jeans', 'Clothing', '', '', '', '', '', 'Denim collection', '', '', '1', '', '', '', '', '', '', '', '', '', '']);
                 // Products
-                fputcsv($out, ['product', 'Classic White Tee', '', 'TSH-001', 'T-Shirts', '999.00', '799.00', '50', 'Premium cotton white t-shirt.', 'Premium white tee', '0.2', '1', '1', '', '', '', '', '', 'Classic White Tee | Store', 'Premium cotton white tee', 'white,tee,cotton']);
-                fputcsv($out, ['product', 'Slim Fit Denim', '', 'JNS-001', 'Jeans', '2499.00', '1999.00', '25', 'Stretch denim slim fit jeans.', 'Slim fit denim', '0.6', '1', '1', '', '', '', '', '', '', '', '']);
+                fputcsv($out, ['product', 'Classic White Tee', '', 'TSH-001', 'T-Shirts', '999.00', '799.00', '50', 'Premium cotton white t-shirt.', 'Premium white tee', '0.2', '1', '1', 'Does it shrink? :: Not if you wash cold and hang it to dry. || Is it true to size? :: Yes, order your usual size.', '', '', '', '', '', 'Classic White Tee | Store', 'Premium cotton white tee', 'white,tee,cotton']);
+                fputcsv($out, ['product', 'Slim Fit Denim', '', 'JNS-001', 'Jeans', '2499.00', '1999.00', '25', 'Stretch denim slim fit jeans.', 'Slim fit denim', '0.6', '1', '1', '', '', '', '', '', '', '', '', '']);
                 // Variant groups
-                fputcsv($out, ['variant', '', '', 'TSH-001', '', '', '', '', '', '', '', '', '', 'Size', 'S,M,L,XL', '', '', '', '', '', '']);
-                fputcsv($out, ['variant', '', '', 'TSH-001', '', '', '', '', '', '', '', '', '', 'Color', 'White,Black', '', '', '', '', '', '']);
+                fputcsv($out, ['variant', '', '', 'TSH-001', '', '', '', '', '', '', '', '', '', '', 'Size', 'S,M,L,XL', '', '', '', '', '', '']);
+                fputcsv($out, ['variant', '', '', 'TSH-001', '', '', '', '', '', '', '', '', '', '', 'Color', 'White,Black', '', '', '', '', '', '']);
                 // Variant combo overrides
-                fputcsv($out, ['combo', '', '', 'TSH-001', '', '', '', '', '', '', '', '', '', '', '', 'TSH-001-S-WHT', '799.00', '10', '', '', '']);
-                fputcsv($out, ['combo', '', '', 'TSH-001', '', '', '', '', '', '', '', '', '', '', '', 'TSH-001-M-WHT', '799.00', '15', '', '', '']);
-                fputcsv($out, ['combo', '', '', 'TSH-001', '', '', '', '', '', '', '', '', '', '', '', 'TSH-001-L-BLK', '899.00', '8', '', '', '']);
+                fputcsv($out, ['combo', '', '', 'TSH-001', '', '', '', '', '', '', '', '', '', '', '', '', 'TSH-001-S-WHT', '799.00', '10', '', '', '']);
+                fputcsv($out, ['combo', '', '', 'TSH-001', '', '', '', '', '', '', '', '', '', '', '', '', 'TSH-001-M-WHT', '799.00', '15', '', '', '']);
+                fputcsv($out, ['combo', '', '', 'TSH-001', '', '', '', '', '', '', '', '', '', '', '', '', 'TSH-001-L-BLK', '899.00', '8', '', '', '']);
                 break;
         }
 
@@ -232,6 +233,11 @@ class ImportController
                     'meta_title' => !empty($row['meta_title']) ? $row['meta_title'] : null,
                     'meta_description' => !empty($row['meta_description']) ? $row['meta_description'] : null,
                     'meta_keywords' => !empty($row['meta_keywords']) ? $row['meta_keywords'] : null,
+                    // Accepts the flat "Question :: Answer || Question :: Answer"
+                    // form, since a spreadsheet cell cannot hold JSON comfortably.
+                    'faq' => \App\Services\ProductFaqService::encode(
+                        \App\Services\ProductFaqService::parse($row['faq'] ?? null)
+                    ),
                 ];
                 if ($categoryId) $data['category_id'] = $categoryId;
 

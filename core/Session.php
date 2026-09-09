@@ -263,6 +263,18 @@ class Session
         return $_SESSION['wk_cart_session'];
     }
 
+    /**
+     * Adopt an existing cart, used when a recovery link brings someone back to
+     * a basket they left on another device.
+     */
+    public static function adoptCart(string $cartSessionId): void
+    {
+        $cartSessionId = trim($cartSessionId);
+        if ($cartSessionId !== '') {
+            $_SESSION['wk_cart_session'] = $cartSessionId;
+        }
+    }
+
     // ── Internal ─────────────────────────────────
 
     /**

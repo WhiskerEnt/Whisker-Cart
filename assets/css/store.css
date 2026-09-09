@@ -3,10 +3,16 @@
    Purple / Pink / Green on light airy white
    ============================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
+/* The font is requested from the page head, not from here. An @import is only
+   discovered once this file has downloaded and parsed, so it holds up the
+   first paint twice over: once for this stylesheet, then again for that one. */
 
 :root {
     --wk-purple:     #8b5cf6;
+    /* The accent as text. The fill colour above is tuned to look right in a
+       button or a gradient; as small text on a pale page it is too light to
+       read, so links and labels use this darker tone of the same hue. */
+    --wk-purple-ink: #7c3aed;
     --wk-purple-soft:#ede9fe;
     --wk-pink:       #ec4899;
     --wk-pink-soft:  #fce7f3;
@@ -19,7 +25,10 @@
     --wk-text:       #1e1b2e;
     --wk-muted:      #6b7280;
     --wk-border:     #e8e5df;
-    --font:          'Nunito', sans-serif;
+    /* The font arrives without blocking the first paint, so text is drawn in
+       the fallback first. These are the faces closest to Nunito's proportions
+       on each platform, which keeps the swap from moving the page. */
+    --font:          'Nunito', 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
     --font-mono:     'JetBrains Mono', monospace;
     --radius:        14px;
     --radius-sm:     8px;
@@ -29,6 +38,7 @@
 /* Ocean Blue */
 [data-theme="ocean"] {
     --wk-purple:     #0ea5e9;
+    --wk-purple-ink: #0369a1;
     --wk-purple-soft:#e0f2fe;
     --wk-pink:       #06b6d4;
     --wk-pink-soft:  #cffafe;
@@ -46,6 +56,7 @@
 /* Forest Green */
 [data-theme="forest"] {
     --wk-purple:     #16a34a;
+    --wk-purple-ink: #15803d;
     --wk-purple-soft:#dcfce7;
     --wk-pink:       #ca8a04;
     --wk-pink-soft:  #fef9c3;
@@ -63,6 +74,7 @@
 /* Sunset Orange */
 [data-theme="sunset"] {
     --wk-purple:     #f97316;
+    --wk-purple-ink: #c2410c;
     --wk-purple-soft:#fff7ed;
     --wk-pink:       #e11d48;
     --wk-pink-soft:  #ffe4e6;
@@ -80,6 +92,7 @@
 /* Midnight Dark */
 [data-theme="midnight"] {
     --wk-purple:     #a78bfa;
+    --wk-purple-ink: #7c3aed;
     --wk-purple-soft:#1e1b3a;
     --wk-pink:       #f472b6;
     --wk-pink-soft:  #2a1528;
@@ -97,7 +110,13 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: var(--font); background: var(--wk-bg); color: var(--wk-text); line-height: 1.6; -webkit-font-smoothing: antialiased; }
 a { color: inherit; text-decoration: none; }
-img { max-width: 100%; display: block; }
+img { max-width: 100%; height: auto; display: block; }
+
+/* A <picture> is only a wrapper for choosing the file; it must not become a
+   box of its own. Left as an inline element it shrink-wraps to the image's
+   intrinsic width, and every rule written for the image inside a flex or grid
+   parent then measures against the wrapper instead of the parent. */
+picture { display: contents; }
 
 /* ── Branded Page Loader ────────────────────── */
 .wk-page-loader {
@@ -137,9 +156,13 @@ img { max-width: 100%; display: block; }
     white-space: nowrap;
 }
 .wk-header-nav { display: flex; align-items: center; gap: 6px 20px; flex-wrap: wrap; flex: 1 1 0; justify-content: center; min-width: 0; overflow: hidden; }
+/* The clip above holds the row to one line while the script measures it. Once
+   the overflow has been moved into "More" nothing sticks out, so the clip comes
+   off — an ancestor that clips would cut off the category menus as they open. */
+.wk-header-nav.wk-nav-ready { overflow: visible; }
 /* Each nav label stays on one line — long names wrap as whole items, never mid-label. */
 .wk-header-nav > a, .wk-nav-dropdown-trigger { font-size: 14px; font-weight: 700; color: var(--wk-muted); transition: color .2s; text-decoration: none; white-space: nowrap; }
-.wk-header-nav > a:hover, .wk-nav-dropdown-trigger:hover { color: var(--wk-purple); }
+.wk-header-nav > a:hover, .wk-nav-dropdown-trigger:hover { color: var(--wk-purple-ink); }
 
 /* Category Dropdown */
 .wk-nav-dropdown { position: relative; }
@@ -162,7 +185,7 @@ img { max-width: 100%; display: block; }
     display: block; padding: 8px 20px; font-size: 13px; font-weight: 600; color: var(--wk-text);
     transition: all .15s; text-decoration: none;
 }
-.wk-nav-dropdown-menu a:hover { background: var(--wk-purple-soft); color: var(--wk-purple); }
+.wk-nav-dropdown-menu a:hover { background: var(--wk-purple-soft); color: var(--wk-purple-ink); }
 .wk-nav-dropdown:hover .wk-nav-dropdown-menu { display: block; }
 /* Invisible bridge so mouse can travel from trigger to menu */
 .wk-nav-dropdown::after { content: ''; position: absolute; top: 100%; left: 0; right: 0; height: 12px; }
@@ -175,7 +198,7 @@ img { max-width: 100%; display: block; }
     color: var(--wk-text); display: flex; align-items: center; gap: 6px;
     transition: all .2s;
 }
-.wk-cart-btn:hover { border-color: var(--wk-purple); color: var(--wk-purple); }
+.wk-cart-btn:hover { border-color: var(--wk-purple-ink); color: var(--wk-purple-ink); }
 .wk-cart-count {
     background: linear-gradient(135deg, var(--wk-purple), var(--wk-pink));
     color: #fff; font-size: 10px; font-weight: 900;
@@ -251,7 +274,7 @@ img { max-width: 100%; display: block; }
 
 .wk-product-card:hover {
     transform: translateY(-6px);
-    border-color: var(--wk-purple);
+    border-color: var(--wk-purple-ink);
     box-shadow: 0 12px 40px rgba(139,92,246,.12);
 }
 
@@ -274,7 +297,7 @@ img { max-width: 100%; display: block; }
 .wk-product-info { padding: 16px 18px; }
 .wk-product-cat {
     font-size: 11px; font-weight: 800; text-transform: uppercase;
-    letter-spacing: 1px; color: var(--wk-purple); margin-bottom: 4px;
+    letter-spacing: 1px; color: var(--wk-purple-ink); margin-bottom: 4px;
 }
 .wk-product-name { font-size: 15px; font-weight: 800; margin-bottom: 8px; line-height: 1.3; }
 .wk-product-price { display: flex; align-items: center; gap: 8px; }
@@ -329,7 +352,7 @@ img { max-width: 100%; display: block; }
     cursor: pointer; font-size: 14px; font-weight: 800;
     color: var(--wk-text); transition: all .2s;
 }
-.wk-cart-close:hover { border-color: var(--wk-purple); color: var(--wk-purple); }
+.wk-cart-close:hover { border-color: var(--wk-purple-ink); color: var(--wk-purple-ink); }
 
 .wk-cart-items { flex: 1; overflow-y: auto; padding: 16px 24px; }
 
@@ -358,7 +381,7 @@ img { max-width: 100%; display: block; }
     cursor: pointer; font-size: 14px; font-weight: 800; color: var(--wk-text);
     transition: background .15s;
 }
-.wk-qty-btn:hover { background: var(--wk-purple-soft); color: var(--wk-purple); }
+.wk-qty-btn:hover { background: var(--wk-purple-soft); color: var(--wk-purple-ink); }
 .wk-qty-val {
     width: 32px; height: 28px; text-align: center; border: none;
     background: var(--wk-surface); font-family: var(--font-mono); font-size: 13px; font-weight: 700;
@@ -396,8 +419,12 @@ img { max-width: 100%; display: block; }
     transition: transform .6s cubic-bezier(.25,.8,.25,1);
 }
 .wk-carousel-slide {
-    min-width: 100%;
-    flex-shrink: 0;
+    /* Exactly one screen wide, never more: min-width alone lets a slide grow
+       to fit its content, and a slide wider than the track is laid out off the
+       side of the screen where it cannot be scrolled to. */
+    flex: 0 0 100%;
+    min-width: 0;
+    max-width: 100%;
 }
 .wk-hero-slide {
     position: relative;
@@ -441,7 +468,9 @@ img { max-width: 100%; display: block; }
 }
 .wk-hero-badge {
     display: inline-block;
-    background: var(--wk-pink);
+    /* A step darker than the brand pink: white at 12px needs 4.5:1, and the
+       lighter shade only reaches 3.5. */
+    background: var(--wk-pink-deep, #db2777);
     color: #fff;
     font-size: 12px; font-weight: 800;
     padding: 5px 14px;
@@ -496,7 +525,7 @@ img { max-width: 100%; display: block; }
     display: inline-flex; align-items: center; gap: 8px;
     padding: 14px 32px;
     background: #fff;
-    color: var(--wk-purple);
+    color: var(--wk-purple-ink);
     border-radius: 12px;
     font-weight: 800; font-size: 15px;
     text-decoration: none;
@@ -533,10 +562,19 @@ img { max-width: 100%; display: block; }
     display: flex; align-items: center; justify-content: center;
     cursor: pointer;
     position: relative;
+    /* Hold the space the image will take. Without it the hero is empty until
+       the picture arrives and then grows by its full height, shoving the rest
+       of the page down — the single largest layout shift on the front page. */
+    min-height: 400px;
 }
 .wk-hero-slide-img img {
     max-height: 400px;
     max-width: 100%;
+    /* Capped by height, with the width following from the picture's own
+       proportions — otherwise the width attribute wins and a tall image is
+       800px wide on a 375px screen. */
+    width: auto;
+    height: auto;
     object-fit: contain;
     filter: drop-shadow(0 20px 60px rgba(0,0,0,.5));
     transition: transform .5s cubic-bezier(.25,.8,.25,1);
@@ -568,24 +606,37 @@ img { max-width: 100%; display: block; }
 
 /* Hero dots */
 .wk-hero-carousel .wk-carousel-dots {
-    display: flex; justify-content: center; gap: 8px;
-    position: absolute; bottom: 20px; left: 0; right: 0;
+    display: flex; justify-content: center; gap: 4px;
+    position: absolute; bottom: 14px; left: 0; right: 0;
     z-index: 3;
     padding: 0;
 }
+/* The dot stays the size it looks; the button around it is big enough to hit
+   with a thumb. A 10px target is a miss for most people on a phone. */
 .wk-hero-carousel .wk-carousel-dot,
 .wk-carousel-dot {
-    width: 10px; height: 10px; border-radius: 50%;
-    background: rgba(255,255,255,.3); border: none;
-    cursor: pointer; transition: all .3s;
-    padding: 0;
+    width: 24px; height: 24px; border-radius: 50%;
+    background: none; border: none;
+    cursor: pointer; padding: 0;
+    display: grid; place-items: center;
+    /* Held at full size: the row they sit in is positioned, and a flex item
+       that is allowed to shrink collapses back to the width of the dot. */
+    flex: 0 0 24px;
 }
-.wk-hero-carousel .wk-carousel-dot.active,
-.wk-carousel-dot.active {
+.wk-hero-carousel .wk-carousel-dot::after,
+.wk-carousel-dot::after {
+    content: ''; display: block;
+    width: 10px; height: 10px; border-radius: 50%;
+    background: rgba(255,255,255,.3);
+    transition: background .3s, transform .3s, box-shadow .3s;
+}
+.wk-hero-carousel .wk-carousel-dot.active::after,
+.wk-carousel-dot.active::after {
     background: #fff;
     transform: scale(1.2);
     box-shadow: 0 0 12px rgba(255,255,255,.5);
 }
+.wk-carousel-dot:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 
 /* Slide counter */
 .wk-hero-counter {
@@ -603,7 +654,7 @@ img { max-width: 100%; display: block; }
         gap: 24px;
         padding-top: 36px; padding-bottom: 52px;
     }
-    .wk-hero-slide-img { order: -1; }
+    .wk-hero-slide-img { order: -1; min-height: 240px; min-width: 0; }
     .wk-hero-slide-img img { max-height: 240px; }
     .wk-hero-name { font-size: 28px; }
     .wk-hero-price-current { font-size: 26px; }
@@ -636,7 +687,7 @@ img { max-width: 100%; display: block; }
     .wk-cart-drawer { width: 100vw; }
     .wk-hero h1 { font-size: 28px; }
 }
-@media (max-width: 480px) { .wk-product-grid { grid-template-columns: 1fr; } }
+@media (max-width: 340px) { .wk-product-grid { grid-template-columns: 1fr; } }
 /* ── Header search ─────────────────────────────── */
 .wk-search { position: relative; flex: 0 1 240px; min-width: 140px; }
 .wk-search-icon {
@@ -655,11 +706,11 @@ img { max-width: 100%; display: block; }
 .wk-search-input::placeholder { color: var(--wk-muted); font-weight: 600; }
 .wk-search-input::-webkit-search-cancel-button { -webkit-appearance: none; }
 .wk-search-input:focus {
-    border-color: var(--wk-purple); background: var(--wk-surface);
+    border-color: var(--wk-purple-ink); background: var(--wk-surface);
     box-shadow: 0 0 0 4px var(--wk-purple-soft);
 }
 .wk-search-input:focus + .wk-search-icon,
-.wk-search:focus-within .wk-search-icon { color: var(--wk-purple); }
+.wk-search:focus-within .wk-search-icon { color: var(--wk-purple-ink); }
 /* The nav "Search" link is redundant once the box is present. */
 .wk-search-link { display: none !important; }
 
@@ -685,7 +736,7 @@ img { max-width: 100%; display: block; }
     font-size: 13px; font-weight: 800; line-height: 1.3;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.wk-search-name mark { background: transparent; color: var(--wk-purple); font-weight: 900; }
+.wk-search-name mark { background: transparent; color: var(--wk-purple-ink); font-weight: 900; }
 .wk-search-meta {
     font-size: 11px; color: var(--wk-muted); font-weight: 700;
     text-transform: uppercase; letter-spacing: .3px;
@@ -697,7 +748,7 @@ img { max-width: 100%; display: block; }
 .wk-search-oos { color: var(--wk-red); }
 .wk-search-foot {
     display: block; padding: 11px 14px; text-align: center;
-    font-size: 12px; font-weight: 800; color: var(--wk-purple);
+    font-size: 12px; font-weight: 800; color: var(--wk-purple-ink);
     text-decoration: none; background: var(--wk-bg);
     border-top: 1px solid var(--wk-border);
 }
@@ -758,7 +809,7 @@ img { max-width: 100%; display: block; }
 .wk-cookie-copy { flex: 1 1 320px; min-width: 0; }
 .wk-cookie-title { font-size: 14px; font-weight: 900; margin: 0 0 3px; }
 .wk-cookie-text { font-size: 13px; line-height: 1.55; color: var(--wk-muted); margin: 0; }
-.wk-cookie-link { color: var(--wk-purple); font-weight: 700; text-decoration: underline; }
+.wk-cookie-link { color: var(--wk-purple-ink); font-weight: 700; text-decoration: underline; }
 .wk-cookie-actions { display: flex; gap: 10px; flex: 0 0 auto; }
 .wk-cookie-btn {
     font: inherit; font-size: 13px; font-weight: 800; cursor: pointer;
@@ -767,8 +818,8 @@ img { max-width: 100%; display: block; }
     color: var(--wk-text); transition: border-color .15s ease, background .15s ease;
 }
 .wk-cookie-btn:hover { border-color: var(--wk-text); }
-.wk-cookie-btn-accept { background: var(--wk-purple); border-color: var(--wk-purple); color: #fff; }
-.wk-cookie-btn-accept:hover { filter: brightness(1.08); border-color: var(--wk-purple); }
+.wk-cookie-btn-accept { background: var(--wk-purple); border-color: var(--wk-purple-ink); color: #fff; }
+.wk-cookie-btn-accept:hover { filter: brightness(1.08); border-color: var(--wk-purple-ink); }
 .wk-cookie-btn:focus-visible { outline: 3px solid var(--wk-purple); outline-offset: 2px; }
 /* Category preferences, revealed by Customise */
 .wk-cookie-prefs {
@@ -784,7 +835,8 @@ img { max-width: 100%; display: block; }
 .wk-cookie-cat-name { font-size: 13px; font-weight: 800; }
 .wk-cookie-cat-desc { font-size: 11.5px; line-height: 1.45; color: var(--wk-muted); margin: 2px 0 0; }
 .wk-cookie-always {
-    font-size: 11px; font-weight: 800; color: var(--wk-green);
+    /* The pale green behind it needs a darker green in front to be read. */
+    font-size: 11px; font-weight: 800; color: #047857;
     background: var(--wk-green-soft); padding: 3px 9px; border-radius: 999px;
 }
 .wk-cookie-switch { position: relative; display: inline-block; width: 40px; height: 22px; flex: 0 0 auto; cursor: pointer; }
@@ -863,7 +915,7 @@ img { max-width: 100%; display: block; }
     margin: 12px 0 0; padding: 12px 14px; background: var(--wk-bg);
     border-left: 3px solid var(--wk-purple); border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
-.wk-review-reply-who { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--wk-purple); }
+.wk-review-reply-who { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--wk-purple-ink); }
 .wk-review-reply p { font-size: 13px; line-height: 1.7; margin: 4px 0 0; white-space: pre-line; }
 
 .wk-review-form-wrap {
@@ -883,7 +935,7 @@ img { max-width: 100%; display: block; }
     background: var(--wk-bg); color: var(--wk-text); width: 100%;
 }
 .wk-review-form textarea { resize: vertical; min-height: 96px; }
-.wk-review-form input:focus, .wk-review-form textarea:focus { outline: none; border-color: var(--wk-purple); }
+.wk-review-form input:focus, .wk-review-form textarea:focus { outline: none; border-color: var(--wk-purple-ink); }
 /* The storefront has no generic .wk-btn — that is an admin class — so the
    submit button carries its own styling in the store's button language. */
 .wk-review-submit {
@@ -931,7 +983,7 @@ img { max-width: 100%; display: block; }
 
 /* Rating an item straight from the customer's order */
 .wk-order-rate summary {
-    font-size: 12.5px; font-weight: 800; color: var(--wk-purple); cursor: pointer;
+    font-size: 12.5px; font-weight: 800; color: var(--wk-purple-ink); cursor: pointer;
     display: inline-block; padding: 4px 0;
 }
 .wk-order-rate-form { display: grid; gap: 10px; margin-top: 10px; max-width: 460px; }
@@ -941,7 +993,7 @@ img { max-width: 100%; display: block; }
     background: var(--wk-bg); color: var(--wk-text); width: 100%;
 }
 .wk-order-rate-form textarea { resize: vertical; }
-.wk-order-rate-form input:focus, .wk-order-rate-form textarea:focus { outline: none; border-color: var(--wk-purple); }
+.wk-order-rate-form input:focus, .wk-order-rate-form textarea:focus { outline: none; border-color: var(--wk-purple-ink); }
 .wk-order-rate-form .wk-rating-input label { font-size: 24px; }
 .wk-order-rate-form .wk-review-submit { padding: 10px 22px; font-size: 13px; }
 .wk-order-rate-note { font-size: 12px; color: var(--wk-muted); margin: 0; line-height: 1.55; }
@@ -950,7 +1002,7 @@ img { max-width: 100%; display: block; }
 .wk-qa { margin-top: 48px; padding-top: 36px; border-top: 2px solid var(--wk-border); scroll-margin-top: 90px; }
 .wk-qa-heading { font-size: 22px; font-weight: 900; margin: 0 0 22px; display: flex; align-items: center; gap: 10px; }
 .wk-qa-count {
-    font-size: 12px; font-weight: 800; color: var(--wk-purple);
+    font-size: 12px; font-weight: 800; color: var(--wk-purple-ink);
     background: var(--wk-purple-soft); padding: 3px 10px; border-radius: 99px;
 }
 .wk-qa-empty { color: var(--wk-muted); font-size: 14px; margin: 0 0 24px; }
@@ -987,8 +1039,510 @@ img { max-width: 100%; display: block; }
     background: var(--wk-bg); color: var(--wk-text); width: 100%;
 }
 .wk-qa-form textarea { resize: vertical; min-height: 80px; }
-.wk-qa-form input:focus, .wk-qa-form textarea:focus { outline: none; border-color: var(--wk-purple); }
+.wk-qa-form input:focus, .wk-qa-form textarea:focus { outline: none; border-color: var(--wk-purple-ink); }
 .wk-qa-form input.is-bad { border-color: var(--wk-red); }
 .wk-qa-form input.is-ok  { border-color: var(--wk-green); }
 .wk-qa-form small.is-bad { color: var(--wk-red); font-weight: 700; }
 .wk-qa-form small.is-ok  { color: var(--wk-green); font-weight: 700; }
+
+/* ── Floating contact bar ──────────────────────────────────────────── */
+/* The wrapper spans the viewport height but takes no pointer events, so the
+   space between icons never intercepts a click meant for the page. Only the
+   links themselves are clickable. */
+.wk-social {
+    position: fixed; top: 50%; transform: translateY(-50%);
+    z-index: 850; pointer-events: none;
+    transition: opacity .2s ease, visibility .2s ease;
+}
+.wk-social-left  { left: 14px; }
+.wk-social-right { right: 14px; }
+.wk-social.is-hidden { opacity: 0; visibility: hidden; }
+
+/* An author display declaration beats the hidden attribute, so a closed
+   panel would stay laid out — invisible, but still taking clicks. */
+.wk-social-inner[hidden] { display: none; }
+/* No overflow of any kind: setting one axis to auto makes the other auto
+   too, which clipped each icon's shadow at a hard rectangular edge. Ten
+   channels stack to about 500px and fit; a shop with more than that wants
+   the collapsed mode. */
+.wk-social-inner {
+    display: flex; flex-direction: column; gap: 9px;
+}
+
+.wk-social-link {
+    pointer-events: auto;
+    position: relative; flex: 0 0 auto;
+    width: 42px; height: 42px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--wk-social-brand, var(--wk-purple));
+    color: #fff; text-decoration: none;
+    box-shadow: 0 3px 12px rgba(0,0,0,.18);
+    transition: transform .18s ease, box-shadow .18s ease;
+}
+.wk-social-link svg { width: 20px; height: 20px; display: block; }
+.wk-social-link:hover { transform: scale(1.08); box-shadow: 0 6px 20px rgba(0,0,0,.26); }
+.wk-social-link:focus-visible { outline: 3px solid var(--wk-purple); outline-offset: 3px; }
+
+/* Name appears on hover, growing away from the screen edge. */
+.wk-social-label {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    white-space: nowrap; font-size: 12px; font-weight: 800; line-height: 1;
+    padding: 7px 11px; border-radius: 7px;
+    background: var(--wk-text); color: var(--wk-surface);
+    opacity: 0; pointer-events: none;
+    transition: opacity .16s ease;
+}
+.wk-social-left  .wk-social-label { left: calc(100% + 9px); }
+.wk-social-right .wk-social-label { right: calc(100% + 9px); }
+.wk-social-link:hover .wk-social-label,
+.wk-social-link:focus-visible .wk-social-label { opacity: 1; }
+
+/* Below the point where the 1200px container still leaves a gutter, the bar
+   would start sitting over the page, so it gets smaller and tucks in. */
+@media (max-width: 1320px) {
+    .wk-social-left  { left: 8px; }
+    .wk-social-right { right: 8px; }
+    .wk-social-link { width: 38px; height: 38px; }
+    .wk-social-link svg { width: 18px; height: 18px; }
+}
+@media (max-width: 720px) {
+    .wk-social-inner { gap: 7px; }
+    .wk-social-link { width: 32px; height: 32px; box-shadow: 0 2px 8px rgba(0,0,0,.16); }
+    .wk-social-link svg { width: 15px; height: 15px; }
+    /* Touch devices have no hover, and the label would cover the page. */
+    .wk-social-label { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .wk-social, .wk-social-link, .wk-social-label { transition: none; }
+    .wk-social-link:hover { transform: none; }
+}
+
+/* Keep the page clear of the contact bar.
+   Above 1340px the centred 1200px container already leaves a wide enough
+   gutter; below it the bar would start sitting over the content, so the
+   container gives up the space instead. */
+@media (max-width: 1340px) {
+    body.wk-has-social-left  .wk-container { padding-left: 72px; }
+    body.wk-has-social-right .wk-container { padding-right: 72px; }
+}
+@media (max-width: 720px) {
+    body.wk-has-social-left  .wk-container { padding-left: 50px; }
+    body.wk-has-social-right .wk-container { padding-right: 50px; }
+}
+
+/* Collapsed mode: one button, opening into the column. */
+.wk-social-toggle {
+    pointer-events: auto;
+    width: 42px; height: 42px; border-radius: 50%; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, var(--wk-purple), var(--wk-pink));
+    color: #fff; box-shadow: 0 3px 12px rgba(0,0,0,.18);
+    transition: transform .18s ease, box-shadow .18s ease;
+}
+.wk-social-toggle:hover { transform: scale(1.08); box-shadow: 0 6px 20px rgba(0,0,0,.26); }
+.wk-social-toggle:focus-visible { outline: 3px solid var(--wk-purple); outline-offset: 3px; }
+.wk-social-toggle svg { width: 20px; height: 20px; display: block; }
+.wk-social-toggle-close { display: none; }
+.wk-social.is-open .wk-social-toggle-open { display: none; }
+.wk-social.is-open .wk-social-toggle-close { display: block; }
+
+/* The button sits at the bottom of the stack so the icons open upward,
+   away from the page rather than across it. */
+.wk-social-collapsible { display: flex; flex-direction: column-reverse; gap: 9px; align-items: center; }
+.wk-social-collapsible .wk-social-inner { gap: 9px; }
+.wk-social-collapsible .wk-social-link {
+    opacity: 0; transform: translateY(10px) scale(.85);
+    transition: opacity .18s ease, transform .18s ease;
+    transition-delay: calc(var(--wk-social-i, 0) * 35ms);
+}
+.wk-social.is-open .wk-social-link { opacity: 1; transform: none; }
+
+@media (max-width: 1320px) {
+    .wk-social-toggle { width: 38px; height: 38px; }
+    .wk-social-toggle svg { width: 18px; height: 18px; }
+}
+@media (max-width: 720px) {
+    .wk-social-toggle { width: 34px; height: 34px; }
+    .wk-social-toggle svg { width: 16px; height: 16px; }
+    .wk-social-collapsible, .wk-social-collapsible .wk-social-inner { gap: 7px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .wk-social-toggle, .wk-social-collapsible .wk-social-link { transition: none; }
+    .wk-social-toggle:hover { transform: none; }
+    .wk-social-collapsible .wk-social-link { opacity: 1; transform: none; }
+}
+
+/* ── Exit-intent prompt ────────────────────────────────────────────── */
+.wk-lead[hidden] { display: none; }
+.wk-lead {
+    position: fixed; inset: 0; z-index: 9000;
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+    opacity: 0; transition: opacity .24s ease;
+}
+.wk-lead.is-open { opacity: 1; }
+.wk-lead-backdrop { position: absolute; inset: 0; background: rgba(15,12,30,.55); }
+.wk-lead-box {
+    position: relative; width: 100%; max-width: 420px;
+    background: var(--wk-surface); border-radius: var(--radius);
+    padding: 30px 28px 26px; text-align: center;
+    box-shadow: 0 24px 70px rgba(0,0,0,.3);
+    transform: translateY(14px) scale(.98); transition: transform .24s ease;
+}
+.wk-lead.is-open .wk-lead-box { transform: none; }
+.wk-lead-x {
+    position: absolute; top: 10px; right: 12px; border: none; background: none;
+    font-size: 26px; line-height: 1; color: var(--wk-muted); cursor: pointer; padding: 4px 8px;
+}
+.wk-lead-x:hover { color: var(--wk-text); }
+.wk-lead-title { font-size: 22px; font-weight: 900; margin: 0 0 8px; }
+.wk-lead-text { font-size: 14px; line-height: 1.65; color: var(--wk-muted); margin: 0 0 18px; }
+
+.wk-lead-offer {
+    background: var(--wk-purple-soft); border: 2px dashed var(--wk-purple);
+    border-radius: var(--radius-sm); padding: 14px; margin-bottom: 18px;
+}
+.wk-lead-offer-value { display: block; font-size: 26px; font-weight: 900; color: var(--wk-purple-ink); line-height: 1.1; }
+.wk-lead-offer-note { font-size: 12px; font-weight: 700; color: var(--wk-muted); }
+
+.wk-lead-form { display: grid; gap: 12px; }
+.wk-lead-field { display: grid; gap: 5px; text-align: left; font-size: 12px; font-weight: 800; }
+.wk-lead-field input {
+    font: inherit; font-weight: 500; font-size: 14px; padding: 12px 13px;
+    border: 2px solid var(--wk-border); border-radius: var(--radius-sm);
+    background: var(--wk-bg); color: var(--wk-text); width: 100%;
+}
+.wk-lead-field input:focus { outline: none; border-color: var(--wk-purple-ink); }
+.wk-lead-hint { font-size: 11.5px; color: var(--wk-muted); margin: -4px 0 0; text-align: left; }
+.wk-lead-submit {
+    font: inherit; font-size: 15px; font-weight: 800; cursor: pointer; padding: 13px;
+    border: none; border-radius: var(--radius-sm); color: #fff;
+    background: linear-gradient(135deg, var(--wk-purple), var(--wk-pink));
+    box-shadow: 0 4px 15px rgba(139,92,246,.25);
+}
+.wk-lead-submit:disabled { opacity: .65; cursor: default; }
+.wk-lead-no {
+    font: inherit; font-size: 12.5px; font-weight: 700; color: var(--wk-muted);
+    background: none; border: none; cursor: pointer; padding: 2px;
+}
+.wk-lead-no:hover { color: var(--wk-text); text-decoration: underline; }
+.wk-lead-done { font-size: 14px; line-height: 1.6; margin: 6px 0 0; }
+.wk-lead-done.is-ok { color: var(--wk-green); font-weight: 700; }
+.wk-lead-done.is-bad { color: var(--wk-red); font-weight: 700; }
+.wk-lead-code {
+    display: inline-block; font-family: var(--font-mono); font-size: 18px;
+    background: var(--wk-purple-soft); color: var(--wk-purple-ink);
+    padding: 4px 12px; border-radius: 6px; margin-top: 8px;
+}
+@media (prefers-reduced-motion: reduce) {
+    .wk-lead, .wk-lead-box { transition: none; }
+    .wk-lead-box { transform: none; }
+}
+
+/* Link from the description to the questions further down the page */
+.wk-ask-link {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: 13px; font-weight: 700; color: var(--wk-purple-ink);
+    text-decoration: none; margin-bottom: 18px;
+    padding: 7px 12px; border-radius: 999px;
+    background: var(--wk-purple-soft); transition: filter .15s ease;
+}
+.wk-ask-link:hover { filter: brightness(.96); text-decoration: underline; }
+
+/* ── Product FAQ ───────────────────────────────────────────────────── */
+.wk-faq { margin-top: 48px; padding-top: 36px; border-top: 2px solid var(--wk-border); scroll-margin-top: 90px; }
+.wk-faq-heading { font-size: 22px; font-weight: 900; margin: 0 0 20px; }
+.wk-faq-list { display: grid; gap: 10px; }
+.wk-faq-item {
+    border: 2px solid var(--wk-border); border-radius: var(--radius-sm);
+    background: var(--wk-surface); overflow: hidden;
+}
+.wk-faq-item summary {
+    cursor: pointer; padding: 14px 18px; font-size: 14.5px; font-weight: 800;
+    list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.wk-faq-item summary::-webkit-details-marker { display: none; }
+.wk-faq-item summary::after { content: '+'; font-size: 20px; font-weight: 400; color: var(--wk-muted); }
+.wk-faq-item[open] summary::after { content: '\2212'; }
+.wk-faq-item[open] summary { border-bottom: 1px solid var(--wk-border); }
+.wk-faq-item p { margin: 0; padding: 14px 18px; font-size: 14px; line-height: 1.75; color: var(--wk-muted); }
+
+/* ── Phone field ──────────────────────────────── */
+/* The picker sits beside the number. Kept in the stylesheet rather than on the
+   element so a narrower home for it can lay the two out differently. */
+.wk-phone-field { display: grid; grid-template-columns: minmax(0, 148px) minmax(0, 1fr); gap: 8px; }
+@media (max-width: 480px) {
+    .wk-phone-field { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ── Field validation ─────────────────────────── */
+/* The line under a field that says why it was rejected, or offers a spelling. */
+.wk-field-note { font-size: 11px; font-weight: 700; margin: 5px 0 0; line-height: 1.4; }
+.wk-field-note.wk-field-bad  { color: #ef4444; }
+.wk-field-note.wk-field-warn { color: #f59e0b; }
+input.wk-field-invalid { border-color: #ef4444 !important; }
+
+/* The exit prompt is narrow, so the picker sits above the number rather than
+   beside it, where the country name would have nowhere to go. */
+.wk-lead-field .wk-phone-field { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+.wk-lead-field .wk-phone-field select {
+    width: 100%; padding: 11px 12px; border: 2px solid var(--wk-border); border-radius: 10px;
+    font-family: var(--font); font-size: 13px; font-weight: 700;
+    background: var(--wk-surface); color: var(--wk-text);
+}
+.wk-lead-field .wk-phone-field select:focus { outline: none; border-color: var(--wk-purple-ink); }
+
+/* Footer links sit close together on a phone, and a 19px line of text is not
+   something a thumb can hit reliably. The padding is the target, not the ink. */
+.wk-footer-inner a { display: inline-block; padding: 4px 2px; min-height: 24px; }
+
+
+/* ── Phones ───────────────────────────────────
+   Written last so it settles anything above it. The screen is 375px wide and
+   about 70 of those were going to margins and a strip of icons. */
+@media (max-width: 768px) {
+    /* The bar folds into its button here whatever the shopkeeper chose for
+       desktop, and the page stops reserving a column for it. */
+    .wk-social-inner { display: none; }
+    .wk-social.is-open .wk-social-inner { display: flex; }
+    body.wk-has-social-left  .wk-container,
+    body.wk-has-social-right .wk-container { padding-left: 16px; padding-right: 16px; }
+    .wk-container { padding-left: 16px; padding-right: 16px; }
+
+    /* Logo, account and cart on one line instead of three. */
+    .wk-header-inner { gap: 10px 12px; padding-top: 10px; padding-bottom: 10px; }
+    .wk-logo { font-size: 17px; gap: 7px; }
+    .wk-logo svg { width: 24px; height: 24px; }
+    .wk-cart-btn { padding: 7px 11px; font-size: 13px; }
+    .wk-header-inner { padding-left: 16px; padding-right: 16px; }
+
+    /* Icons alone in the header. The words are what pushed the logo, the
+       account menu and the cart onto three separate rows. */
+    .wk-btn-label { display: none; }
+
+    /* Sections were spaced for a desktop page and read as gaps on a phone. */
+    .wk-section { padding: 32px 0; }
+    .wk-section-title { font-size: 22px; }
+    .wk-section-sub { font-size: 13px; }
+
+    /* The smallest labels were 11px, which is below comfortable reading. */
+    .wk-product-cat { font-size: 12px; }
+    .wk-product-badge { font-size: 12px; }
+    .wk-product-name { font-size: 14px; }
+
+    /* Anything laid out in two columns for a desktop form gets one here. */
+    .wk-phone-field { grid-template-columns: minmax(0, 1fr); }
+    .wk-footer-inner { gap: 18px; }
+}
+
+@media (max-width: 380px) {
+    .wk-hero-name { font-size: 24px; }
+    .wk-hero-price-current { font-size: 22px; }
+    .wk-hero-actions { flex-direction: column; align-items: stretch; }
+}
+
+/* A slide is dragged, so nothing inside it should look selectable. */
+.wk-carousel-track { user-select: none; -webkit-user-select: none; touch-action: pan-y; }
+.wk-carousel-track a, .wk-carousel-track img { -webkit-user-drag: none; }
+
+
+/* ── Product page ─────────────────────────────
+   The gallery beside the details, until there is no room for two of anything. */
+.wk-product-layout {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: start;
+}
+.wk-buy-row { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+/* Sizing lives here rather than on the element, so a narrow screen can put the
+   button on its own line instead of squeezing it beside the stepper. */
+.wk-buy-cta { flex: 1; border-radius: var(--radius-sm); font-size: 15px; padding: 16px; }
+
+@media (max-width: 768px) {
+    /* Side by side, these were an 80px picture next to a column of text and a
+       buy button 75px wide with its label broken over three lines. */
+    .wk-product-layout { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+
+    /* The quantity stepper keeps its size; the button takes the row below it
+       and the full width, which is where a thumb expects it. */
+    .wk-buy-row { flex-wrap: wrap; gap: 12px; }
+    .wk-buy-row .wk-buy-cta { flex: 1 0 100%; width: 100%; }
+
+    /* Folded away, the contact button sat over the middle of the page. Down in
+       the corner it is still to hand and over nothing. */
+    .wk-social:not(.is-open) { top: auto; bottom: 84px; transform: none; }
+    .wk-social-left:not(.is-open)  { left: 12px; }
+    .wk-social-right:not(.is-open) { right: 12px; }
+}
+
+
+/* ── Column layouts ───────────────────────────
+   Forms and panels were laid out in two and three columns written straight
+   onto the element, so a phone got two 140px columns of a shipping address
+   rather than one readable one. */
+.wk-cols-2 { display: grid; grid-template-columns: 1fr 1fr; }
+.wk-cols-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; }
+.wk-checkout-layout { display: grid; grid-template-columns: 1.3fr 1fr; }
+
+@media (max-width: 768px) {
+    .wk-cols-2,
+    .wk-cols-3,
+    .wk-checkout-layout { grid-template-columns: minmax(0, 1fr); }
+}
+
+
+/* The chat panel is a fixed 380px, which is wider than the phone it opens on.
+   Inline width wins over a plain rule, so this one has to insist. */
+@media (max-width: 430px) {
+    .wk-chat-window {
+        width: auto !important;
+        left: 12px !important;
+        right: 12px !important;
+        max-height: 70vh !important;
+    }
+}
+
+/* ── Cart page ────────────────────────────────
+   The drawer is for a glance; this is the page a recovery email links to and
+   the one somebody returns to with the back button. */
+.wk-cart-page { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 32px; align-items: start; }
+
+.wk-cart-lines { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.wk-cart-line {
+    display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: 16px; align-items: start;
+    grid-template-areas: "img info total";
+    background: var(--wk-surface); border: 2px solid var(--wk-border);
+    border-radius: var(--radius); padding: 16px;
+}
+.wk-cart-line-img {
+    grid-area: img;
+    width: 96px; height: 96px; border-radius: 10px; overflow: hidden; background: var(--wk-bg);
+    display: flex; align-items: center; justify-content: center; font-size: 26px; flex-shrink: 0;
+}
+.wk-cart-line-img img { width: 100%; height: 100%; object-fit: cover; }
+.wk-cart-line-info { grid-area: info; min-width: 0; }
+.wk-cart-line-name { font-weight: 800; font-size: 15px; color: var(--wk-text); text-decoration: none; display: block; }
+.wk-cart-line-name:hover { color: var(--wk-purple-ink); }
+.wk-cart-line-variant { font-size: 12px; font-weight: 700; color: var(--wk-muted); margin-top: 3px; }
+.wk-cart-line-unit { font-size: 13px; color: var(--wk-muted); margin-top: 4px; }
+.wk-cart-line-controls { display: flex; align-items: center; gap: 14px; margin-top: 12px; flex-wrap: wrap; }
+.wk-cart-line-remove {
+    background: none; border: none; padding: 6px 2px; cursor: pointer;
+    font-family: var(--font); font-size: 13px; font-weight: 700; color: var(--wk-muted);
+    text-decoration: underline; text-underline-offset: 2px;
+}
+.wk-cart-line-remove:hover { color: #dc2626; }
+.wk-cart-line-total { grid-area: total; font-weight: 900; font-size: 16px; font-family: var(--font-mono); white-space: nowrap; }
+
+.wk-cart-summary {
+    background: var(--wk-surface); border: 2px solid var(--wk-border);
+    border-radius: var(--radius); padding: 24px; position: sticky; top: 90px;
+}
+.wk-cart-summary h2 { font-size: 17px; font-weight: 900; margin: 0 0 16px; }
+.wk-cart-summary-row { display: flex; justify-content: space-between; align-items: baseline; font-size: 15px; }
+.wk-cart-summary-row strong { font-family: var(--font-mono); font-size: 20px; font-weight: 900; }
+.wk-cart-summary-note { font-size: 12px; color: var(--wk-muted); margin: 10px 0 18px; line-height: 1.5; }
+.wk-cart-keep-shopping {
+    display: block; text-align: center; margin-top: 12px; padding: 6px 0; min-height: 24px;
+    font-size: 13px; font-weight: 700; color: var(--wk-purple-ink); text-decoration: none;
+}
+
+/* How close the basket is to free delivery. */
+.wk-ship-progress {
+    background: var(--wk-purple-soft); border-radius: var(--radius);
+    padding: 14px 18px; margin-bottom: 18px;
+}
+.wk-ship-progress p { margin: 0 0 10px; font-size: 13px; font-weight: 700; color: var(--wk-text); }
+.wk-ship-bar { height: 6px; border-radius: 99px; background: rgba(0,0,0,.08); overflow: hidden; }
+.wk-ship-bar span { display: block; height: 100%; border-radius: 99px; background: var(--wk-purple); transition: width .4s ease; }
+
+@media (max-width: 768px) {
+    .wk-cart-page { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+    .wk-cart-summary { position: static; }
+    /* Two columns and the total on its own row: squeezed into three, the
+       middle column was 129px for a name, a variant and a quantity stepper. */
+    .wk-cart-line {
+        grid-template-columns: 76px minmax(0, 1fr);
+        grid-template-areas: "img info" "total total";
+        gap: 10px 12px; padding: 12px;
+    }
+    .wk-cart-line-img { width: 76px; height: 76px; }
+    .wk-cart-line-total { text-align: right; font-size: 17px; }
+}
+
+/* Said once the order is on its way, so the wait has an explanation. */
+.wk-pay-note { font-size: 12px; font-weight: 700; color: var(--wk-muted); margin: 10px 0 0; min-height: 16px; line-height: 1.5; }
+
+/* Asked for once, right where the order is placed. */
+.wk-terms { display: flex; gap: 10px; align-items: flex-start; margin-top: 18px; font-size: 13px; line-height: 1.5; cursor: pointer; }
+.wk-terms input { margin-top: 2px; width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--wk-purple-ink); cursor: pointer; }
+.wk-terms a { color: var(--wk-purple-ink); font-weight: 700; }
+
+/* ── Announcements and the skip link ──────────
+   Present for anyone navigating by keyboard or screen reader, out of the way
+   for everyone else. */
+.wk-sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.wk-skip-link {
+    position: absolute; left: 12px; top: -60px; z-index: 500;
+    padding: 12px 20px; border-radius: 0 0 10px 10px;
+    background: var(--wk-purple-ink); color: #fff;
+    font-size: 14px; font-weight: 800; text-decoration: none;
+    transition: top .15s ease;
+}
+.wk-skip-link:focus { top: 0; outline: 3px solid var(--wk-yellow); outline-offset: 2px; }
+#wk-main:focus { outline: none; }
+
+/* ── Breadcrumbs ──────────────────────────────
+   The same trail already published as structured data, shown to the person
+   who is actually on the page. */
+.wk-crumbs { margin-bottom: 20px; }
+.wk-crumbs ol { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.wk-crumbs li { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; min-width: 0; }
+.wk-crumbs li + li::before { content: '/'; color: var(--wk-border); font-weight: 700; }
+.wk-crumbs a { color: var(--wk-purple-ink); text-decoration: none; padding: 4px 0; }
+.wk-crumbs a:hover { text-decoration: underline; }
+.wk-crumbs span { color: var(--wk-muted); font-weight: 600; }
+/* The product's own name can be long; it is the one that gets trimmed. */
+.wk-crumbs li:last-child span {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 45vw;
+}
+
+/* ── The bigger picture ───────────────────────
+   Tapping a product photo should show it properly, not open it as a file. */
+.wk-lightbox {
+    position: fixed; inset: 0; z-index: 400;
+    background: rgba(15, 10, 30, .92);
+    display: flex; align-items: center; justify-content: center; padding: 24px;
+}
+.wk-lightbox[hidden] { display: none !important; }
+.wk-lightbox img { max-width: 100%; max-height: 90vh; width: auto; height: auto; border-radius: 12px; }
+.wk-lightbox-close {
+    position: absolute; top: 16px; right: 16px;
+    width: 44px; height: 44px; border-radius: 50%; border: none; cursor: pointer;
+    background: rgba(255,255,255,.15); color: #fff; font-size: 26px; line-height: 1;
+}
+.wk-lightbox-close:hover { background: rgba(255,255,255,.28); }
+.wk-lightbox-close:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+
+/* ── Recently viewed ──────────────────────────
+   A row that scrolls sideways rather than a grid that pushes the page down. */
+.wk-recent-strip {
+    display: flex; gap: 14px; overflow-x: auto; padding-bottom: 10px;
+    scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
+}
+.wk-recent-card {
+    flex: 0 0 140px; scroll-snap-align: start; text-decoration: none;
+    background: var(--wk-surface); border: 2px solid var(--wk-border);
+    border-radius: 12px; overflow: hidden; transition: border-color .2s;
+}
+.wk-recent-card:hover { border-color: var(--wk-purple); }
+.wk-recent-img {
+    display: flex; align-items: center; justify-content: center;
+    aspect-ratio: 1; background: var(--wk-bg); overflow: hidden;
+}
+.wk-recent-img img { width: 100%; height: 100%; object-fit: cover; }
+.wk-recent-name {
+    display: block; padding: 10px 12px; font-size: 13px; font-weight: 700;
+    color: var(--wk-text); line-height: 1.4;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}

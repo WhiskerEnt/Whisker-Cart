@@ -128,16 +128,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($_POST['_ajax_action'])) {
                 if (preg_match('/(# php -- BEGIN.*?# php -- END[^\n]*)/s', $existing, $matches)) {
                     $cpanelHandler = "\n\n" . $matches[1];
                 }
-                $htaccess = 'Options -MultiViews -Indexes
+                // The configuration Whisker ships, written out when the file is missing
+                // or has lost its rewrite rules. A nowdoc, so the quoting in the
+                // security policy survives being copied through verbatim.
+                $htaccess = <<<'WK_HTACCESS'
+Options -MultiViews -Indexes
 RewriteEngine On
 
+# Handle Authorization Header
 RewriteCond %{HTTP:Authorization} .
 RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
+# If the file or directory exists, serve it directly
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
+
+# Otherwise route through index.php
 RewriteRule ^(.*)$ index.php [QSA,L]
 
+# Block sensitive directories
 RewriteRule ^app/ - [F,L]
 RewriteRule ^core/ - [F,L]
 RewriteRule ^config/ - [F,L]
@@ -147,27 +156,112 @@ RewriteRule ^sql/ - [F,L]
 RewriteRule ^views/ - [F,L]
 RewriteRule ^plugins/.*\.php$ - [F,L]
 
+# Not part of a running shop, but present often enough to matter: a clone left
+# in place, a dev install, a release unpacked whole. The rules above only take
+# effect for paths that exist, so blocking them costs nothing when they do not.
+RewriteRule ^tests/ - [F,L]
+RewriteRule ^vendor/ - [F,L]
+RewriteRule ^node_modules/ - [F,L]
+# A dot-directory is not caught by the hidden-file rule below: that matches on
+# the file's own name, and .git/config is named "config".
+RewriteRule ^\.git - [F,L]
+RewriteRule ^\.github/ - [F,L]
+
+# Block sensitive files
 <FilesMatch "\.(env|sql|sh|lock|log|md|json)$">
     Require all denied
 </FilesMatch>
 
+# Block hidden files
 <FilesMatch "^\.">
     Require all denied
 </FilesMatch>
 
+# Security Headers
 <IfModule mod_headers.c>
     Header set X-Frame-Options "SAMEORIGIN"
     Header set X-Content-Type-Options "nosniff"
     Header set X-XSS-Protection "1; mode=block"
     Header set Referrer-Policy "strict-origin-when-cross-origin"
+    Header set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+    # object-src, base-uri and frame-ancestors are additions to the same policy:
+    # no plugins, no rewriting where relative links point, and framed only by
+    # this site. form-action is deliberately absent — a payment gateway posts
+    # the shopper back, and pinning it would break checkout.
+    Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://checkout.razorpay.com https://js.stripe.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://api.razorpay.com https://api.stripe.com; frame-src https://api.razorpay.com https://js.stripe.com https://checkout.razorpay.com; object-src 'none'; base-uri 'self'; frame-ancestors 'self';"
+    Header set Strict-Transport-Security "max-age=31536000; includeSubDomains" env=HTTPS
 </IfModule>
 
+# Prevent PHP execution in uploads — multiple methods for compatibility
 <IfModule mod_rewrite.c>
-    RewriteRule ^storage/uploads/.*\.php$ - [F,L]
+    RewriteRule ^storage/uploads/.*\.(php|phtml|php3|php4|php5|php7|phps|phar|shtml)$ - [F,L]
 </IfModule>
 
-AddDefaultCharset UTF-8' . $cpanelHandler . "\n";
+# Compression
+# Pages, stylesheets and scripts are text, and text sent over the wire is
+# roughly three times larger than it needs to be. Images, video and woff2 are
+# already compressed and are deliberately left out — running them through it
+# again costs time and saves nothing.
+<IfModule mod_brotli.c>
+    AddOutputFilterByType BROTLI_COMPRESS text/html text/plain text/css text/xml
+    AddOutputFilterByType BROTLI_COMPRESS application/javascript text/javascript
+    AddOutputFilterByType BROTLI_COMPRESS application/json application/xml application/rss+xml
+    AddOutputFilterByType BROTLI_COMPRESS image/svg+xml
+</IfModule>
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/css text/xml
+    AddOutputFilterByType DEFLATE application/javascript text/javascript
+    AddOutputFilterByType DEFLATE application/json application/xml application/rss+xml
+    AddOutputFilterByType DEFLATE image/svg+xml
+
+    # A proxy holding one copy for everyone must not hand a compressed page to
+    # a browser that asked for a plain one.
+    <IfModule mod_headers.c>
+        Header append Vary Accept-Encoding
+    </IfModule>
+</IfModule>
+
+# Caching
+# Product images and other uploads keep their filename when replaced, so they
+# are given a week rather than a year. Everything under assets/ carries a
+# version in its URL and is cached hard by assets/.htaccess instead.
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType image/jpeg "access plus 7 days"
+    ExpiresByType image/png "access plus 7 days"
+    ExpiresByType image/gif "access plus 7 days"
+    ExpiresByType image/webp "access plus 7 days"
+    ExpiresByType image/avif "access plus 7 days"
+    ExpiresByType image/x-icon "access plus 30 days"
+    ExpiresByType font/woff2 "access plus 30 days"
+    ExpiresByType font/woff "access plus 30 days"
+</IfModule>
+
+AddDefaultCharset UTF-8
+WK_HTACCESS;
+                $htaccess .= $cpanelHandler . "
+";
                 file_put_contents($htaccessPath, $htaccess);
+            }
+
+            // Whisker's own assets are versioned in the URL, so they can be
+            // kept for a year. Written separately because it belongs beside
+            // the files it governs.
+            $assetsHtaccess = WK_ROOT . '/assets/.htaccess';
+            if (is_dir(WK_ROOT . '/assets') && !file_exists($assetsHtaccess)) {
+                @file_put_contents($assetsHtaccess, '<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresDefault "access plus 1 year"
+</IfModule>
+
+<IfModule mod_headers.c>
+    Header set Cache-Control "public, max-age=31536000, immutable"
+</IfModule>
+
+<FilesMatch "\.(php|phtml|php3|php4|php5|php7|phps|phar|shtml)$">
+    Require all denied
+</FilesMatch>
+');
             }
             $step = 2;
             break;

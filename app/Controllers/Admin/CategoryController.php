@@ -33,6 +33,7 @@ class CategoryController
     {
         if (!Session::verifyCsrf($request->input('wk_csrf'))) {
             Session::flash('error', 'Session expired.');
+            \App\Services\SeoService::markSitemapStale();
             Response::redirect(View::url('admin/categories/create'));
             return;
         }
@@ -94,6 +95,7 @@ class CategoryController
     {
         if (!Session::verifyCsrf($request->input('wk_csrf'))) {
             Session::flash('error', 'Session expired.');
+            \App\Services\SeoService::markSitemapStale();
             Response::redirect(View::url('admin/categories/edit/' . $params['id']));
             return;
         }
@@ -156,6 +158,7 @@ class CategoryController
     {
         if (!Session::verifyCsrf($request->input('wk_csrf'))) {
             Session::flash('error', 'Session expired.');
+            \App\Services\SeoService::markSitemapStale();
             Response::redirect(View::url('admin/categories'));
             return;
         }

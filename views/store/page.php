@@ -19,5 +19,5 @@
 .wk-page-content p { margin:0 0 16px; }
 .wk-page-content ul, .wk-page-content ol { margin:0 0 16px 24px; }
 .wk-page-content li { margin-bottom:8px; }
-.wk-page-content a { color:var(--wk-purple); font-weight:700; }
+.wk-page-content a { color:var(--wk-purple-ink); font-weight:700; }
 </style>

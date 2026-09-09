@@ -2,13 +2,13 @@
 <section class="wk-section"><div class="wk-container" style="max-width:800px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
         <h1 style="font-size:24px;font-weight:900">My Orders</h1>
-        <a href="<?= $url('account') ?>" style="font-size:13px;font-weight:700;color:var(--wk-purple)">← Back to Account</a>
+        <a href="<?= $url('account') ?>" style="font-size:13px;font-weight:700;color:var(--wk-purple-ink)">← Back to Account</a>
     </div>
     <?php if (empty($orders)): ?>
         <div style="text-align:center;padding:60px;color:var(--wk-muted);background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:var(--radius)">
             <div style="font-size:48px;margin-bottom:12px;opacity:.3">📦</div>
             <p style="font-weight:800;margin-bottom:4px">No orders yet</p>
-            <p style="font-size:13px"><a href="<?= $url('') ?>" style="color:var(--wk-purple)">Start shopping →</a></p>
+            <p style="font-size:13px"><a href="<?= $url('') ?>" style="color:var(--wk-purple-ink)">Start shopping →</a></p>
         </div>
     <?php else: ?>
         <?php foreach ($orders as $o):
@@ -28,7 +28,7 @@
             <!-- Top row: Order # + Status + Total -->
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
                 <div>
-                    <span style="font-family:var(--font-mono);font-size:14px;font-weight:700;color:var(--wk-purple)"><?= $e($o['order_number']) ?></span>
+                    <span style="font-family:var(--font-mono);font-size:14px;font-weight:700;color:var(--wk-purple-ink)"><?= $e($o['order_number']) ?></span>
                     <span style="font-size:12px;color:var(--wk-muted);margin-left:8px"><?= date('M j, Y', strtotime($o['created_at'])) ?></span>
                 </div>
                 <div style="display:flex;align-items:center;gap:10px">
@@ -53,7 +53,7 @@
                 <div style="flex:1;margin-left:8px;font-size:13px;color:var(--wk-muted)">
                     <?= $totalItems ?> item<?= $totalItems!==1?'s':'' ?>
                 </div>
-                <span style="font-size:14px;color:var(--wk-purple)">→</span>
+                <span style="font-size:14px;color:var(--wk-purple-ink)">→</span>
             </div>
         </a>
         <?php endforeach; ?>

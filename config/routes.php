@@ -28,6 +28,7 @@ $router->post('/track',              [\App\Controllers\Store\TrackController::cl
 // 'show' stays GET (no middleware needed). Storefront JS sends the token
 // either as 'wk_csrf' in FormData (default path) or as X-CSRF-Token header.
 $router->get('/cart',                [CartController::class, 'show']);
+$router->get('/cart/data',           [CartController::class, 'data']);
 $router->post('/cart/add',           [CartController::class, 'add'],          ['csrf']);
 $router->post('/cart/update',        [CartController::class, 'update'],       ['csrf']);
 $router->post('/cart/remove',        [CartController::class, 'remove'],       ['csrf']);
@@ -44,6 +45,11 @@ $router->get('/order-success',       [CheckoutController::class, 'success']);
 // Product reviews
 $router->post('/review',             [\App\Controllers\Store\ReviewController::class, 'store'], ['csrf']);
 $router->post('/question',           [\App\Controllers\Store\QuestionController::class, 'store'], ['csrf']);
+
+// Abandoned cart recovery and lead capture
+$router->get('/cart/recover/{token}', [\App\Controllers\Store\CartRecoveryController::class, 'recover']);
+$router->get('/cart/unsubscribe/{token}/{email}', [\App\Controllers\Store\CartRecoveryController::class, 'unsubscribe']);
+$router->post('/lead',               [\App\Controllers\Store\LeadController::class, 'capture'], ['csrf']);
 
 // Pages, Contact, Chatbot
 $router->get('/page/{slug}',        [\App\Controllers\Store\PageController::class, 'show']);
@@ -74,6 +80,8 @@ $router->post('/account/addresses/delete/{id}', [AccountController::class, 'dele
 $router->get('/account/orders',            [AccountController::class, 'orders']);
 $router->get('/account/order/{id}',        [AccountController::class, 'orderDetail']);
 $router->post('/account/order/cancel/{id}',[AccountController::class, 'cancelOrder'], ['csrf']);
+$router->get('/account/order/{id}/invoice', [AccountController::class, 'invoice']);
+$router->post('/account/order/{id}/reorder', [AccountController::class, 'reorder'], ['csrf']);
 $router->get('/account/forgot-password',   [AccountController::class, 'showForgotPassword']);
 $router->post('/account/forgot-password',  [AccountController::class, 'forgotPassword'], ['csrf']);
 $router->get('/account/reset-password',    [AccountController::class, 'showResetPassword']);
@@ -169,6 +177,7 @@ $router->group(['prefix' => '/admin', 'middleware' => ['auth', 'csrf']], functio
     $r->get('/pages',             [\App\Controllers\Admin\PageController::class, 'index']);
     $r->get('/pages/create',      [\App\Controllers\Admin\PageController::class, 'create']);
     $r->post('/pages/store',      [\App\Controllers\Admin\PageController::class, 'store']);
+    $r->post('/pages/add-recommended', [\App\Controllers\Admin\PageController::class, 'addRecommended']);
     $r->get('/pages/edit/{id}',   [\App\Controllers\Admin\PageController::class, 'edit']);
     $r->post('/pages/update/{id}',[\App\Controllers\Admin\PageController::class, 'update']);
     $r->post('/pages/delete/{id}',[\App\Controllers\Admin\PageController::class, 'delete']);
@@ -189,6 +198,8 @@ $router->group(['prefix' => '/admin', 'middleware' => ['auth', 'csrf']], functio
     $r->post('/abandoned-carts/send-reminder/{id}', [\App\Controllers\Admin\AbandonedCartController::class, 'sendReminder']);
     $r->post('/abandoned-carts/mark-abandoned/{id}',[\App\Controllers\Admin\AbandonedCartController::class, 'markAbandoned']);
     $r->post('/abandoned-carts/prune',              [\App\Controllers\Admin\AbandonedCartController::class, 'prune']);
+    $r->post('/abandoned-carts/sweep',              [\App\Controllers\Admin\AbandonedCartController::class, 'runSweep']);
+    $r->post('/abandoned-carts/settings',           [\App\Controllers\Admin\AbandonedCartController::class, 'updateSettings']);
 
     // Shipping Carriers
     $r->get('/reviews',                  [\App\Controllers\Admin\ReviewController::class, 'index']);

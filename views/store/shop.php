@@ -50,10 +50,10 @@ $buildUrl = function($overrides = []) use ($url, $currentParams, $isSearch) {
 
         <!-- Category Filter Pills -->
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px;padding-bottom:24px;border-bottom:2px solid var(--wk-border)">
-            <a href="<?= $url('shop') ?>" style="display:inline-block;padding:8px 18px;border-radius:99px;font-size:13px;font-weight:700;text-decoration:none;transition:all .2s;<?= empty($currentCategory) ? 'background:var(--wk-purple);color:#fff' : 'background:var(--wk-card);color:var(--wk-text);border:2px solid var(--wk-border)' ?>">All Products</a>
+            <a href="<?= $url('shop') ?>" style="display:inline-block;padding:8px 18px;border-radius:99px;font-size:13px;font-weight:700;text-decoration:none;transition:all .2s;<?= empty($currentCategory) ? 'background:var(--wk-purple-ink);color:#fff' : 'background:var(--wk-card);color:var(--wk-text);border:2px solid var(--wk-border)' ?>">All Products</a>
             <?php foreach ($categories as $cat): ?>
             <a href="<?= $buildUrl(['category' => $cat['slug'], 'page' => 1, 'sort' => $sort]) ?>"
-               style="display:inline-block;padding:8px 18px;border-radius:99px;font-size:13px;font-weight:700;text-decoration:none;transition:all .2s;<?= (!empty($currentCategory) && $currentCategory['slug'] === $cat['slug']) ? 'background:var(--wk-purple);color:#fff' : 'background:var(--wk-card);color:var(--wk-text);border:2px solid var(--wk-border)' ?>">
+               style="display:inline-block;padding:8px 18px;border-radius:99px;font-size:13px;font-weight:700;text-decoration:none;transition:all .2s;<?= (!empty($currentCategory) && $currentCategory['slug'] === $cat['slug']) ? 'background:var(--wk-purple-ink);color:#fff' : 'background:var(--wk-card);color:var(--wk-text);border:2px solid var(--wk-border)' ?>">
                 <?= $e($cat['name']) ?>
                 <?php if (($cat['product_count'] ?? 0) > 0): ?>
                 <span style="font-size:11px;opacity:.6">(<?= $cat['product_count'] ?>)</span>
@@ -71,7 +71,7 @@ $buildUrl = function($overrides = []) use ($url, $currentParams, $isSearch) {
             <div style="text-align:center;padding:60px 0;color:var(--wk-muted)">
                 <div style="font-size:48px;margin-bottom:12px;opacity:.3">📦</div>
                 <p style="font-weight:800;margin-bottom:4px">No products found</p>
-                <p style="font-size:14px">Try a different category or <a href="<?= $url('shop') ?>" style="color:var(--wk-purple);font-weight:700">browse all products</a></p>
+                <p style="font-size:14px">Try a different category or <a href="<?= $url('shop') ?>" style="color:var(--wk-purple-ink);font-weight:700">browse all products</a></p>
             </div>
         <?php else: ?>
             <div class="wk-product-grid">
@@ -82,12 +82,12 @@ $buildUrl = function($overrides = []) use ($url, $currentParams, $isSearch) {
                 <div class="wk-product-card">
                     <div class="wk-product-img" onclick="window.location='<?= $url('product/'.urlencode($p['slug'])) ?>'">
                         <?php if ($p['image']): ?>
-                            <img src="<?= $url('storage/uploads/products/'.$p['image']) ?>" alt="<?= $e($p['name']) ?>">
+                            <?= \Core\View::productImage($p['image'], $p['name']) ?>
                         <?php else: ?>
                             <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:48px;opacity:.15">📦</div>
                         <?php endif; ?>
                         <?php if ($p['stock_quantity'] <= 0): ?>
-                            <span class="wk-product-badge" style="background:#ef4444">Sold Out</span>
+                            <span class="wk-product-badge" style="background:#dc2626">Sold Out</span>
                         <?php elseif ($hasSale): ?>
                             <span class="wk-product-badge">Sale</span>
                         <?php elseif ($p['is_featured']): ?>
@@ -138,7 +138,7 @@ $buildUrl = function($overrides = []) use ($url, $currentParams, $isSearch) {
                 <?php endif; ?>
 
                 <?php for ($i = $start; $i <= $end; $i++): ?>
-                <a href="<?= $buildUrl(['page' => $i]) ?>" style="display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;<?= $i === $page ? 'background:var(--wk-purple);color:#fff;border:2px solid var(--wk-purple)' : 'background:var(--wk-card);color:var(--wk-text);border:2px solid var(--wk-border)' ?>"><?= $i ?></a>
+                <a href="<?= $buildUrl(['page' => $i]) ?>" style="display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;<?= $i === $page ? 'background:var(--wk-purple-ink);color:#fff;border:2px solid var(--wk-purple)' : 'background:var(--wk-card);color:var(--wk-text);border:2px solid var(--wk-border)' ?>"><?= $i ?></a>
                 <?php endfor; ?>
 
                 <?php if ($end < $totalPages): ?>

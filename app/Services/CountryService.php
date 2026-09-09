@@ -276,6 +276,187 @@ class CountryService
         'ZW' => 'Zimbabwe',
     ];
 
+    /**
+     * ISO 3166-1 alpha-2 => E.164 country calling code, without the plus.
+     *
+     * Several countries share one code (+1 covers the US, Canada and much of
+     * the Caribbean; +7 covers Russia and Kazakhstan), so this maps one way
+     * only — a code cannot be turned back into a single country.
+     */
+    private const DIAL_CODES = [
+        'AF' => '93',   'AX' => '358',  'AL' => '355',  'DZ' => '213',  'AS' => '1684', 'AD' => '376',
+        'AO' => '244',  'AI' => '1264', 'AQ' => '672',  'AG' => '1268', 'AR' => '54',   'AM' => '374',
+        'AW' => '297',  'AU' => '61',   'AT' => '43',   'AZ' => '994',  'BS' => '1242', 'BH' => '973',
+        'BD' => '880',  'BB' => '1246', 'BY' => '375',  'BE' => '32',   'BZ' => '501',  'BJ' => '229',
+        'BM' => '1441', 'BT' => '975',  'BO' => '591',  'BQ' => '599',  'BA' => '387',  'BW' => '267',
+        'BV' => '47',   'BR' => '55',   'IO' => '246',  'BN' => '673',  'BG' => '359',  'BF' => '226',
+        'BI' => '257',  'CV' => '238',  'KH' => '855',  'CM' => '237',  'CA' => '1',    'KY' => '1345',
+        'CF' => '236',  'TD' => '235',  'CL' => '56',   'CN' => '86',   'CX' => '61',   'CC' => '61',
+        'CO' => '57',   'KM' => '269',  'CG' => '242',  'CD' => '243',  'CK' => '682',  'CR' => '506',
+        'CI' => '225',  'HR' => '385',  'CU' => '53',   'CW' => '599',  'CY' => '357',  'CZ' => '420',
+        'DK' => '45',   'DJ' => '253',  'DM' => '1767', 'DO' => '1809', 'EC' => '593',  'EG' => '20',
+        'SV' => '503',  'GQ' => '240',  'ER' => '291',  'EE' => '372',  'SZ' => '268',  'ET' => '251',
+        'FK' => '500',  'FO' => '298',  'FJ' => '679',  'FI' => '358',  'FR' => '33',   'GF' => '594',
+        'PF' => '689',  'TF' => '262',  'GA' => '241',  'GM' => '220',  'GE' => '995',  'DE' => '49',
+        'GH' => '233',  'GI' => '350',  'GR' => '30',   'GL' => '299',  'GD' => '1473', 'GP' => '590',
+        'GU' => '1671', 'GT' => '502',  'GG' => '44',   'GN' => '224',  'GW' => '245',  'GY' => '592',
+        'HT' => '509',  'HM' => '672',  'VA' => '39',   'HN' => '504',  'HK' => '852',  'HU' => '36',
+        'IS' => '354',  'IN' => '91',   'ID' => '62',   'IR' => '98',   'IQ' => '964',  'IE' => '353',
+        'IM' => '44',   'IL' => '972',  'IT' => '39',   'JM' => '1876', 'JP' => '81',   'JE' => '44',
+        'JO' => '962',  'KZ' => '7',    'KE' => '254',  'KI' => '686',  'KP' => '850',  'KR' => '82',
+        'KW' => '965',  'KG' => '996',  'LA' => '856',  'LV' => '371',  'LB' => '961',  'LS' => '266',
+        'LR' => '231',  'LY' => '218',  'LI' => '423',  'LT' => '370',  'LU' => '352',  'MO' => '853',
+        'MG' => '261',  'MW' => '265',  'MY' => '60',   'MV' => '960',  'ML' => '223',  'MT' => '356',
+        'MH' => '692',  'MQ' => '596',  'MR' => '222',  'MU' => '230',  'YT' => '262',  'MX' => '52',
+        'FM' => '691',  'MD' => '373',  'MC' => '377',  'MN' => '976',  'ME' => '382',  'MS' => '1664',
+        'MA' => '212',  'MZ' => '258',  'MM' => '95',   'NA' => '264',  'NR' => '674',  'NP' => '977',
+        'NL' => '31',   'NC' => '687',  'NZ' => '64',   'NI' => '505',  'NE' => '227',  'NG' => '234',
+        'NU' => '683',  'NF' => '672',  'MK' => '389',  'MP' => '1670', 'NO' => '47',   'OM' => '968',
+        'PK' => '92',   'PW' => '680',  'PS' => '970',  'PA' => '507',  'PG' => '675',  'PY' => '595',
+        'PE' => '51',   'PH' => '63',   'PN' => '64',   'PL' => '48',   'PT' => '351',  'PR' => '1787',
+        'QA' => '974',  'RE' => '262',  'RO' => '40',   'RU' => '7',    'RW' => '250',  'BL' => '590',
+        'SH' => '290',  'KN' => '1869', 'LC' => '1758', 'MF' => '590',  'PM' => '508',  'VC' => '1784',
+        'WS' => '685',  'SM' => '378',  'ST' => '239',  'SA' => '966',  'SN' => '221',  'RS' => '381',
+        'SC' => '248',  'SL' => '232',  'SG' => '65',   'SX' => '1721', 'SK' => '421',  'SI' => '386',
+        'SB' => '677',  'SO' => '252',  'ZA' => '27',   'GS' => '500',  'SS' => '211',  'ES' => '34',
+        'LK' => '94',   'SD' => '249',  'SR' => '597',  'SJ' => '47',   'SE' => '46',   'CH' => '41',
+        'SY' => '963',  'TW' => '886',  'TJ' => '992',  'TZ' => '255',  'TH' => '66',   'TL' => '670',
+        'TG' => '228',  'TK' => '690',  'TO' => '676',  'TT' => '1868', 'TN' => '216',  'TR' => '90',
+        'TM' => '993',  'TC' => '1649', 'TV' => '688',  'UG' => '256',  'UA' => '380',  'AE' => '971',
+        'GB' => '44',   'US' => '1',    'UM' => '1',    'UY' => '598',  'UZ' => '998',  'VU' => '678',
+        'VE' => '58',   'VN' => '84',   'VG' => '1284', 'VI' => '1340', 'WF' => '681',  'EH' => '212',
+        'YE' => '967',  'ZM' => '260',  'ZW' => '263',
+    ];
+
+    /**
+     * Which country to show for a calling code that several share.
+     *
+     * A stored '+1 555 0100' could be any of a dozen countries, so the picker
+     * has to settle on one rather than guess differently each time.
+     */
+    private const PRIMARY_FOR_DIAL = [
+        '1'   => 'US', '7'   => 'RU', '39'  => 'IT', '44'  => 'GB', '47'  => 'NO',
+        '61'  => 'AU', '64'  => 'NZ', '212' => 'MA', '262' => 'RE', '358' => 'FI',
+        '500' => 'FK', '590' => 'GP', '599' => 'CW', '672' => 'NF',
+    ];
+
+    /** A number this long cannot be dialled — E.164 stops at 15 digits. */
+    private const MAX_E164_DIGITS = 15;
+    private const MIN_NATIONAL_DIGITS = 4;
+
+    /** @return array<string,string> code => dial code, in the order of all() */
+    public static function dialCodes(): array
+    {
+        return array_intersect_key(self::DIAL_CODES, self::COUNTRIES);
+    }
+
+    /** The calling code for a country, without the plus. '' if unknown. */
+    public static function dialCode(string $code): string
+    {
+        return self::DIAL_CODES[strtoupper(trim($code))] ?? '';
+    }
+
+    /**
+     * A phone number as the shopper meant it: their own +country prefix if
+     * they typed one, otherwise the code they picked from the list.
+     */
+    public static function joinPhone(?string $countryCode, ?string $number): string
+    {
+        $number = trim((string) $number);
+        if ($number === '') return '';
+        if (str_starts_with($number, '+')) return $number;
+
+        $dial = self::dialCode((string) $countryCode);
+        return $dial === '' ? $number : '+' . $dial . ' ' . ltrim($number, '0 ');
+    }
+
+    /**
+     * A stored number pulled back apart, so the picker can show the country it
+     * was saved with instead of defaulting to the shop's own.
+     *
+     * @return array{code:string,number:string} an empty code means the number
+     *         carried no recognisable prefix and is shown exactly as stored
+     */
+    public static function splitPhone(?string $stored): array
+    {
+        $stored = trim((string) $stored);
+        if ($stored === '' || !str_starts_with($stored, '+')) {
+            return ['code' => '', 'number' => $stored];
+        }
+
+        $digits = preg_replace('/[^0-9]/', '', $stored) ?? '';
+
+        // Longest match first: +1 is a prefix of +1264, so a shorter code that
+        // happens to match would claim numbers belonging to a longer one.
+        for ($len = 4; $len >= 1; $len--) {
+            $dial = substr($digits, 0, $len);
+            if ($dial === '' || !in_array($dial, self::DIAL_CODES, true)) continue;
+
+            $country = self::PRIMARY_FOR_DIAL[$dial] ?? array_search($dial, self::DIAL_CODES, true);
+            $rest = ltrim(substr($stored, strpos($stored, $dial) + strlen($dial)), ' -');
+
+            return ['code' => (string) $country, 'number' => $rest];
+        }
+
+        return ['code' => '', 'number' => $stored];
+    }
+
+    /**
+     * Why a phone number cannot be dialled, or null if it can.
+     *
+     * Deliberately lenient about how it is written — people space and bracket
+     * numbers however they like — and strict only about what has to be true:
+     * digits, and enough of them but not too many.
+     */
+    public static function phoneError(?string $countryCode, ?string $number, bool $required = false): ?string
+    {
+        $number = trim((string) $number);
+        if ($number === '') {
+            return $required ? 'Please enter a phone number.' : null;
+        }
+
+        // Everything people use to make a number readable.
+        $cleaned = preg_replace('/[\s().\-\/]/', '', $number) ?? '';
+        $typedOwnPrefix = str_starts_with($cleaned, '+');
+        if ($typedOwnPrefix) $cleaned = substr($cleaned, 1);
+
+        if ($cleaned === '' || !ctype_digit($cleaned)) {
+            return 'That phone number contains characters that are not digits.';
+        }
+
+        $national = $typedOwnPrefix ? $cleaned : ltrim($cleaned, '0');
+        $dial     = $typedOwnPrefix ? '' : self::dialCode((string) $countryCode);
+        $total    = strlen($dial) + strlen($national);
+
+        if (strlen($national) < self::MIN_NATIONAL_DIGITS) {
+            return 'That phone number is too short.';
+        }
+        if ($total > self::MAX_E164_DIGITS) {
+            return 'That phone number is too long — no number has more than ' . self::MAX_E164_DIGITS . ' digits.';
+        }
+        // 5555555555 is what gets typed to get past a required field.
+        if (preg_match('/^(\d)\1+$/', $national)) {
+            return 'That does not look like a real phone number.';
+        }
+        if ($typedOwnPrefix && self::countryForDial($cleaned) === null) {
+            return 'That phone number does not start with a country code we recognise.';
+        }
+
+        return null;
+    }
+
+    /** The country a full international number belongs to, if any. */
+    private static function countryForDial(string $digits): ?string
+    {
+        for ($len = 4; $len >= 1; $len--) {
+            $dial = substr($digits, 0, $len);
+            if ($dial !== '' && in_array($dial, self::DIAL_CODES, true)) {
+                return self::PRIMARY_FOR_DIAL[$dial] ?? (string) array_search($dial, self::DIAL_CODES, true);
+            }
+        }
+        return null;
+    }
+
     /** EU member states, offered as a one-click group in the admin. */
     public const EU = ['AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE'];
 

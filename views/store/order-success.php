@@ -47,7 +47,7 @@ $items = $items ?? [];
             <p style="color:var(--wk-muted);font-size:15px;margin-bottom:14px"><?= $e($blurb) ?></p>
 
             <?php if ($order): ?>
-            <span style="font-family:var(--font-mono);font-weight:700;font-size:13px;background:var(--wk-purple-soft);color:var(--wk-purple);display:inline-block;padding:6px 16px;border-radius:20px">
+            <span style="font-family:var(--font-mono);font-weight:700;font-size:13px;background:var(--wk-purple-soft);color:var(--wk-purple-ink);display:inline-block;padding:6px 16px;border-radius:20px">
                 <?= $e($order['order_number']) ?>
             </span>
             <?php endif; ?>
@@ -157,7 +157,7 @@ $items = $items ?? [];
         </div>
 
         <p style="text-align:center;font-size:13px;color:var(--wk-muted);margin-top:18px">
-            Track this order any time at <a href="<?= $url('track') ?>" style="color:var(--wk-purple);font-weight:700">order tracking</a>.
+            Track this order any time at <a href="<?= $url('track') ?>" style="color:var(--wk-purple-ink);font-weight:700">order tracking</a>.
         </p>
         <?php endif; ?>
 

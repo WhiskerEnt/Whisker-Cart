@@ -98,22 +98,22 @@ if (updateForm) {
 
 <?php if (!empty($backups)): ?>
 <!-- Rollback Option -->
-<div style="background:var(--wk-card,#1a1726);border:1px solid var(--wk-border,#2a2538);border-radius:12px;padding:14px 20px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+<div style="background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:12px;padding:14px 20px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
     <div style="display:flex;align-items:center;gap:10px">
         <span style="font-size:18px">🔄</span>
         <div>
-            <div style="font-weight:700;font-size:13px">Rollback Available</div>
-            <div style="font-size:12px;color:var(--wk-muted,#6b6580)"><?= count($backups) ?> backup<?= count($backups) > 1 ? 's' : '' ?> saved</div>
+            <div style="font-weight:800;font-size:13px;color:var(--wk-text)">Rollback Available</div>
+            <div style="font-size:12px;color:var(--wk-text-muted)"><?= count($backups) ?> backup<?= count($backups) > 1 ? 's' : '' ?> saved</div>
         </div>
     </div>
     <form method="POST" action="<?= $url('admin/update/rollback') ?>" onsubmit="return confirm('This will restore your store to the selected backup version. Your config, database, and uploads will NOT be affected. Continue?')" style="display:flex;align-items:center;gap:8px">
         <?= \Core\Session::csrfField() ?>
-        <select name="backup_file" style="padding:8px 12px;background:var(--wk-bg,#12101e);border:1px solid var(--wk-border,#2a2538);border-radius:8px;font-size:12px;font-weight:700;color:var(--wk-text,#e2e0ea)">
+        <select name="backup_file" style="padding:8px 12px;background:var(--wk-bg);border:2px solid var(--wk-border);border-radius:8px;font-size:12px;color:var(--wk-text);font-weight:700;color:var(--wk-text,#e2e0ea)">
             <?php foreach ($backups as $b): ?>
             <option value="<?= $e($b['filename']) ?>">v<?= $e($b['version']) ?> — <?= $e($b['date']) ?> (<?= $b['size'] > 1048576 ? round($b['size']/1048576,1).'MB' : round($b['size']/1024).'KB' ?><?= $b['has_db'] ? ' + DB' : '' ?>)</option>
             <?php endforeach; ?>
         </select>
-        <button type="submit" style="padding:8px 16px;background:#7f1d1d;color:#fca5a5;border:none;border-radius:8px;font-weight:700;font-size:12px;cursor:pointer">Restore ↩</button>
+        <button type="submit" style="padding:8px 16px;background:#dc2626;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:12px;cursor:pointer">Restore ↩</button>
     </form>
 </div>
 <?php endif; ?>

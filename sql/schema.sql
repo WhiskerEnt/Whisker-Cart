@@ -74,6 +74,7 @@ CREATE TABLE IF NOT EXISTS wk_products (
     name VARCHAR(255) NOT NULL,
     slug VARCHAR(280) NOT NULL UNIQUE,
     description TEXT,
+    faq TEXT DEFAULT NULL,
     short_description VARCHAR(500),
     price DECIMAL(12,2) NOT NULL DEFAULT 0.00,
     sale_price DECIMAL(12,2) DEFAULT NULL,
@@ -101,6 +102,8 @@ CREATE TABLE IF NOT EXISTS wk_product_images (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     product_id INT UNSIGNED NOT NULL,
     image_path VARCHAR(500) NOT NULL,
+    width SMALLINT UNSIGNED NULL,
+    height SMALLINT UNSIGNED NULL,
     alt_text VARCHAR(255),
     sort_order INT DEFAULT 0,
     is_primary TINYINT(1) DEFAULT 0,
@@ -186,11 +189,18 @@ CREATE TABLE IF NOT EXISTS wk_carts (
     status ENUM('active','merged','abandoned','converted') DEFAULT 'active',
     reminder_sent_at DATETIME DEFAULT NULL,
     reminder_count INT UNSIGNED DEFAULT 0,
+    recovery_token CHAR(40) DEFAULT NULL,
+    phone VARCHAR(40) DEFAULT NULL,
+    abandoned_at DATETIME DEFAULT NULL,
+    recovered_at DATETIME DEFAULT NULL,
+    recovered_order_id INT UNSIGNED DEFAULT NULL,
     expires_at DATETIME,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (customer_id) REFERENCES wk_customers(id) ON DELETE SET NULL,
-    INDEX idx_session (session_id)
+    UNIQUE KEY uniq_recovery_token (recovery_token),
+    INDEX idx_session (session_id),
+    INDEX idx_status_abandoned (status, abandoned_at)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS wk_cart_items (
@@ -211,6 +221,7 @@ CREATE TABLE IF NOT EXISTS wk_cart_items (
 CREATE TABLE IF NOT EXISTS wk_orders (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     order_number VARCHAR(30) NOT NULL UNIQUE,
+    idempotency_key CHAR(64) NULL,
     customer_id INT UNSIGNED DEFAULT NULL,
     status ENUM('pending','processing','paid','shipped','delivered','cancelled','refunded','payment_failed') DEFAULT 'pending',
     subtotal DECIMAL(12,2) NOT NULL DEFAULT 0.00,
@@ -230,10 +241,13 @@ CREATE TABLE IF NOT EXISTS wk_orders (
     customer_email VARCHAR(255),
     customer_phone VARCHAR(20),
     notes TEXT,
+    customer_note TEXT NULL,
+    terms_accepted_at DATETIME NULL,
     ip_address VARCHAR(45),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (customer_id) REFERENCES wk_customers(id) ON DELETE SET NULL,
+    UNIQUE KEY uniq_idempotency (idempotency_key),
     INDEX idx_order_number (order_number),
     INDEX idx_status (status)
 ) ENGINE=InnoDB;
@@ -419,6 +433,23 @@ INSERT INTO wk_payment_gateways (gateway_code, display_name, description, is_act
  '["BTC","ETH","USDT","LTC","XRP"]');
 
 INSERT INTO wk_settings (setting_group, setting_key, setting_value) VALUES
+('leads', 'lead_capture_title', 'Before you go'),
+('leads', 'lead_capture_coupon', ''),
+('cart_recovery', 'recovery_enabled', '0'),
+('cart_recovery', 'abandon_after_minutes', '60'),
+('cart_recovery', 'recovery_schedule', '60,1440,4320'),
+('cart_recovery', 'recovery_coupon', ''),
+('leads', 'lead_capture_enabled', '0'),
+('leads', 'lead_capture_fields', 'email'),
+('leads', 'lead_capture_when', 'cart'),
+('leads', 'lead_capture_trigger', 'both'),
+('leads', 'lead_capture_delay', '90'),
+('checkout', 'auto_refund_on_cancel', '0'),
+('checkout', 'cancel_window_minutes', '0'),
+('checkout', 'show_cancel_deadline', '1'),
+('social', 'social_enabled', '0'),
+('social', 'social_position', 'left'),
+('social', 'social_display', 'always'),
 ('questions', 'questions_enabled', '1'),
 ('questions', 'notify_on_answer', '1'),
 ('reviews', 'reviews_enabled', '1'),
@@ -464,3 +495,118 @@ INSERT INTO wk_settings (setting_group, setting_key, setting_value) VALUES
 ('seo', 'sitemap_enabled', '1'),
 ('seo', 'canonical_url', NULL),
 ('seo', 'schema_org_enabled', '1');
+
+CREATE TABLE IF NOT EXISTS wk_shipping_zones (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(80) NOT NULL,
+    -- Comma-separated ISO 3166-1 alpha-2 codes.
+    countries TEXT NOT NULL,
+    method ENUM('flat','free','free_above','per_item','weight') NOT NULL DEFAULT 'flat',
+    flat_rate DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    flat_rate_below DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    free_threshold DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    per_item DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    per_item_cap DECIMAL(10,2) DEFAULT NULL,
+    weight_base DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    weight_per_kg DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    sort_order INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_active (is_active, sort_order)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS wk_email_suppressions (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(190) NOT NULL,
+    reason VARCHAR(60) NOT NULL DEFAULT 'unsubscribed',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_suppressed_email (email)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS wk_leads (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(190) DEFAULT NULL,
+    phone VARCHAR(40) DEFAULT NULL,
+    source VARCHAR(30) NOT NULL DEFAULT 'exit_intent',
+    cart_id INT UNSIGNED DEFAULT NULL,
+    coupon_code VARCHAR(50) DEFAULT NULL,
+    converted_order_id INT UNSIGNED DEFAULT NULL,
+    ip_address VARCHAR(45) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_lead_email (email),
+    INDEX idx_lead_phone (phone),
+    INDEX idx_lead_cart (cart_id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS wk_reviews (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    product_id INT UNSIGNED NOT NULL,
+    customer_id INT UNSIGNED DEFAULT NULL,
+    -- The order this review was earned by, when the store requires a purchase.
+    order_id INT UNSIGNED DEFAULT NULL,
+    author_name VARCHAR(80) NOT NULL,
+    author_email VARCHAR(190) NOT NULL,
+    rating TINYINT UNSIGNED NOT NULL,
+    title VARCHAR(140) DEFAULT NULL,
+    body TEXT DEFAULT NULL,
+    status ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+    is_verified_purchase TINYINT(1) NOT NULL DEFAULT 0,
+    admin_reply TEXT DEFAULT NULL,
+    admin_replied_at TIMESTAMP NULL DEFAULT NULL,
+    ip_address VARCHAR(45) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_product_status (product_id, status),
+    INDEX idx_status (status),
+    INDEX idx_email (author_email),
+    FOREIGN KEY (product_id) REFERENCES wk_products(id) ON DELETE CASCADE,
+    FOREIGN KEY (customer_id) REFERENCES wk_customers(id) ON DELETE SET NULL,
+    FOREIGN KEY (order_id) REFERENCES wk_orders(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS wk_questions (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    product_id INT UNSIGNED NOT NULL,
+    customer_id INT UNSIGNED DEFAULT NULL,
+    author_name VARCHAR(80) NOT NULL,
+    author_email VARCHAR(190) NOT NULL,
+    question TEXT NOT NULL,
+    answer TEXT DEFAULT NULL,
+    -- published requires an answer; see QuestionService::publish()
+    status ENUM('pending','published','rejected') NOT NULL DEFAULT 'pending',
+    answered_by INT UNSIGNED DEFAULT NULL,
+    answered_at TIMESTAMP NULL DEFAULT NULL,
+    notified_at TIMESTAMP NULL DEFAULT NULL,
+    ip_address VARCHAR(45) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_product_status (product_id, status),
+    INDEX idx_status (status),
+    FOREIGN KEY (product_id) REFERENCES wk_products(id) ON DELETE CASCADE,
+    FOREIGN KEY (customer_id) REFERENCES wk_customers(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS wk_refunds (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    order_id INT UNSIGNED NOT NULL,
+    refund_ref VARCHAR(32) NOT NULL,
+    gateway_code VARCHAR(30) DEFAULT NULL,
+    gateway_refund_id VARCHAR(255) DEFAULT NULL,
+    amount DECIMAL(12,2) NOT NULL,
+    currency VARCHAR(3) NOT NULL DEFAULT 'INR',
+    reason VARCHAR(255) DEFAULT NULL,
+    -- unknown: the gateway call did not complete, so the money may or may not
+    -- have moved. Blocks further refunds on the order until a human resolves it.
+    status ENUM('completed','pending','failed','unknown') NOT NULL DEFAULT 'pending',
+    is_manual TINYINT(1) NOT NULL DEFAULT 0,
+    message TEXT DEFAULT NULL,
+    gateway_response TEXT DEFAULT NULL,
+    admin_id INT UNSIGNED DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_refund_ref (refund_ref),
+    INDEX idx_order (order_id),
+    INDEX idx_status (status),
+    FOREIGN KEY (order_id) REFERENCES wk_orders(id) ON DELETE CASCADE
+) ENGINE=InnoDB;

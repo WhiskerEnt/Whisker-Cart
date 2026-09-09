@@ -263,6 +263,28 @@ class EmailService
             return ['subject' => 'Refund issued — ' . $v('order_number'), 'body' => $body];
         }
 
+        if ($slug === 'order-status-update') {
+            $body = '
+            <div style="text-align:center;margin-bottom:28px">
+                <div style="font-size:48px;margin-bottom:8px">' . $v('status_emoji', '✉️') . '</div>
+                <h1 style="font-size:26px;font-weight:900;margin:0 0 6px">Your order is now ' . htmlspecialchars($v('order_status')) . '</h1>
+                <p style="color:#6b7280;margin:0;font-size:15px">Order ' . htmlspecialchars($v('order_number')) . '</p>
+            </div>
+            <div style="background:#faf8f6;border-radius:10px;padding:20px;margin-bottom:22px">
+                <table style="width:100%;font-size:14px">
+                    <tr><td style="color:#6b7280;padding:5px 0">Total</td><td style="text-align:right;font-weight:800;font-family:monospace">' . htmlspecialchars($v('order_total')) . '</td></tr>
+                    <tr><td style="color:#6b7280;padding:5px 0">Placed</td><td style="text-align:right;font-weight:700">' . htmlspecialchars($v('order_date')) . '</td></tr>
+                </table>
+            </div>
+            <p style="font-size:14px;line-height:1.7;color:#6b7280;margin:0">
+                Hello ' . htmlspecialchars($v('customer_name', 'there')) . ', any questions just reply to this email.
+            </p>';
+            return [
+                'subject' => 'Your order ' . $v('order_number') . ' is now ' . $v('order_status'),
+                'body' => $body,
+            ];
+        }
+
         if ($slug === 'welcome') {
             $body = '
             <div style="text-align:center;margin-bottom:28px">
@@ -352,31 +374,114 @@ class EmailService
     /**
      * Wrap content in branded email template with logo
      */
+    /**
+     * The shop's own letterhead: its logo, its contact details, and links to
+     * whichever policy pages it has actually published.
+     */
     private static function wrapTemplate(string $content): string
     {
         $storeName = self::storeName();
-        $logoUrl = Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='logo_url'");
-
-        // Validate the logo URL scheme. javascript: in <img src> won't
-        // execute in modern browsers but webmail clients vary; safer to
-        // reject anything that isn't http/https or a relative path.
-        $safeLogoUrl = $logoUrl && \App\Services\HtmlSanitizer::isSafeUrl((string)$logoUrl, true)
-            ? (string)$logoUrl
-            : '';
-        $logoHtml = $safeLogoUrl
-            ? '<img src="' . htmlspecialchars($safeLogoUrl) . '" style="max-height:48px;max-width:200px" alt="' . htmlspecialchars($storeName) . '">'
-            : '<span style="font-size:22px;font-weight:900;background:linear-gradient(135deg,#8b5cf6,#ec4899);-webkit-background-clip:text;-webkit-text-fill-color:transparent">🐱 ' . htmlspecialchars($storeName) . '</span>';
 
         return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
         <body style="margin:0;padding:0;background:#f3f0eb;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif">
         <div style="max-width:600px;margin:0 auto;padding:24px">
-            <div style="text-align:center;padding:24px 0">' . $logoHtml . '</div>
+            <div style="text-align:center;padding:24px 0">' . self::emailLogo($storeName) . '</div>
             <div style="background:#ffffff;border-radius:12px;padding:36px;border:1px solid #e8e5df">' . $content . '</div>
-            <div style="text-align:center;padding:24px 0;font-size:12px;color:#9ca3af">
-                <p>' . htmlspecialchars($storeName) . '</p>
-                <p style="margin-top:6px;font-size:10px;color:#c4b5fd">Powered by Whisker</p>
-            </div>
+            ' . self::emailFooter($storeName) . '
         </div></body></html>';
+    }
+
+    /**
+     * The store logo, as an address a mail client can actually load.
+     *
+     * The settings page suggests a relative path, because an http:// image on
+     * an https:// shop is blocked by browsers. That advice is right for the
+     * storefront and useless in an email, where there is no page for a
+     * relative path to be relative to — so it is made absolute here.
+     */
+    private static function emailLogo(string $storeName): string
+    {
+        $logoUrl = (string) (Database::setting('general', 'logo_url', '') ?? '');
+        $logoUrl = trim($logoUrl);
+
+        if ($logoUrl === '' || !\App\Services\HtmlSanitizer::isSafeUrl($logoUrl, true)) {
+            // No logo: the shop's own name, with none of our branding on it.
+            return '<span style="font-size:22px;font-weight:900;color:#1e1b2e">'
+                 . htmlspecialchars($storeName) . '</span>';
+        }
+
+        if (!preg_match('#^https?://#i', $logoUrl)) {
+            $logoUrl = rtrim(View::url(''), '/') . '/' . ltrim($logoUrl, '/');
+        }
+
+        return '<img src="' . htmlspecialchars($logoUrl) . '" style="max-height:48px;max-width:200px" alt="'
+             . htmlspecialchars($storeName) . '">';
+    }
+
+    /**
+     * Contact details and policy links.
+     *
+     * Only pages the shop has actually published are linked — a footer full of
+     * links to pages that do not exist is worse than no footer. A postal
+     * address is included when set, which commercial email is generally
+     * expected to carry.
+     */
+    private static function emailFooter(string $storeName): string
+    {
+        $muted = 'color:#9ca3af;text-decoration:none';
+
+        $lines = ['<p style="margin:0;font-weight:700;color:#6b7280">' . htmlspecialchars($storeName) . '</p>'];
+
+        $address = trim((string) (Database::setting('general', 'store_address', '') ?? ''));
+        if ($address !== '') {
+            $lines[] = '<p style="margin:6px 0 0;line-height:1.6">' . nl2br(htmlspecialchars($address)) . '</p>';
+        }
+
+        $contact = [];
+        $email = trim((string) (Database::setting('general', 'contact_email', '') ?? ''));
+        $phone = trim((string) (Database::setting('general', 'store_phone', '') ?? ''));
+        if ($email !== '') {
+            $contact[] = '<a href="mailto:' . htmlspecialchars($email) . '" style="' . $muted . '">' . htmlspecialchars($email) . '</a>';
+        }
+        if ($phone !== '') {
+            $contact[] = htmlspecialchars($phone);
+        }
+        if ($contact) {
+            $lines[] = '<p style="margin:6px 0 0">' . implode(' &nbsp;&middot;&nbsp; ', $contact) . '</p>';
+        }
+
+        $policies = self::policyLinks($muted);
+        if ($policies !== '') {
+            $lines[] = '<p style="margin:12px 0 0;line-height:1.9">' . $policies . '</p>';
+        }
+
+        $lines[] = '<p style="margin-top:10px;font-size:10px;color:#c4b5fd">Powered by Whisker</p>';
+
+        return '<div style="text-align:center;padding:24px 0;font-size:12px;color:#9ca3af">'
+             . implode('', $lines) . '</div>';
+    }
+
+    /** Links to the policy pages this shop has published, and no others. */
+    private static function policyLinks(string $style): string
+    {
+        try {
+            $pages = Database::fetchAll(
+                "SELECT slug, title FROM wk_pages
+                  WHERE is_active = 1
+                    AND slug IN ('terms-and-conditions','privacy-policy','refund-policy','exchange-policy','shipping-policy')
+                  ORDER BY FIELD(slug,'terms-and-conditions','privacy-policy','refund-policy','exchange-policy','shipping-policy')"
+            );
+        } catch (\Exception $e) {
+            return '';
+        }
+        if (!$pages) return '';
+
+        $links = [];
+        foreach ($pages as $page) {
+            $links[] = '<a href="' . htmlspecialchars(View::url('page/' . $page['slug'])) . '" style="' . $style . '">'
+                     . htmlspecialchars($page['title']) . '</a>';
+        }
+        return implode(' &nbsp;&middot;&nbsp; ', $links);
     }
 
     private static function replaceVars(string $text, array $vars): string

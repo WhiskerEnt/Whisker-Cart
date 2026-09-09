@@ -45,6 +45,7 @@ class ProductController
         if (!Session::verifyCsrf($request->input('wk_csrf'))) {
             Session::flash('error', 'Session expired.');
             Session::setOldInput($request->all());
+            \App\Services\SeoService::markSitemapStale();
             Response::redirect(View::url('admin/products/create'));
             return;
         }
@@ -69,6 +70,12 @@ class ProductController
             'name'             => $request->clean('name'),
             'slug'             => $slug,
             'description'      => $request->input('description') ?? '',
+            'faq'              => \App\Services\ProductFaqService::encode(
+                \App\Services\ProductFaqService::fromForm(
+                    (array) ($request->all()['faq_q'] ?? []),
+                    (array) ($request->all()['faq_a'] ?? [])
+                )
+            ),
             'short_description'=> $request->clean('short_description') ?? '',
             'price'            => (float)$request->input('price'),
             'sale_price'       => $request->input('sale_price') ? (float)$request->input('sale_price') : null,
@@ -100,6 +107,13 @@ class ProductController
                 if (file_exists($tempFile['tmp_path'])) {
                     $filename = 'prod_' . $productId . '_' . bin2hex(random_bytes(6)) . '.' . $tempFile['ext'];
                     if (rename($tempFile['tmp_path'], $uploadDir . $filename)) {
+                        // The WebP was written beside the temporary file, so it
+                        // travels with it under the temporary name.
+                        $tempWebp = preg_replace('/\.[^.]+$/', '.webp', $tempFile['tmp_path']);
+                        if (is_file($tempWebp)) {
+                            @rename($tempWebp, preg_replace('/\.[^.]+$/', '.webp', $uploadDir . $filename));
+                        }
+
                         Database::insert('wk_product_images', [
                             'product_id' => $productId,
                             'image_path' => $filename,
@@ -107,6 +121,11 @@ class ProductController
                             'sort_order' => $i,
                             'is_primary' => $i === 0 ? 1 : 0,
                         ]);
+
+                        $size = @getimagesize($uploadDir . $filename);
+                        if ($size) {
+                            \App\Services\ImageService::remember($filename, (int) $size[0], (int) $size[1]);
+                        }
                     }
                 }
             }
@@ -141,6 +160,7 @@ class ProductController
     {
         if (!Session::verifyCsrf($request->input('wk_csrf'))) {
             Session::flash('error', 'Session expired.');
+            \App\Services\SeoService::markSitemapStale();
             Response::redirect(View::url('admin/products/edit/' . $params['id']));
             return;
         }
@@ -150,6 +170,12 @@ class ProductController
             'sku'              => $request->clean('sku'),
             'name'             => $request->clean('name'),
             'description'      => $request->input('description') ?? '',
+            'faq'              => \App\Services\ProductFaqService::encode(
+                \App\Services\ProductFaqService::fromForm(
+                    (array) ($request->all()['faq_q'] ?? []),
+                    (array) ($request->all()['faq_a'] ?? [])
+                )
+            ),
             'short_description'=> $request->clean('short_description') ?? '',
             'price'            => (float)$request->input('price'),
             'sale_price'       => $request->input('sale_price') ? (float)$request->input('sale_price') : null,
@@ -200,6 +226,7 @@ class ProductController
 
         Database::delete('wk_products', 'id = ?', [$params['id']]);
         Session::flash('success', 'Product deleted.');
+        \App\Services\SeoService::markSitemapStale();
         Response::redirect(View::url('admin/products'));
     }
 
@@ -285,8 +312,7 @@ class ProductController
                 Response::json(['success' => false, 'message' => 'Failed to save temp file'], 500);
                 return;
             }
-            // Re-encode to strip any embedded payloads (polyglot attack prevention)
-            self::reencodeImage($uploadDir . $tempName, $ext);
+            \App\Services\ImageService::process($uploadDir . $tempName, $ext);
             $tempImages = Session::get('wk_temp_images', []);
             $tempImages[] = ['tmp_path' => $uploadDir . $tempName, 'ext' => $ext];
             Session::set('wk_temp_images', $tempImages);
@@ -309,21 +335,34 @@ class ProductController
             Response::json(['success' => false, 'message' => 'Failed to move uploaded file. Check folder permissions on storage/uploads/products/'], 500);
             return;
         }
-        // Re-encode to strip any embedded payloads (polyglot attack prevention)
-        self::reencodeImage($uploadDir . $filename, $ext);
+        $prepared = \App\Services\ImageService::process($uploadDir . $filename, $ext);
 
         $existingCount = Database::fetchValue("SELECT COUNT(*) FROM wk_product_images WHERE product_id=?", [$productId]);
 
         // Check if this image is for a specific variant
         $variantComboId = (int)($request->input('variant_combo_id') ?? 0);
 
-        $imageId = Database::insert('wk_product_images', [
+        $imageRow = [
             'product_id' => $productId,
             'image_path' => $filename,
             'alt_text'   => $variantComboId ? 'variant_' . $variantComboId : '',
             'sort_order' => $existingCount,
             'is_primary' => ($existingCount == 0 && !$variantComboId) ? 1 : 0,
-        ]);
+        ];
+        // Kept so the storefront can reserve the picture's space before it
+        // arrives. Skipped silently on an install that has not run the
+        // migration yet — the size is read from the file in that case.
+        if ($prepared['width'] > 0) {
+            $imageRow['width']  = $prepared['width'];
+            $imageRow['height'] = $prepared['height'];
+        }
+
+        try {
+            $imageId = Database::insert('wk_product_images', $imageRow);
+        } catch (\Exception $e) {
+            unset($imageRow['width'], $imageRow['height']);
+            $imageId = Database::insert('wk_product_images', $imageRow);
+        }
 
         // If variant image, link it to the combo
         if ($variantComboId) {
@@ -484,10 +523,10 @@ class ProductController
             Response::json(['success' => false, 'message' => 'Upload failed'], 500);
             return;
         }
-        // Re-encode to strip any embedded payloads
-        self::reencodeImage($uploadDir . $filename, $ext);
+        $prepared = \App\Services\ImageService::process($uploadDir . $filename, $ext);
 
         $imageId = \App\Services\VariantService::uploadOptionImage($productId, $optionId, $filename);
+        \App\Services\ImageService::remember($filename, $prepared['width'], $prepared['height']);
 
         Response::json([
             'success'  => true,
@@ -564,66 +603,6 @@ class ProductController
                  ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)",
                 [$key . '_' . $productId, trim($value)]
             );
-        }
-    }
-
-    /**
-     * Re-encode an uploaded image using GD to strip any embedded payloads.
-     * Converts the image to a clean copy — prevents polyglot attacks
-     * (e.g. PHP code hidden inside EXIF/comment data).
-     *
-     * @param string $filePath Full path to the uploaded image
-     * @param string $ext      File extension (jpg, png, webp, gif)
-     * @return bool True if re-encoded successfully
-     */
-    private static function reencodeImage(string $filePath, string $ext): bool
-    {
-        if (!extension_loaded('gd')) return true; // Skip if GD not available
-
-        try {
-            $source = match ($ext) {
-                'jpg', 'jpeg' => @imagecreatefromjpeg($filePath),
-                'png'         => @imagecreatefrompng($filePath),
-                'webp'        => function_exists('imagecreatefromwebp') ? @imagecreatefromwebp($filePath) : false,
-                'gif'         => @imagecreatefromgif($filePath),
-                default       => false,
-            };
-
-            if (!$source) return false;
-
-            // Get dimensions
-            $width = imagesx($source);
-            $height = imagesy($source);
-
-            // Create clean image
-            $clean = imagecreatetruecolor($width, $height);
-
-            // Preserve transparency for PNG and GIF
-            if ($ext === 'png' || $ext === 'gif') {
-                imagealphablending($clean, false);
-                imagesavealpha($clean, true);
-                $transparent = imagecolorallocatealpha($clean, 0, 0, 0, 127);
-                imagefilledrectangle($clean, 0, 0, $width, $height, $transparent);
-            }
-
-            // Copy image data (strips all metadata and embedded payloads)
-            imagecopy($clean, $source, 0, 0, 0, 0, $width, $height);
-
-            // Save back to same path
-            $result = match ($ext) {
-                'jpg', 'jpeg' => imagejpeg($clean, $filePath, 90),
-                'png'         => imagepng($clean, $filePath, 8),
-                'webp'        => function_exists('imagewebp') ? imagewebp($clean, $filePath, 85) : false,
-                'gif'         => imagegif($clean, $filePath),
-                default       => false,
-            };
-
-            imagedestroy($source);
-            imagedestroy($clean);
-
-            return $result;
-        } catch (\Exception $e) {
-            return false;
         }
     }
 }

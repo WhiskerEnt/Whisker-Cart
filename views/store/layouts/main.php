@@ -53,17 +53,45 @@ $currentSymbol = $currentCurrency === $baseCurrency
     <title><?= $e(\App\Services\SeoService::buildTitle($pageTitle ?? null)) ?></title>
     <?php endif; ?>
     <?= $productSchema ?? '' ?>
+    <?= $pageSchema ?? '' ?>
+    <?php
+    // Who the shop is, and how to search it. On the front page only: repeating
+    // it everywhere says nothing new, and the search box markup is only
+    // honoured there in any case.
+    $wkPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+    $wkBase = rtrim(parse_url(\Core\View::url(''), PHP_URL_PATH) ?: '', '/');
+    if (rtrim($wkPath, '/') === $wkBase):
+        echo \App\Services\SeoService::organizationSchema();
+        echo \App\Services\SeoService::websiteSchema();
+    endif; ?>
     <?php if ($faviconUrl): ?>
     <link rel="icon" href="<?= \Core\View::safeUrl($faviconUrl, true) ?>">
     <?php else: ?>
     <link rel="icon" type="image/svg+xml" href="<?= \Core\View::asset('img/favicon.svg') ?>">
     <?php endif; ?>
+    <?php
+    // The font stylesheet lives on someone else's server, so fetching it costs
+    // a DNS lookup, a connection and a round trip before the page can paint.
+    // It is loaded without blocking instead: the page draws in the fallback
+    // face and swaps when the real one lands.
+    $wkFonts = 'https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap';
+    ?>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="<?= $e($wkFonts) ?>" media="print" onload="this.media='all';this.onload=null">
+    <noscript><link rel="stylesheet" href="<?= $e($wkFonts) ?>"></noscript>
     <link rel="stylesheet" href="<?= \Core\View::asset('css/store.css') ?>">
 </head>
 <?php $storeTheme = \Core\Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='store_theme'") ?: 'purple'; ?>
 <body data-theme="<?= htmlspecialchars($storeTheme) ?>">
+
+<a class="wk-skip-link" href="#wk-main">Skip to content</a>
+
+<?php
+// Anything the page changes without reloading is announced here. A screen
+// reader otherwise gets no confirmation that adding to the cart did anything.
+?>
+<p class="wk-sr-only" id="wkAnnounce" role="status" aria-live="polite" aria-atomic="true"></p>
 
 <!-- Page Loader -->
 <div class="wk-page-loader">
@@ -109,7 +137,7 @@ $currentSymbol = $currentCurrency === $baseCurrency
                 <div class="wk-nav-dropdown">
                     <a href="<?= $url('category/' . $cat['slug']) ?>" class="wk-nav-dropdown-trigger"><?= $e($cat['name']) ?> <span style="font-size:9px;opacity:.5">▼</span></a>
                     <div class="wk-nav-dropdown-menu">
-                        <a href="<?= $url('category/' . $cat['slug']) ?>" style="font-weight:800;color:var(--wk-purple)">All <?= $e($cat['name']) ?></a>
+                        <a href="<?= $url('category/' . $cat['slug']) ?>" style="font-weight:800;color:var(--wk-purple-ink)">All <?= $e($cat['name']) ?></a>
                         <?php foreach ($children as $child): ?>
                         <a href="<?= $url('category/' . $child['slug']) ?>"><?= $e($child['name']) ?></a>
                         <?php endforeach; ?>
@@ -163,29 +191,56 @@ $currentSymbol = $currentCurrency === $baseCurrency
             </script>
             <?php endif; ?>
 
-            <?php if ($isLoggedIn): ?>
-                <div style="position:relative" id="accountMenu">
-                    <button onclick="document.getElementById('accountDrop').style.display=document.getElementById('accountDrop').style.display==='block'?'none':'block'" style="background:none;border:2px solid var(--wk-border);border-radius:8px;padding:6px 12px;cursor:pointer;font-family:var(--font);font-size:13px;font-weight:800;color:var(--wk-purple);display:flex;align-items:center;gap:6px">
-                        👋 <?= $e($customer['first_name'] ?? 'Account') ?> ▾
-                    </button>
-                    <div id="accountDrop" style="display:none;position:absolute;right:0;top:calc(100% + 8px);background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,.1);width:200px;z-index:200;overflow:hidden">
-                        <a href="<?= $url('account') ?>" style="display:block;padding:12px 16px;font-size:13px;font-weight:700;color:var(--wk-text);border-bottom:1px solid var(--wk-border)">📊 Dashboard</a>
-                        <a href="<?= $url('account/orders') ?>" style="display:block;padding:12px 16px;font-size:13px;font-weight:700;color:var(--wk-text);border-bottom:1px solid var(--wk-border)">📦 My Orders</a>
-                        <a href="<?= $url('account/profile') ?>" style="display:block;padding:12px 16px;font-size:13px;font-weight:700;color:var(--wk-text);border-bottom:1px solid var(--wk-border)">👤 Profile</a>
-                        <a href="<?= $url('account/addresses') ?>" style="display:block;padding:12px 16px;font-size:13px;font-weight:700;color:var(--wk-text);border-bottom:1px solid var(--wk-border)">📍 Addresses</a>
+            <?php
+            // One account menu, signed in or not: the shopper looks in the
+            // same place either way.
+            $wkMenuItem = 'display:block;padding:12px 16px;font-size:13px;font-weight:700;color:var(--wk-text);border-bottom:1px solid var(--wk-border)';
+            ?>
+            <div style="position:relative" id="accountMenu">
+                <button type="button" onclick="wkToggleAccount()" id="accountToggle" aria-haspopup="true" aria-expanded="false" style="background:none;border:2px solid var(--wk-border);border-radius:8px;padding:6px 12px;cursor:pointer;font-family:var(--font);font-size:13px;font-weight:800;color:var(--wk-purple-ink);display:flex;align-items:center;gap:6px;white-space:nowrap">
+                    <?php if ($isLoggedIn): ?>
+                        👋 <span class="wk-btn-label"><?= $e($customer['first_name'] ?? 'Account') ?></span> ▾
+                    <?php else: ?>
+                        👤 <span class="wk-btn-label">Account</span> ▾
+                    <?php endif; ?>
+                </button>
+                <div id="accountDrop" style="display:none;position:absolute;right:0;top:calc(100% + 8px);background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,.1);width:200px;z-index:200;overflow:hidden">
+                    <?php if ($isLoggedIn): ?>
+                        <a href="<?= $url('account') ?>" style="<?= $wkMenuItem ?>">📊 Dashboard</a>
+                        <a href="<?= $url('account/orders') ?>" style="<?= $wkMenuItem ?>">📦 My Orders</a>
+                        <a href="<?= $url('account/profile') ?>" style="<?= $wkMenuItem ?>">👤 Profile</a>
+                        <a href="<?= $url('account/addresses') ?>" style="<?= $wkMenuItem ?>">📍 Addresses</a>
                         <form method="POST" action="<?= $url('account/logout') ?>" style="margin:0">
                             <?= \Core\Session::csrfField() ?>
                             <button type="submit" style="display:block;width:100%;padding:12px 16px;font-size:13px;font-weight:700;color:#ef4444;background:none;border:none;text-align:left;cursor:pointer;font-family:inherit">↪ Sign Out</button>
                         </form>
-                    </div>
+                    <?php else: ?>
+                        <a href="<?= $url('account/login') ?>" style="<?= $wkMenuItem ?>">↪ Sign In</a>
+                        <a href="<?= $url('account/register') ?>" style="<?= $wkMenuItem ?>;color:var(--wk-purple-ink)">✨ Create Account</a>
+                        <a href="<?= $url('track') ?>" style="<?= $wkMenuItem ?>">📦 Track Order</a>
+                    <?php endif; ?>
                 </div>
-                <script>document.addEventListener('click',function(e){if(!document.getElementById('accountMenu').contains(e.target))document.getElementById('accountDrop').style.display='none'});</script>
-            <?php else: ?>
-                <a href="<?= $url('account/login') ?>" style="font-size:13px;font-weight:700;color:var(--wk-muted);white-space:nowrap">Sign In</a>
-            <?php endif; ?>
+            </div>
+            <script>
+            function wkToggleAccount() {
+                const drop = document.getElementById('accountDrop');
+                const open = drop.style.display !== 'block';
+                drop.style.display = open ? 'block' : 'none';
+                document.getElementById('accountToggle').setAttribute('aria-expanded', open ? 'true' : 'false');
+            }
+            document.addEventListener('click', function (e) {
+                if (document.getElementById('accountMenu').contains(e.target)) return;
+                document.getElementById('accountDrop').style.display = 'none';
+                document.getElementById('accountToggle').setAttribute('aria-expanded', 'false');
+            });
+            document.addEventListener('keydown', function (e) { if (e.key === 'Escape') {
+                document.getElementById('accountDrop').style.display = 'none';
+                document.getElementById('accountToggle').setAttribute('aria-expanded', 'false');
+            }});
+            </script>
 
             <button class="wk-cart-btn" data-cart-open>
-                🛒 Cart <span class="wk-cart-count" style="display:none">0</span>
+                🛒 <span class="wk-btn-label">Cart</span> <span class="wk-cart-count" style="display:none">0</span>
             </button>
         </div>
     </div>
@@ -201,7 +256,9 @@ $currentSymbol = $currentCurrency === $baseCurrency
 <?php endforeach; ?>
 
 <!-- Page Content -->
+<main id="wk-main" tabindex="-1">
 <?= $_content ?>
+</main>
 
 <!-- Cart Overlay + Drawer -->
 <div class="wk-cart-overlay" data-cart-close></div>
@@ -243,10 +300,19 @@ $currentSymbol = $currentCurrency === $baseCurrency
         </div>
         <?php endif; ?>
         <div style="display:flex;justify-content:center;gap:24px;flex-wrap:wrap;font-size:12px">
-            <a href="<?= $url('page/terms-and-conditions') ?>" style="color:rgba(255,255,255,.5)">Terms & Conditions</a>
-            <a href="<?= $url('page/privacy-policy') ?>" style="color:rgba(255,255,255,.5)">Privacy Policy</a>
-            <a href="<?= $url('page/refund-policy') ?>" style="color:rgba(255,255,255,.5)">Refund Policy</a>
-            <a href="<?= $url('page/exchange-policy') ?>" style="color:rgba(255,255,255,.5)">Exchange Policy</a>
+            <?php
+            // Only pages the shop has actually published. These were four fixed
+            // links, so a shop that never wrote an exchange policy still had a
+            // footer link to one, and it went to a not-found page.
+            $wkPolicyPages = [];
+            try {
+                $wkPolicyPages = \Core\Database::fetchAll(
+                    "SELECT slug, title FROM wk_pages WHERE is_active = 1 ORDER BY title"
+                );
+            } catch (\Exception $e) {}
+            foreach ($wkPolicyPages as $wkPage): ?>
+                <a href="<?= $url('page/' . $wkPage['slug']) ?>" style="color:rgba(255,255,255,.5)"><?= $e($wkPage['title']) ?></a>
+            <?php endforeach; ?>
             <a href="<?= $url('track') ?>" style="color:rgba(255,255,255,.5)">Track Order</a>
             <?php if (\Core\Database::setting('privacy', 'cookie_consent', '0') === '1'): ?>
                 <a href="#" onclick="if(window.WhiskerConsent){WhiskerConsent.reopen();}return false;" style="color:rgba(255,255,255,.5)">Cookie Settings</a>
@@ -255,9 +321,10 @@ $currentSymbol = $currentCurrency === $baseCurrency
                 <a href="<?= $url('account') ?>" style="color:rgba(255,255,255,.5)">My Account</a>
             <?php else: ?>
                 <a href="<?= $url('account/login') ?>" style="color:rgba(255,255,255,.5)">Sign In</a>
+                <a href="<?= $url('account/register') ?>" style="color:rgba(255,255,255,.5)">Create Account</a>
             <?php endif; ?>
         </div>
-        <div class="wk-footer-brand">🐱 Powered by <a href="https://github.com" style="color:var(--wk-purple);margin-left:4px">Whisker</a></div>
+        <div class="wk-footer-brand">🐱 Powered by <a href="https://github.com/WhiskerEnt/Whisker-Cart" target="_blank" rel="noopener" style="color:var(--wk-purple-ink);margin-left:4px">Whisker</a></div>
         <div style="font-size:12px">&copy; <?= date('Y') ?> <?= $e($siteName) ?>. All rights reserved.</div>
     </div>
 </footer>
@@ -273,15 +340,15 @@ if ($chatbotEnabled !== '0'):
 <div id="wkChatbot">
     <button id="wkChatToggle" onclick="toggleChat()" style="position:fixed;bottom:24px;right:24px;width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,var(--wk-purple),var(--wk-pink));border:none;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,.2);z-index:9999;display:flex;align-items:center;justify-content:center;font-size:24px;transition:transform .2s" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">💬</button>
 
-    <div id="wkChatWindow" style="display:none;position:fixed;bottom:96px;right:24px;width:380px;max-height:520px;background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.15);z-index:9999;overflow:hidden;display:none;flex-direction:column">
+    <div id="wkChatWindow" class="wk-chat-window" style="display:none;position:fixed;bottom:96px;right:24px;width:380px;max-height:520px;background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.15);z-index:9999;overflow:hidden;display:none;flex-direction:column">
         <div style="background:linear-gradient(135deg,var(--wk-purple),var(--wk-pink));color:#fff;padding:16px 20px;display:flex;align-items:center;justify-content:space-between">
             <div><div style="font-weight:800;font-size:15px"><?= $e($chatbotName) ?></div><div style="font-size:11px;opacity:.8">Online • Ask me anything</div></div>
             <button onclick="toggleChat()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:14px">✕</button>
         </div>
         <div id="wkChatMessages" style="flex:1;overflow-y:auto;padding:16px;max-height:340px;min-height:250px"></div>
         <div style="border-top:1px solid var(--wk-border);padding:12px;display:flex;gap:8px">
-            <input type="text" id="wkChatInput" placeholder="Type a message..." onkeydown="if(event.key==='Enter')sendChat()" style="flex:1;padding:10px 14px;border:2px solid var(--wk-border);border-radius:8px;font-family:var(--font);font-size:13px;font-weight:600;outline:none">
-            <button onclick="sendChat()" style="background:var(--wk-purple);color:#fff;border:none;border-radius:8px;padding:10px 16px;cursor:pointer;font-weight:800;font-size:13px">Send</button>
+            <input type="text" id="wkChatInput" aria-label="Type a message" placeholder="Type a message..." onkeydown="if(event.key==='Enter')sendChat()" style="flex:1;padding:10px 14px;border:2px solid var(--wk-border);border-radius:8px;font-family:var(--font);font-size:13px;font-weight:600;outline:none">
+            <button onclick="sendChat()" style="background:var(--wk-purple-ink);color:#fff;border:none;border-radius:8px;padding:10px 16px;cursor:pointer;font-weight:800;font-size:13px">Send</button>
         </div>
     </div>
 </div>
@@ -305,7 +372,7 @@ function addMessage(text, from, actions) {
     d.style.cssText = 'margin-bottom:12px;display:flex;' + (from==='user'?'justify-content:flex-end':'');
     const bubble = document.createElement('div');
     bubble.style.cssText = from==='user'
-        ? 'background:var(--wk-purple);color:#fff;padding:10px 14px;border-radius:12px 12px 4px 12px;max-width:80%;font-size:13px;font-weight:600;line-height:1.5'
+        ? 'background:var(--wk-purple-ink);color:#fff;padding:10px 14px;border-radius:12px 12px 4px 12px;max-width:80%;font-size:13px;font-weight:600;line-height:1.5'
         : 'background:var(--wk-bg);color:var(--wk-text);padding:10px 14px;border-radius:12px 12px 12px 4px;max-width:85%;font-size:13px;line-height:1.6';
     // Render chatbot replies safely. The reply may include markdown produced
     // by the server from DB data, so we treat it as untrusted: HTML-escape
@@ -344,7 +411,7 @@ function addMessage(text, from, actions) {
                           // url goes through wkSafeUrl which only returns
                           // scheme-safe strings, and we re-escape it for the
                           // attribute context.
-                          return '<a href="' + wkEscapeHtml(safe) + '"' + targetAttr + ' style="color:var(--wk-purple);font-weight:700;text-decoration:underline">' + label + '</a>';
+                          return '<a href="' + wkEscapeHtml(safe) + '"' + targetAttr + ' style="color:var(--wk-purple-ink);font-weight:700;text-decoration:underline">' + label + '</a>';
                       })
                       .replace(/\n/g, '<br>');
     bubble.innerHTML = html;
@@ -356,7 +423,7 @@ function addMessage(text, from, actions) {
         actions.forEach(a => {
             const btn = document.createElement('button');
             btn.textContent = a.label;
-            btn.style.cssText = 'background:var(--wk-surface);border:2px solid var(--wk-purple);color:var(--wk-purple);padding:6px 12px;border-radius:20px;font-family:var(--font);font-size:11px;font-weight:700;cursor:pointer;transition:all .15s';
+            btn.style.cssText = 'background:var(--wk-surface);border:2px solid var(--wk-purple);color:var(--wk-purple-ink);padding:6px 12px;border-radius:20px;font-family:var(--font);font-size:11px;font-weight:700;cursor:pointer;transition:all .15s';
             btn.onmouseover = () => { btn.style.background='var(--wk-purple)'; btn.style.color='#fff'; };
             btn.onmouseout = () => { btn.style.background='var(--wk-surface)'; btn.style.color='var(--wk-purple)'; };
             btn.onclick = () => sendChat(a.value);
@@ -392,6 +459,8 @@ async function sendChat(override) {
 }
 </script>
 <?php endif; ?>
+<?php require __DIR__ . '/../partials/lead-capture.php'; ?>
+<?php require __DIR__ . '/../partials/social-bar.php'; ?>
 <?php require __DIR__ . '/../partials/cookie-consent.php'; ?>
 </body>
 </html>

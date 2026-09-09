@@ -13,7 +13,11 @@ class AccountController
     public function showRegister(Request $request, array $params = []): void
     {
         if (Session::customerId()) { Response::redirect(View::url('account')); return; }
-        View::render('store/account/register', ['pageTitle' => 'Create Account'], 'store/layouts/main');
+        View::render('store/account/register', [
+            'pageTitle'   => 'Create Account',
+            'dialCodes'   => \App\Services\CountryService::dialCodes(),
+            'phoneDefault'=> \App\Services\CountryService::storeCountry(),
+        ], 'store/layouts/main');
     }
 
     public function register(Request $request, array $params = []): void
@@ -35,10 +39,22 @@ class AccountController
         ]);
         if ($v->fails()) { Session::flash('error', $v->firstError()); Response::redirect(View::url('account/register')); return; }
 
-        // Password complexity: require at least 1 number
+        // The same three rules the form shows while the password is typed.
         $pass = $request->input('password');
         if (!preg_match('/[0-9]/', $pass)) {
             Session::flash('error', 'Password must contain at least one number.');
+            Response::redirect(View::url('account/register')); return;
+        }
+        if (!preg_match('/[^a-zA-Z0-9]/', $pass)) {
+            Session::flash('error', 'Password must contain at least one special character.');
+            Response::redirect(View::url('account/register')); return;
+        }
+
+        $phoneError = \App\Services\CountryService::phoneError(
+            $request->clean('phone_code'), $request->clean('phone')
+        );
+        if ($phoneError !== null) {
+            Session::flash('error', $phoneError);
             Response::redirect(View::url('account/register')); return;
         }
 
@@ -56,7 +72,10 @@ class AccountController
 
         $id = Database::insert('wk_customers', [
             'first_name' => $request->clean('first_name'), 'last_name' => $request->clean('last_name'),
-            'email' => $request->clean('email'), 'phone' => $request->clean('phone') ?? '',
+            'email' => $request->clean('email'),
+            'phone' => \App\Services\CountryService::joinPhone(
+                $request->clean('phone_code'), $request->clean('phone')
+            ),
             'password_hash' => password_hash($request->input('password'), PASSWORD_BCRYPT, ['cost' => 12]),
             'is_active' => 1,
         ]);
@@ -114,14 +133,19 @@ class AccountController
 
     public function logout(Request $request, array $params = []): void
     {
-        // Before wiping the session, move the customer's current cart to its
-        // 'abandoned' terminal state so it isn't left 'active' under a
-        // session_id that no longer exists.
+        // A signed-in customer's cart is theirs, and it is found by who they
+        // are rather than which browser session they were in — so signing out
+        // leaves it alone and they find it again next time they sign in.
+        //
+        // A cart with nobody attached has only the session to be found by, and
+        // that session is about to be destroyed, so it goes to its terminal
+        // state rather than sitting active under an id nothing can reach.
         try {
             $sid = Session::cartId();
             if ($sid) {
                 Database::query(
-                    "UPDATE wk_carts SET status='abandoned' WHERE session_id=? AND status='active'",
+                    "UPDATE wk_carts SET status='abandoned'
+                      WHERE session_id = ? AND status = 'active' AND customer_id IS NULL",
                     [$sid]
                 );
             }
@@ -169,10 +193,20 @@ class AccountController
         if (!Session::customerId() || !Session::verifyCsrf($request->input('wk_csrf'))) {
             Session::flash('error', 'Session expired.'); Response::redirect(View::url('account/profile')); return;
         }
+        $phoneError = \App\Services\CountryService::phoneError(
+            $request->clean('phone_code'), $request->clean('phone')
+        );
+        if ($phoneError !== null) {
+            Session::flash('error', $phoneError);
+            Response::redirect(View::url('account/profile')); return;
+        }
+
         Database::update('wk_customers', [
             'first_name' => $request->clean('first_name'),
             'last_name'  => $request->clean('last_name'),
-            'phone'      => $request->clean('phone') ?? '',
+            'phone'      => \App\Services\CountryService::joinPhone(
+                $request->clean('phone_code'), $request->clean('phone')
+            ),
         ], 'id=?', [Session::customerId()]);
         Session::flash('success', 'Profile updated!');
         Response::redirect(View::url('account/profile'));
@@ -325,51 +359,126 @@ class AccountController
         ], 'store/layouts/main');
     }
 
+    /**
+     * The customer's own invoice.
+     *
+     * The same document the admin sees, gated on the order belonging to whoever
+     * is asking — an id is easy to change in a URL. Tax authorities in several
+     * markets require the buyer be able to obtain this, and everywhere else it
+     * is a support ticket that need not have been raised.
+     */
+    public function invoice(Request $request, array $params = []): void
+    {
+        if (!Session::customerId()) {
+            Response::redirect(View::url('account/login'));
+            return;
+        }
+
+        $owns = Database::fetchValue(
+            "SELECT id FROM wk_orders WHERE id = ? AND customer_id = ?",
+            [(int) $params['id'], Session::customerId()]
+        );
+        if (!$owns) { Response::notFound(); return; }
+
+        $html = \App\Services\InvoiceService::generateHTML((int) $params['id']);
+        if (!$html) { Response::notFound(); return; }
+
+        echo $html;
+        exit;
+    }
+
+    /**
+     * Put a past order back in the basket.
+     *
+     * At today's prices and today's stock, not the ones from the order — a
+     * shopper reordering is buying now, and quoting them last year's price
+     * would be a promise the checkout could not keep. Anything no longer for
+     * sale is named rather than silently dropped.
+     */
+    public function reorder(Request $request, array $params = []): void
+    {
+        if (!Session::customerId() || !Session::verifyCsrf($request->input('wk_csrf'))) {
+            Session::flash('error', 'Session expired.');
+            Response::redirect(View::url('account/orders')); return;
+        }
+
+        $orderId = (int) $params['id'];
+        $owns = Database::fetchValue(
+            "SELECT id FROM wk_orders WHERE id = ? AND customer_id = ?",
+            [$orderId, Session::customerId()]
+        );
+        if (!$owns) { Response::notFound(); return; }
+
+        try {
+            $items = Database::fetchAll(
+                "SELECT product_id, product_name, quantity, variant_combo_id
+                   FROM wk_order_items WHERE order_id = ? AND product_id IS NOT NULL",
+                [$orderId]
+            );
+        } catch (\Exception $e) {
+            $items = Database::fetchAll(
+                "SELECT product_id, product_name, quantity FROM wk_order_items
+                  WHERE order_id = ? AND product_id IS NOT NULL",
+                [$orderId]
+            );
+        }
+
+        if (!$items) {
+            Session::flash('error', 'There is nothing on that order to reorder.');
+            Response::redirect(View::url('account/order/' . $orderId)); return;
+        }
+
+        $cartId = \App\Controllers\Store\CartController::currentCartId();
+        $added = 0;
+        $skipped = [];
+
+        foreach ($items as $item) {
+            $result = \App\Controllers\Store\CartController::addLine(
+                $cartId,
+                (int) $item['product_id'],
+                max(1, (int) $item['quantity']),
+                (int) ($item['variant_combo_id'] ?? 0)
+            );
+            if ($result['ok']) $added++;
+            else $skipped[] = $item['product_name'] . ' (' . lcfirst($result['message']) . ')';
+        }
+
+        if ($added === 0) {
+            Session::flash('error', 'Nothing from that order is available at the moment.');
+            Response::redirect(View::url('account/order/' . $orderId)); return;
+        }
+
+        Session::flash('success', $skipped
+            ? $added . ' added to your cart. Not added: ' . implode(', ', $skipped) . '.'
+            : 'Everything from that order is back in your cart.');
+        Response::redirect(View::url('cart'));
+    }
+
     public function cancelOrder(Request $request, array $params = []): void
     {
         if (!Session::customerId() || !Session::verifyCsrf($request->input('wk_csrf'))) {
             Session::flash('error', 'Session expired.'); Response::redirect(View::url('account/orders')); return;
         }
         $order = Database::fetch("SELECT * FROM wk_orders WHERE id=? AND customer_id=?", [$params['id'], Session::customerId()]);
-        if (!$order || !in_array($order['status'], ['pending', 'processing'])) {
+        if (!$order) {
             Session::flash('error', 'This order cannot be cancelled.');
             Response::redirect(View::url('account/orders')); return;
         }
 
-        // Atomic compare-and-set on status: gating inside the UPDATE means
-        // only one concurrent cancel request transitions the row (the rest
-        // see rowCount() 0 and bail), so stock is restored exactly once.
-        $cancelled = Database::query(
-            "UPDATE wk_orders SET status='cancelled'
-             WHERE id=? AND customer_id=? AND status IN ('pending','processing')",
-            [$params['id'], Session::customerId()]
-        )->rowCount();
+        // Stock, customer totals and any refund all live in one place, so a
+        // cancellation means the same thing however it was started.
+        $result = \App\Services\CancellationService::cancel($order, null, true);
 
-        if ($cancelled === 0) {
-            // Another concurrent request already cancelled (or status changed
-            // out from under us). Treat as success — the order IS cancelled.
-            Session::flash('info', 'This order was already cancelled.');
+        if (!$result['success']) {
+            Session::flash('error', $result['message']);
             Response::redirect(View::url('account/order/' . $params['id']));
             return;
         }
-
-        // Restore stock. Fall back to the always-present columns so a database
-        // awaiting the v1.3.3 migration still returns product stock.
-        try {
-            $items = Database::fetchAll("SELECT product_id, quantity, variant_combo_id FROM wk_order_items WHERE order_id=?", [$params['id']]);
-        } catch (\Exception $e) {
-            $items = Database::fetchAll("SELECT product_id, quantity FROM wk_order_items WHERE order_id=?", [$params['id']]);
+        if ($result['already']) {
+            Session::flash('info', $result['message']);
+            Response::redirect(View::url('account/order/' . $params['id']));
+            return;
         }
-        foreach ($items as $item) {
-            Database::query("UPDATE wk_products SET stock_quantity = stock_quantity + ? WHERE id=?", [$item['quantity'], $item['product_id']]);
-            if (!empty($item['variant_combo_id'])) {
-                try { Database::query("UPDATE wk_variant_combos SET stock_quantity = stock_quantity + ? WHERE id=?", [$item['quantity'], $item['variant_combo_id']]); } catch (\Exception $e) {}
-            }
-        }
-
-        // Update customer stats
-        Database::query("UPDATE wk_customers SET total_orders = GREATEST(0, total_orders - 1), total_spent = GREATEST(0, total_spent - ?) WHERE id=?",
-            [$order['total'], Session::customerId()]);
 
         // Send cancellation email to customer
         $currency = \Core\Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='currency_symbol'") ?: '₹';
@@ -387,19 +496,24 @@ class AccountController
         ];
         \App\Services\EmailService::sendFromTemplate('order-status-update', $order['customer_email'], $vars);
 
-        // Notify admin
+        // Notify admin, including whether the money still needs sending back.
         $adminEmail = \Core\Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='contact_email'")
             ?: \Core\Database::fetchValue("SELECT email FROM wk_admins WHERE role='superadmin' LIMIT 1");
         if ($adminEmail) {
+            $refundNote = '';
+            if ($result['refund'] === null && in_array($order['payment_status'] ?? '', ['captured', 'authorized', 'partially_refunded'], true)) {
+                $refundNote = '<p><strong>This order was paid. Refund it from the order page.</strong></p>';
+            } elseif ($result['refund'] !== null && !$result['refund']['success']) {
+                $refundNote = '<p><strong>The automatic refund did not go through:</strong> '
+                    . htmlspecialchars((string) $result['refund']['message']) . '</p>';
+            }
             \App\Services\EmailService::send($adminEmail, "Order Cancelled: {$order['order_number']}",
-                '<h2>Order Cancelled by Customer</h2><p><strong>'.$order['order_number'].'</strong> — '.$currency.number_format($order['total'],2).'</p><p>Customer: '.htmlspecialchars($order['customer_email']).'</p>');
+                '<h2>Order Cancelled by Customer</h2><p><strong>'.$order['order_number'].'</strong> — '.$currency.number_format($order['total'],2).'</p><p>Customer: '.htmlspecialchars($order['customer_email']).'</p>' . $refundNote);
         }
 
-        Session::flash('success', 'Order cancelled. Stock has been restored.');
+        Session::flash('success', $result['message']);
         Response::redirect(View::url('account/order/' . $params['id']));
     }
-
-    // ── Forgot Password ──────────────────────────
 
     public function showForgotPassword(Request $request, array $params = []): void
     {

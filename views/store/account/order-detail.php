@@ -2,11 +2,11 @@
 $notes=json_decode($o['notes']??'{}',true)?:[];
 $billing=json_decode($o['billing_address']??'{}',true)?:[];
 $shipping_addr=json_decode($o['shipping_address']??'{}',true)?:[];
-$canCancel = in_array($o['status'], ['pending', 'processing']);
+$canCancel = \App\Services\CancellationService::customerCanCancel($o);
 $countries = \App\Services\CurrencyService::countries();
 ?>
 <section class="wk-section"><div class="wk-container" style="max-width:700px">
-    <a href="<?= $url('account/orders') ?>" style="color:var(--wk-purple);font-weight:700;font-size:13px;margin-bottom:16px;display:inline-block">← My Orders</a>
+    <a href="<?= $url('account/orders') ?>" style="color:var(--wk-purple-ink);font-weight:700;font-size:13px;margin-bottom:16px;display:inline-block">← My Orders</a>
 
     <!-- Order Header — always visible -->
     <div style="background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:var(--radius);padding:24px;margin-bottom:16px">
@@ -189,14 +189,14 @@ $countries = \App\Services\CurrencyService::countries();
         <div class="wk-collapse-body">
             <?php if (!empty($notes['tracking_number'])): ?>
                 <div style="background:var(--wk-bg);border-radius:8px;padding:16px;margin-bottom:12px">
-                    <div style="font-size:11px;font-weight:800;text-transform:uppercase;color:var(--wk-purple);margin-bottom:8px">Shipment Info</div>
+                    <div style="font-size:11px;font-weight:800;text-transform:uppercase;color:var(--wk-purple-ink);margin-bottom:8px">Shipment Info</div>
                     <div style="display:flex;justify-content:space-between;padding:4px 0">
                         <span style="color:var(--wk-muted)">Carrier</span>
                         <span style="font-weight:700"><?= $e($notes['shipping_carrier']??'') ?></span>
                     </div>
                     <div style="display:flex;justify-content:space-between;padding:4px 0">
                         <span style="color:var(--wk-muted)">Tracking Number</span>
-                        <span style="font-family:var(--font-mono);font-weight:700;color:var(--wk-purple)"><?= $e($notes['tracking_number']) ?></span>
+                        <span style="font-family:var(--font-mono);font-weight:700;color:var(--wk-purple-ink)"><?= $e($notes['tracking_number']) ?></span>
                     </div>
                     <?php if (!empty($notes['shipped_at'])): ?>
                     <div style="display:flex;justify-content:space-between;padding:4px 0">
@@ -247,7 +247,30 @@ $countries = \App\Services\CurrencyService::countries();
         </div>
     </div>
 
+    <?php if (!empty($o['customer_note'])): ?>
+    <div style="background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:var(--radius);padding:20px;margin-bottom:16px">
+        <div style="font-size:11px;font-weight:800;text-transform:uppercase;color:var(--wk-muted);margin-bottom:6px">Your delivery notes</div>
+        <p style="margin:0;white-space:pre-wrap;line-height:1.6;font-size:14px"><?= $e($o['customer_note']) ?></p>
+    </div>
+    <?php endif; ?>
+
+    <form method="POST" action="<?= $url('account/order/' . $o['id'] . '/reorder') ?>" style="margin:0 0 12px">
+        <?= \Core\Session::csrfField() ?>
+        <button type="submit" class="wk-checkout-btn" style="width:100%">Order this again</button>
+    </form>
+
+    <a href="<?= $url('account/order/' . $o['id'] . '/invoice') ?>" target="_blank" rel="noopener"
+       style="display:block;width:100%;padding:14px;margin-bottom:12px;background:none;border:2px solid var(--wk-border);border-radius:8px;color:var(--wk-text);font-family:var(--font);font-size:14px;font-weight:800;text-align:center;text-decoration:none">
+        Download invoice
+    </a>
+
+    <?php $cancelBy = \App\Services\CancellationService::deadlineToShow($o); ?>
     <?php if ($canCancel): ?>
+    <?php if ($cancelBy): ?>
+        <p style="font-size:12px;color:var(--wk-muted);margin:10px 0 0;line-height:1.6">
+            You can cancel this order until <strong><?= $e(date('g:ia \o\n j M', $cancelBy)) ?></strong>.
+        </p>
+    <?php endif; ?>
     <form method="POST" action="<?= $url('account/order/cancel/'.$o['id']) ?>" onsubmit="return confirm('Are you sure you want to cancel this order? This cannot be undone.')" style="margin-top:8px">
         <?= \Core\Session::csrfField() ?>
         <button type="submit" style="width:100%;padding:14px;background:none;border:2px solid #ef4444;border-radius:8px;color:#ef4444;font-family:var(--font);font-size:14px;font-weight:800;cursor:pointer;transition:all .2s">

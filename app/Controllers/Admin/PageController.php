@@ -25,7 +25,53 @@ class PageController
     public function index(Request $request, array $params = []): void
     {
         $pages = Database::fetchAll("SELECT * FROM wk_pages ORDER BY title");
-        View::render('admin/pages/index', ['pageTitle'=>'Pages','pages'=>$pages], 'admin/layouts/main');
+        View::render('admin/pages/index', [
+            'pageTitle'   => 'Pages',
+            'pages'       => $pages,
+            'recommended' => \App\Services\StorePagesService::status(),
+            'summary'     => \App\Services\StorePagesService::summary(),
+        ], 'admin/layouts/main');
+    }
+
+    /**
+     * Start one of the recommended pages off.
+     *
+     * Created as a draft, always. The starting text is a skeleton with the
+     * decisions left blank, and publishing that unread would put a refund
+     * window nobody chose in front of customers.
+     */
+    public function addRecommended(Request $request, array $params = []): void
+    {
+        if (!Session::verifyCsrf($request->input('wk_csrf'))) {
+            Session::flash('error', 'Session expired.');
+            Response::redirect(View::url('admin/pages')); return;
+        }
+
+        $slug = (string) $request->input('slug');
+        $page = \App\Services\StorePagesService::find($slug);
+        if (!$page) {
+            Session::flash('error', 'That is not one of the recommended pages.');
+            Response::redirect(View::url('admin/pages')); return;
+        }
+
+        $existing = Database::fetchValue("SELECT id FROM wk_pages WHERE slug = ?", [$slug]);
+        if ($existing) {
+            // Already there — send them to it rather than making a second one.
+            Response::redirect(View::url('admin/pages/edit/' . (int) $existing)); return;
+        }
+
+        $id = Database::insert('wk_pages', [
+            'slug'      => $slug,
+            'title'     => $page['title'],
+            'content'   => \App\Services\HtmlSanitizer::purify(
+                \App\Services\StorePagesService::starter($slug)
+            ),
+            'is_active' => 0,
+        ]);
+
+        \App\Services\SeoService::markSitemapStale();
+        Session::flash('success', $page['title'] . ' started as a draft. Fill in the parts in brackets, then publish it.');
+        Response::redirect(View::url('admin/pages/edit/' . $id));
     }
 
     public function edit(Request $request, array $params = []): void
@@ -46,6 +92,7 @@ class PageController
         ]);
         if ($v->fails()) {
             Session::flash('error', $v->firstError());
+            \App\Services\SeoService::markSitemapStale();
             Response::redirect(View::url('admin/pages/edit/'.$params['id'])); return;
         }
         // Sanitize on save so the stored HTML is already safe — display path
@@ -78,6 +125,7 @@ class PageController
         ]);
         if ($v->fails()) {
             Session::flash('error', $v->firstError());
+            \App\Services\SeoService::markSitemapStale();
             Response::redirect(View::url('admin/pages/create')); return;
         }
         $slug = View::slug($request->clean('title'));
@@ -96,6 +144,7 @@ class PageController
     {
         Database::delete('wk_pages', 'id=?', [$params['id']]);
         Session::flash('success','Page deleted.');
+        \App\Services\SeoService::markSitemapStale();
         Response::redirect(View::url('admin/pages'));
     }
 

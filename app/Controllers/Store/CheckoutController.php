@@ -75,6 +75,19 @@ class CheckoutController
             Response::redirect(View::url('checkout'));
             return;
         }
+        // One order per attempt. The form carries a token minted when it was
+        // rendered; if an order already exists against it, this is the same
+        // attempt arriving twice — a double tap, a retried request, a back
+        // button — and the answer is the order that was already placed.
+        $attemptKey = self::attemptKey($request);
+        if ($attemptKey !== '') {
+            $already = self::orderForAttempt($attemptKey);
+            if ($already !== null) {
+                Response::redirect(View::url('order-success?order=' . urlencode($already)));
+                return;
+            }
+        }
+
         $cart = $this->getCartData();
         if (empty($cart['items'])) {
             Session::flash('error','Your cart is empty.');
@@ -104,6 +117,35 @@ class CheckoutController
         $email = ($emailRaw !== '' && filter_var($emailRaw, FILTER_VALIDATE_EMAIL))
             ? strtolower($emailRaw)
             : '';
+
+        // The confirmation and every update go to this address, so a mistyped
+        // one cannot be quietly dropped and the order placed anyway.
+        if ($email === '') {
+            Session::flash('error', $emailRaw === ''
+                ? 'Please enter your email address so we can send your order confirmation.'
+                : 'That email address does not look right. Please check it and try again.');
+            Response::redirect(View::url('checkout')); return;
+        }
+
+        // A shop with published terms must not be able to take an order that
+        // did not agree to them. Checked here rather than only in the browser,
+        // where the box can simply be removed.
+        if (self::termsPage() !== null && $request->input('accept_terms') !== '1') {
+            Session::flash('error', 'Please agree to the terms before placing your order.');
+            Response::redirect(View::url('checkout')); return;
+        }
+
+        $phoneError = \App\Services\CountryService::phoneError(
+            $request->clean('phone_code'), $request->clean('phone')
+        );
+        if ($phoneError !== null) {
+            Session::flash('error', $phoneError);
+            Response::redirect(View::url('checkout')); return;
+        }
+        $phone = \App\Services\CountryService::joinPhone(
+            $request->clean('phone_code'), $request->clean('phone')
+        );
+
         if ($email !== '') {
             try {
                 $sid = Session::cartId();
@@ -169,7 +211,7 @@ class CheckoutController
                     'first_name'    => $request->clean('first_name') ?? '',
                     'last_name'     => $request->clean('last_name') ?? '',
                     'email'         => $email, // validated lowercase; escape at output, not at storage
-                    'phone'         => $request->clean('phone') ?? '',
+                    'phone'         => $phone,
                     'password_hash' => '*',
                     'is_active'     => 1,
                 ]);
@@ -222,7 +264,7 @@ class CheckoutController
                         'country'=>$request->clean('country'),
                     ];
 
-                $orderId = Database::insert('wk_orders', [
+                $orderData = [
                     'order_number'=>$orderNumber, 'customer_id'=>$customerId,
                     'status'=>'pending', 'subtotal'=>$cart['subtotal'],
                     'tax_amount'=>$tax, 'shipping_amount'=>$shipping,
@@ -230,7 +272,7 @@ class CheckoutController
                     'currency'=>Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='currency'") ?: 'INR',
                     'payment_gateway'=>$request->clean('payment_gateway'),
                     'customer_email'=>$email, // validated lowercase form
-                    'customer_phone'=>$request->clean('phone'),
+                    'customer_phone'=>$phone,
                     'tax_details'=>json_encode($totals['tax_breakdown'] ?? []),
                     'shipping_address'=>json_encode($shippingAddress),
                     'billing_address'=>json_encode(
@@ -245,7 +287,32 @@ class CheckoutController
                         : $shippingAddress
                     ),
                     'ip_address'=>$request->ip(),
-                ]);
+                ];
+                if ($attemptKey !== '') $orderData['idempotency_key'] = $attemptKey;
+
+                // Kept apart from wk_orders.notes, which the shopkeeper writes
+                // carrier and tracking into.
+                $note = trim((string) $request->clean('customer_note'));
+                if ($note !== '') $orderData['customer_note'] = mb_substr($note, 0, 500);
+                if (self::termsPage() !== null) $orderData['terms_accepted_at'] = date('Y-m-d H:i:s');
+
+                try {
+                    $orderId = Database::insert('wk_orders', $orderData);
+                } catch (\Exception $e) {
+                    // Two submissions of the same attempt racing each other:
+                    // the unique index let one through, and this is the other.
+                    // Hand it the order its twin created.
+                    $twin = self::orderForAttempt($attemptKey);
+                    if ($twin !== null) {
+                        Response::redirect(View::url('order-success?order=' . urlencode($twin)));
+                        return;
+                    }
+                    // Otherwise the columns simply are not there yet — the
+                    // migrations ship alongside this — so place the order the
+                    // way it was placed before.
+                    unset($orderData['idempotency_key'], $orderData['customer_note'], $orderData['terms_accepted_at']);
+                    $orderId = Database::insert('wk_orders', $orderData);
+                }
 
                 // Delivery columns are added by the v1.3.2 migration; keep the
                 // order insert working on not-yet-migrated databases.
@@ -413,6 +480,9 @@ class CheckoutController
         }
 
         // Mark cart converted
+        // Stamp the order onto the cart before the status changes, so a
+        // basket that came back from a reminder can be counted as recovered.
+        \App\Services\CartRecoveryService::markRecovered(Session::cartId(), (int) $orderId);
         Database::update('wk_carts', ['status'=>'converted'], 'session_id=? AND status=?', [Session::cartId(),'active']);
 
         // Update customer order stats
@@ -461,7 +531,7 @@ class CheckoutController
                     'order_number'     => $orderNumber,
                     'order_id'         => $orderId,
                     'email'            => $request->clean('email') ?? '',
-                    'phone'            => $request->clean('phone') ?? '',
+                    'phone'            => $phone,
                     'name'             => trim($request->clean('first_name') . ' ' . $request->clean('last_name')),
                 ]);
             }
@@ -1003,5 +1073,56 @@ class CheckoutController
             return true;
         }
         return hash_equals((string)$expected, $clientGatewayOrderId);
+    }
+
+    /**
+     * The token identifying one attempt to place an order.
+     *
+     * Minted when the checkout form is rendered and carried on it, so every
+     * submission of that form — the first, and the one from a second tap or a
+     * retried request — names the same attempt.
+     */
+    private static function attemptKey(Request $request): string
+    {
+        $key = trim((string) $request->input('order_attempt'));
+        return preg_match('/^[a-f0-9]{64}$/', $key) === 1 ? $key : '';
+    }
+
+    /** The order already placed against this attempt, if there is one. */
+    private static function orderForAttempt(string $key): ?string
+    {
+        if ($key === '') return null;
+        try {
+            $number = Database::fetchValue(
+                "SELECT order_number FROM wk_orders WHERE idempotency_key = ? LIMIT 1", [$key]
+            );
+            return $number !== false && $number !== null ? (string) $number : null;
+        } catch (\Exception $e) {
+            // The column arrives with a migration. Until it does, a repeated
+            // submission behaves as it always did rather than failing.
+            return null;
+        }
+    }
+
+    /**
+     * The shop's published terms, if it has any.
+     *
+     * Whether a shopper is asked to agree to something is decided by whether
+     * there is something to agree to, rather than by a setting that can say
+     * yes while the page it points at does not exist.
+     */
+    private static function termsPage(): ?array
+    {
+        static $page = false;
+        if ($page !== false) return $page;
+
+        try {
+            $page = Database::fetch(
+                "SELECT slug, title FROM wk_pages WHERE is_active = 1 AND slug LIKE '%terms%' LIMIT 1"
+            ) ?: null;
+        } catch (\Exception $e) {
+            $page = null;
+        }
+        return $page;
     }
 }

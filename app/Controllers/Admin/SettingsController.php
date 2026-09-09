@@ -31,9 +31,10 @@ class SettingsController
                 'store_phone','store_address','store_tax_id','store_logo','store_country','store_state',
                 'disable_update_check',
             ],
-            'checkout'=> ['guest_checkout','tax_rate','min_order'],
+            'checkout'=> ['guest_checkout','tax_rate','min_order','auto_refund_on_cancel','cancel_window_minutes','show_cancel_deadline'],
             'email'   => ['from_email','from_name','smtp_host','smtp_port','smtp_user','smtp_pass'],
             'privacy' => ['cookie_consent','cookie_title','cookie_text','cookie_policy_url','cookie_analytics','cookie_marketing','cookie_version'],
+            'social'  => \App\Services\SocialService::settingKeys(),
         ];
         // Secret fields render empty, so an empty submission means "unchanged".
         $secretKeys = ['email_smtp_pass'];

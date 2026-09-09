@@ -1,0 +1,19 @@
+# Whisker's own stylesheets, scripts and images.
+#
+# Every link to a file in here carries ?v=<modification time>, so an edited
+# file is a different URL and reaches browsers on the next page load. That is
+# what makes it safe to tell browsers to keep these for a year and never ask
+# again — "immutable" means exactly that: no revalidation request at all.
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresDefault "access plus 1 year"
+</IfModule>
+
+<IfModule mod_headers.c>
+    Header set Cache-Control "public, max-age=31536000, immutable"
+</IfModule>
+
+# Nothing in here is ever executed, whatever a file is named or how it arrived.
+<FilesMatch "\.(php|phtml|php3|php4|php5|php7|phps|phar|shtml)$">
+    Require all denied
+</FilesMatch>

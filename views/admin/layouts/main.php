@@ -144,9 +144,21 @@ $currentPath = (new \Core\Request())->path();
                     <span class="wk-nav-icon">📧</span>
                     <span class="wk-nav-text">Email Templates</span>
                 </a>
+                <?php
+                // A shop missing its refund or privacy page has no way of
+                // knowing unless something says so where it will be seen.
+                $wkPagesMissing = 0;
+                try {
+                    $wkPageCounts = \App\Services\StorePagesService::summary();
+                    $wkPagesMissing = (int) $wkPageCounts['missing'] + (int) $wkPageCounts['draft'];
+                } catch (\Throwable $wkE) {}
+                ?>
                 <a href="<?= \Core\View::url('admin/pages') ?>" class="wk-nav-item <?= str_starts_with($currentPath, '/admin/pages') ? 'active' : '' ?>">
                     <span class="wk-nav-icon">📄</span>
                     <span class="wk-nav-text">Pages</span>
+                    <?php if ($wkPagesMissing): ?>
+                        <span class="wk-nav-badge" title="<?= (int) $wkPagesMissing ?> recommended page<?= $wkPagesMissing === 1 ? '' : 's' ?> not published"><?= (int) $wkPagesMissing ?></span>
+                    <?php endif; ?>
                 </a>
                 <a href="<?= \Core\View::url('admin/seo') ?>" class="wk-nav-item <?= str_starts_with($currentPath, '/admin/seo') ? 'active' : '' ?>">
                     <span class="wk-nav-icon">🔍</span>

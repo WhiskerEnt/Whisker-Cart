@@ -14,7 +14,7 @@ $is='width:100%;padding:12px 16px;border:2px solid var(--wk-border);border-radiu
         <div style="background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:var(--radius);padding:36px">
             <form method="POST" action="<?= $url('contact/submit') ?>">
                 <?= \Core\Session::csrfField() ?>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+                <div class="wk-cols-2" style="gap:16px;margin-bottom:16px">
                     <div><label style="display:block;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--wk-muted);margin-bottom:6px">Your Name *</label><input type="text" name="name" required placeholder="John Doe" style="<?= $is ?>"></div>
                     <div><label style="display:block;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--wk-muted);margin-bottom:6px">Email Address *</label><input type="email" name="email" required placeholder="john@example.com" style="<?= $is ?>"></div>
                 </div>

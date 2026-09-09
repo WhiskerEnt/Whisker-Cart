@@ -217,6 +217,198 @@ class SeoService
     }
 
     // ── Sitemap Generator ─────────────────────────
+    // ── Structured data ──────────────────────────
+
+    /**
+     * Who the shop is: the details the shopkeeper fills in under Settings,
+     * published in the form search engines read.
+     *
+     * Emitted on the front page only. Repeating it on every page says nothing
+     * new, and the search box markup below is only honoured there anyway.
+     */
+    public static function organizationSchema(?string $baseUrl = null): string
+    {
+        if (self::getSetting('schema_org_enabled', '1') !== '1') return '';
+
+        $baseUrl = rtrim($baseUrl ?: self::baseUrl(), '/');
+        $name = trim((string) (Database::setting('general', 'site_name', '') ?? ''));
+        if ($name === '') return '';
+
+        $schema = [
+            '@context' => 'https://schema.org',
+            '@type'    => 'Organization',
+            'name'     => $name,
+            'url'      => $baseUrl . '/',
+        ];
+
+        $logo = trim((string) (Database::setting('general', 'logo_url', '') ?? ''));
+        if ($logo !== '' && \App\Services\HtmlSanitizer::isSafeUrl($logo, true)) {
+            $schema['logo'] = preg_match('#^https?://#i', $logo)
+                ? $logo
+                : $baseUrl . '/' . ltrim($logo, '/');
+        }
+
+        $address = self::postalAddress();
+        if ($address) $schema['address'] = $address;
+
+        $phone = trim((string) (Database::setting('general', 'store_phone', '') ?? ''));
+        $email = trim((string) (Database::setting('general', 'contact_email', '') ?? ''));
+        if ($phone !== '' || $email !== '') {
+            $point = ['@type' => 'ContactPoint', 'contactType' => 'customer service'];
+            if ($phone !== '') $point['telephone'] = $phone;
+            if ($email !== '') $point['email'] = $email;
+            $schema['contactPoint'] = $point;
+        }
+
+        $taxId = trim((string) (Database::setting('general', 'store_tax_id', '') ?? ''));
+        if ($taxId !== '') $schema['taxID'] = $taxId;
+
+        // The shop's own profiles, taken from the contact bar so the two
+        // cannot drift apart.
+        $profiles = self::socialProfiles();
+        if ($profiles) $schema['sameAs'] = $profiles;
+
+        return self::jsonLd($schema);
+    }
+
+    /**
+     * The site itself, and how to search it.
+     *
+     * This is what a search engine reads to offer a search box alongside the
+     * shop in its results.
+     */
+    public static function websiteSchema(?string $baseUrl = null): string
+    {
+        if (self::getSetting('schema_org_enabled', '1') !== '1') return '';
+
+        $baseUrl = rtrim($baseUrl ?: self::baseUrl(), '/');
+        $name = trim((string) (Database::setting('general', 'site_name', '') ?? ''));
+        if ($name === '') return '';
+
+        return self::jsonLd([
+            '@context' => 'https://schema.org',
+            '@type'    => 'WebSite',
+            'name'     => $name,
+            'url'      => $baseUrl . '/',
+            'potentialAction' => [
+                '@type'       => 'SearchAction',
+                'target'      => ['@type' => 'EntryPoint', 'urlTemplate' => $baseUrl . '/search?q={search_term_string}'],
+                'query-input' => 'required name=search_term_string',
+            ],
+        ]);
+    }
+
+    /**
+     * The trail to this page.
+     *
+     * @param array<int,array{name:string,url:?string}> $crumbs in order, the
+     *        last being the page itself, which needs no link
+     */
+    public static function breadcrumbSchema(array $crumbs): string
+    {
+        if (self::getSetting('schema_org_enabled', '1') !== '1') return '';
+        $crumbs = array_values(array_filter($crumbs, fn($c) => trim((string) ($c['name'] ?? '')) !== ''));
+        if (count($crumbs) < 2) return '';
+
+        $items = [];
+        foreach ($crumbs as $i => $crumb) {
+            $item = [
+                '@type'    => 'ListItem',
+                'position' => $i + 1,
+                'name'     => (string) $crumb['name'],
+            ];
+            if (!empty($crumb['url'])) $item['item'] = (string) $crumb['url'];
+            $items[] = $item;
+        }
+
+        return self::jsonLd([
+            '@context'        => 'https://schema.org',
+            '@type'           => 'BreadcrumbList',
+            'itemListElement' => $items,
+        ]);
+    }
+
+    /**
+     * The shopkeeper's own answers, in the form search engines can show
+     * directly under the result.
+     *
+     * @param array<int,array{q:string,a:string}> $items
+     */
+    public static function faqSchema(array $items): string
+    {
+        if (self::getSetting('schema_org_enabled', '1') !== '1') return '';
+        if (!$items) return '';
+
+        $entries = [];
+        foreach ($items as $item) {
+            $q = trim((string) ($item['q'] ?? ''));
+            $a = trim((string) ($item['a'] ?? ''));
+            if ($q === '' || $a === '') continue;
+            $entries[] = [
+                '@type'          => 'Question',
+                'name'           => $q,
+                'acceptedAnswer' => ['@type' => 'Answer', 'text' => $a],
+            ];
+        }
+        if (!$entries) return '';
+
+        return self::jsonLd([
+            '@context'   => 'https://schema.org',
+            '@type'      => 'FAQPage',
+            'mainEntity' => $entries,
+        ]);
+    }
+
+    /** The store address, as far as the shopkeeper has filled it in. */
+    private static function postalAddress(): ?array
+    {
+        $street  = trim((string) (Database::setting('general', 'store_address', '') ?? ''));
+        $country = trim((string) (Database::setting('general', 'store_country', '') ?? ''));
+        $region  = trim((string) (Database::setting('general', 'store_state', '') ?? ''));
+
+        if ($street === '' && $country === '') return null;
+
+        $address = ['@type' => 'PostalAddress'];
+        // One free-text box, so it is not guessed apart into street, town and
+        // postcode — but the line breaks a shopkeeper typed become commas,
+        // since a newline inside a structured field reads badly wherever it
+        // is shown back.
+        if ($street !== '') {
+            $lines = array_filter(array_map('trim', preg_split('/?
+/', $street)));
+            $address['streetAddress'] = implode(', ', $lines);
+        }
+        if ($region !== '')  $address['addressRegion']   = $region;
+        if ($country !== '') $address['addressCountry']  = $country;
+        return $address;
+    }
+
+    /** @return string[] the shop's social profile URLs */
+    private static function socialProfiles(): array
+    {
+        try {
+            $links = \App\Services\SocialService::links();
+        } catch (\Throwable $e) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($links as $link) {
+            // Only real profiles; a phone number or a mailto is not one.
+            if (str_starts_with($link['url'], 'http') && !str_contains($link['url'], 'wa.me/')) {
+                $out[] = $link['url'];
+            }
+        }
+        return array_values(array_unique($out));
+    }
+
+    private static function jsonLd(array $schema): string
+    {
+        return '<script type="application/ld+json">'
+             . json_encode($schema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT)
+             . '</script>' . "\n";
+    }
+
     public static function generateSitemap(?string $baseUrl = null): string
     {
         $baseUrl = rtrim($baseUrl ?: (self::baseUrl()), '/');
@@ -249,7 +441,43 @@ class SeoService
     public static function writeSitemap(?string $rootPath = null): bool
     {
         $rootPath = $rootPath ?? (defined('WK_ROOT') ? WK_ROOT : dirname(__DIR__, 2));
-        return (bool) file_put_contents($rootPath . '/sitemap.xml', self::generateSitemap());
+        $written = (bool) @file_put_contents($rootPath . '/sitemap.xml', self::generateSitemap());
+        if ($written) self::$stale = false;
+        return $written;
+    }
+
+    /** @var bool set when something on the site map has changed this request */
+    private static bool $stale = false;
+
+    /** @var bool so the shutdown handler is only ever registered once */
+    private static bool $flushRegistered = false;
+
+    /**
+     * Note that a public URL has appeared, changed or gone.
+     *
+     * The file is not rewritten here. A bulk import saves a thousand products
+     * in one request, and rewriting the whole map a thousand times would make
+     * the import crawl — so the work is deferred to the end of the request and
+     * happens once, however many things changed.
+     */
+    public static function markSitemapStale(): void
+    {
+        self::$stale = true;
+
+        if (self::$flushRegistered) return;
+        self::$flushRegistered = true;
+
+        register_shutdown_function(static function () {
+            if (!self::$stale) return;
+            try {
+                if (function_exists('fastcgi_finish_request')) fastcgi_finish_request();
+                self::writeSitemap();
+            } catch (\Throwable $e) {
+                // A sitemap that could not be written must never take down the
+                // page that changed the product.
+                error_log('Whisker: rewriting the sitemap failed — ' . $e->getMessage());
+            }
+        });
     }
 
     // ── robots.txt Generator ──────────────────────

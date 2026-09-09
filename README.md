@@ -1,4 +1,4 @@
-![Version](https://img.shields.io/badge/version-1.4.0-8b5cf6?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-1.4.1-8b5cf6?style=for-the-badge)
 ![License](https://img.shields.io/badge/license-Whisker%20Free-f59e0b?style=for-the-badge)
 ![PHP](https://img.shields.io/badge/PHP-8.0+-777BB4?style=for-the-badge&logo=php&logoColor=white)
 ![MySQL](https://img.shields.io/badge/MySQL-5.7+-4479A1?style=for-the-badge&logo=mysql&logoColor=white)
@@ -10,7 +10,7 @@ Beautiful storefront. Powerful admin panel. Built-in AI chatbot. Zero monthly fe
 
 🌐 **[Live Demo](https://whisker.lohit.me)** · 📖 **[Documentation](https://github.com/WhiskerEnt/Whisker-Cart/wiki)** · 📧 **[mail@lohit.me](mailto:mail@lohit.me)**
 
-> **v1.4.0 — released 22 August 2026.** A large release. It adds **refunds from the admin panel** (gateway-backed, with a reference and a receipt email), **reviews and ratings**, **customer questions and answers**, **shipping zones**, **shipping destination control**, **cookie consent**, **guest order tracking**, **instant product search**, and **pickup point / locker delivery** — plus an opt-in multi-currency switcher, admin-managed branding, and a rebuilt order confirmation page. Recommended for all installs.
+> **v1.4.1, released 10 September 2026.** The cart gets a page of its own, carts follow a signed-in customer between devices, and pressing Pay twice can no longer place two orders. Uploaded images are resized and served as WebP, compression is on by default, and every page collapses properly on a phone. Customers can download their own invoice and reorder a past order. The admin lists the pages a shop is expected to have and what each is for. See [CHANGELOG.md](CHANGELOG.md) for the full list.
 
 ---
 
@@ -167,6 +167,10 @@ Whisker refuses to process a webhook when its secret is missing, rather than tru
 - **Tax rate cache** — loaded once per request from DB
 - **Atomic stock** — `WHERE stock_quantity >= ?` prevents race conditions
 - **Non-blocking emails** — `fastcgi_finish_request()` on PHP-FPM
+- **Compression on by default** — gzip/brotli via the shipped `.htaccess`; a
+  storefront page goes from ~110 KB to ~30 KB
+- **Assets cached for a year** — every asset URL carries `?v=<mtime>`, so an
+  edited file is a new URL and there is no cache to clear
 - Runs on shared hosting, handles 500+ orders/day on a decent VPS
 
 ---
@@ -272,5 +276,5 @@ Whisker Free Edition is released under the Whisker Free License v1.0. Free to us
 
 ---
 
-**🐱 Whisker v1.4.0** · Built by Lohit T
+**🐱 Whisker v1.4.1** · Built by Lohit T
 📧 [mail@lohit.me](mailto:mail@lohit.me)

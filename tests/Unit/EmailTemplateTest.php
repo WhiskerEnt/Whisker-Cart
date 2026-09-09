@@ -123,4 +123,57 @@ class EmailTemplateTest extends TestCase
         preg_match_all("/'(\{\{[a-z_]+\}\})'/", $m[1], $keys);
         return array_merge($common, $keys[1]);
     }
+
+    /**
+     * The settings page recommends a relative logo path, which is right for the
+     * storefront and useless in an email — there is no page for it to be
+     * relative to, so every mail client shows a broken image.
+     */
+    public function testARelativeLogoIsMadeAbsoluteForEmail(): void
+    {
+        $src = (string) file_get_contents(WK_ROOT . '/app/Services/EmailService.php');
+        $fn = substr($src, strpos($src, 'private static function emailLogo('));
+        $fn = substr($fn, 0, strpos($fn, 'private static function emailFooter('));
+
+        $this->assertStringContainsString(
+            "!preg_match('#^https?://#i', \$logoUrl)",
+            $fn,
+            'a relative path must be detected'
+        );
+        $this->assertStringContainsString("rtrim(View::url(''), '/')", $fn, 'and made absolute');
+    }
+
+    /** A shop without a logo should see its own name, not our cat. */
+    public function testTheLogoFallbackCarriesNoWhiskerBranding(): void
+    {
+        $src = (string) file_get_contents(WK_ROOT . '/app/Services/EmailService.php');
+        $fn = substr($src, strpos($src, 'private static function emailLogo('));
+        $fn = substr($fn, 0, strpos($fn, 'private static function emailFooter('));
+
+        $this->assertStringNotContainsString('🐱', $fn, 'the shop name stands alone');
+        $this->assertStringContainsString('htmlspecialchars($storeName)', $fn);
+    }
+
+    /** Only pages the shop actually published — a footer of 404s is worse than none. */
+    public function testOnlyPublishedPolicyPagesAreLinked(): void
+    {
+        $src = (string) file_get_contents(WK_ROOT . '/app/Services/EmailService.php');
+        $fn = substr($src, strpos($src, 'private static function policyLinks('));
+
+        $this->assertStringContainsString('is_active = 1', $fn);
+        $this->assertStringContainsString("if (!\$pages) return '';", $fn,
+            'no published pages means no policy row at all');
+    }
+
+    /** Commercial email is expected to say who sent it and from where. */
+    public function testTheFooterCarriesContactDetails(): void
+    {
+        $src = (string) file_get_contents(WK_ROOT . '/app/Services/EmailService.php');
+        $fn = substr($src, strpos($src, 'private static function emailFooter('));
+        $fn = substr($fn, 0, strpos($fn, 'private static function policyLinks('));
+
+        $this->assertStringContainsString("'store_address'", $fn);
+        $this->assertStringContainsString("'contact_email'", $fn);
+        $this->assertStringContainsString("'store_phone'", $fn);
+    }
 }

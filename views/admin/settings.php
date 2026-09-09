@@ -2,7 +2,7 @@
 
 <!-- Tab Navigation -->
 <div style="display:flex;gap:6px;margin-bottom:24px;border-bottom:2px solid var(--wk-border);padding-bottom:0;flex-wrap:wrap">
-    <?php $tabs = ['store'=>'🏪 Store','appearance'=>'🎨 Appearance','checkout'=>'🛒 Checkout & Tax','privacy'=>'🍪 Privacy','email'=>'📧 Email','system'=>'⚙️ System'];
+    <?php $tabs = ['store'=>'🏪 Store','appearance'=>'🎨 Appearance','checkout'=>'🛒 Checkout & Tax','privacy'=>'🍪 Privacy','social'=>'💬 Social','email'=>'📧 Email','system'=>'⚙️ System'];
     foreach ($tabs as $key => $label): ?>
     <button onclick="switchTab('<?= $key ?>')" id="tab-btn-<?= $key ?>" style="padding:10px 20px;border:none;background:transparent;font-weight:700;font-size:13px;color:var(--wk-text-muted);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .2s;font-family:inherit"><?= $label ?></button>
     <?php endforeach; ?>
@@ -149,6 +149,52 @@
                             <option value="0" <?= $v('checkout','guest_checkout')==='0'?'selected':'' ?>>Disabled</option>
                         </select>
                     </div>
+                    <div class="wk-form-group"><label>Customers Can Cancel For</label>
+                        <?php
+                        $wkWindow = $v('checkout','cancel_window_minutes') ?: '0';
+                        $wkWindows = [
+                            '0'     => 'No time limit — until you start processing it',
+                            '30'    => '30 minutes after the order is placed',
+                            '60'    => '1 hour after the order is placed',
+                            '120'   => '2 hours after the order is placed',
+                            '360'   => '6 hours after the order is placed',
+                            '720'   => '12 hours after the order is placed',
+                            '1440'  => '24 hours after the order is placed',
+                            '2880'  => '2 days after the order is placed',
+                            '10080' => '7 days after the order is placed',
+                        ];
+                        ?>
+                        <select name="checkout_cancel_window_minutes" class="wk-select">
+                            <?php foreach ($wkWindows as $mins => $label): ?>
+                                <option value="<?= $mins ?>" <?= $wkWindow === $mins ? 'selected' : '' ?>><?= $label ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px;line-height:1.6">
+                            After this, the cancel button disappears and the customer is asked to contact you.
+                            You can still cancel any order yourself from the order page, whenever you like.
+                        </div>
+                    </div>
+                    <div class="wk-form-group"><label>Show the Cancellation Deadline</label>
+                        <select name="checkout_show_cancel_deadline" class="wk-select">
+                            <option value="1" <?= $v('checkout','show_cancel_deadline')!=='0'?'selected':'' ?>>Show &mdash; tell the customer how long they have</option>
+                            <option value="0" <?= $v('checkout','show_cancel_deadline')==='0'?'selected':'' ?>>Hide &mdash; say nothing about the deadline</option>
+                        </select>
+                        <div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px;line-height:1.6">
+                            Only applies when a window is set above. Hiding it does not extend the window &mdash;
+                            the cancel button still goes when the time is up.
+                        </div>
+                    </div>
+                    <div class="wk-form-group"><label>Refund When an Order Is Cancelled</label>
+                        <select name="checkout_auto_refund_on_cancel" class="wk-select">
+                            <option value="0" <?= $v('checkout','auto_refund_on_cancel')!=='1'?'selected':'' ?>>Off &mdash; refund it yourself from the order page</option>
+                            <option value="1" <?= $v('checkout','auto_refund_on_cancel')==='1'?'selected':'' ?>>On &mdash; send the money back automatically</option>
+                        </select>
+                        <div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px;line-height:1.6">
+                            When on, cancelling a paid order refunds it through the payment gateway straight away,
+                            whether you cancelled it or the customer did. Off by default, because it moves money
+                            without anyone looking. Gateways that cannot refund automatically still need doing by hand.
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="wk-card">
@@ -251,6 +297,95 @@
                     <input type="number" name="privacy_cookie_version" class="wk-input" min="1" step="1" value="<?= $v('privacy','cookie_version') ?: '1' ?>" style="max-width:140px">
                     <div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">
                         Raise this number when your cookie policy changes. Everyone who already answered is asked again.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB: Social -->
+    <div class="settings-tab" id="tab-social" style="display:none">
+        <div class="wk-card" style="max-width:820px">
+            <div class="wk-card-header"><h2>💬 Floating Contact Bar</h2></div>
+            <div class="wk-card-body">
+                <p style="font-size:12px;color:var(--wk-text-muted);margin-bottom:18px;line-height:1.6">
+                    A column of contact and social buttons pinned to the side of your storefront that stays put as
+                    customers scroll. Fill in only the ones you use — the bar appears once at least one is set,
+                    and each button links straight to that app.
+                </p>
+
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;margin-bottom:20px">
+                    <div class="wk-form-group" style="margin:0">
+                        <label>Contact bar</label>
+                        <select name="social_social_enabled" class="wk-select">
+                            <option value="0" <?= ($s['social']['social_enabled'] ?? '0') !== '1' ? 'selected' : '' ?>>Off</option>
+                            <option value="1" <?= ($s['social']['social_enabled'] ?? '0') === '1' ? 'selected' : '' ?>>On — show it on the storefront</option>
+                        </select>
+                    </div>
+                    <div class="wk-form-group" style="margin:0">
+                        <label>How it shows</label>
+                        <select name="social_social_display" class="wk-select">
+                            <option value="always" <?= ($s['social']['social_display'] ?? 'always') !== 'collapsed' ? 'selected' : '' ?>>Always show every button</option>
+                            <option value="collapsed" <?= ($s['social']['social_display'] ?? 'always') === 'collapsed' ? 'selected' : '' ?>>Collapse behind one button</option>
+                        </select>
+                        <div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">
+                            Collapsed takes up less of the page — worth it if you use more than three or four.
+                        </div>
+                    </div>
+                    <div class="wk-form-group" style="margin:0">
+                        <label>Side of the screen</label>
+                        <select name="social_social_position" class="wk-select">
+                            <option value="left" <?= ($s['social']['social_position'] ?? 'left') !== 'right' ? 'selected' : '' ?>>Left</option>
+                            <option value="right" <?= ($s['social']['social_position'] ?? 'left') === 'right' ? 'selected' : '' ?>>Right</option>
+                        </select>
+                        <div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">
+                            The chat bubble sits bottom-right, so the left keeps them apart.
+                        </div>
+                    </div>
+                </div>
+
+                <div style="border-top:1px solid var(--wk-border);padding-top:18px">
+                    <div style="font-weight:800;font-size:13px;margin-bottom:4px">Direct contact</div>
+                    <p style="font-size:12px;color:var(--wk-text-muted);margin-bottom:14px;line-height:1.6">
+                        Enter phone numbers with the country code. Spaces and brackets are fine.
+                    </p>
+
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px">
+                        <div class="wk-form-group" style="margin:0">
+                            <label>WhatsApp number</label>
+                            <input type="text" name="social_social_whatsapp" class="wk-input" value="<?= $v('social','social_whatsapp') ?>" placeholder="+91 98765 43210">
+                        </div>
+                        <div class="wk-form-group" style="margin:0">
+                            <label>Phone number</label>
+                            <input type="text" name="social_social_phone" class="wk-input" value="<?= $v('social','social_phone') ?>" placeholder="+91 98765 43210">
+                        </div>
+                        <div class="wk-form-group" style="margin:0">
+                            <label>Email address</label>
+                            <input type="email" name="social_social_email" class="wk-input" value="<?= $v('social','social_email') ?>" placeholder="hello@yourstore.com">
+                        </div>
+                    </div>
+
+                    <div class="wk-form-group">
+                        <label>WhatsApp opening message <span style="font-weight:500;color:var(--wk-text-muted)">(optional)</span></label>
+                        <input type="text" name="social_social_whatsapp_text" class="wk-input" maxlength="300" value="<?= $v('social','social_whatsapp_text') ?>" placeholder="Hi! I would like to know more about">
+                        <div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">
+                            Typed into the customer's WhatsApp for them, so they only have to press send.
+                        </div>
+                    </div>
+                </div>
+
+                <div style="border-top:1px solid var(--wk-border);padding-top:18px;margin-top:6px">
+                    <div style="font-weight:800;font-size:13px;margin-bottom:4px">Social profiles</div>
+                    <p style="font-size:12px;color:var(--wk-text-muted);margin-bottom:14px;line-height:1.6">
+                        Paste the address of your page. <code>facebook.com/yourshop</code> works as well as the full link.
+                    </p>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px">
+                        <?php foreach (['facebook'=>'Facebook','instagram'=>'Instagram','telegram'=>'Telegram','x'=>'X','youtube'=>'YouTube','tiktok'=>'TikTok','linkedin'=>'LinkedIn'] as $key => $label): ?>
+                            <div class="wk-form-group" style="margin:0">
+                                <label><?= $label ?></label>
+                                <input type="text" name="social_social_<?= $key ?>" class="wk-input" value="<?= $v('social','social_' . $key) ?>" placeholder="<?= strtolower($key) ?>.com/yourshop">
+                            </div>
+                        <?php endforeach; ?>
                     </div>
                 </div>
             </div>

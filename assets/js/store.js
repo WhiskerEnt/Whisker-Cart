@@ -125,11 +125,13 @@ const WhiskerStore = {
             if (data.success) {
                 btn.innerHTML = '✓ Added!';
                 btn.classList.add('added');
+                this.announce('Added to your cart.');
                 this.bumpBadge();
                 this.loadCart();
                 setTimeout(() => { btn.innerHTML = origHTML; btn.classList.remove('added'); btn.disabled = false; }, 1500);
             } else {
                 btn.textContent = data.message || 'Error';
+                this.announce(data.message || 'That could not be added to your cart.');
                 setTimeout(() => { btn.innerHTML = origHTML; btn.disabled = false; }, 2000);
             }
         } catch (err) {
@@ -137,6 +139,20 @@ const WhiskerStore = {
             btn.textContent = 'Error';
             setTimeout(() => { btn.innerHTML = origHTML; btn.disabled = false; }, 2000);
         }
+    },
+
+    /**
+     * Says out loud what just happened.
+     *
+     * Everything the cart does happens without reloading, so a screen reader
+     * is given no reason to mention it. The message is cleared first because
+     * the same text twice is not treated as a change and goes unread.
+     */
+    announce(message) {
+        const region = document.getElementById('wkAnnounce');
+        if (!region) return;
+        region.textContent = '';
+        setTimeout(() => { region.textContent = message; }, 60);
     },
 
     bumpBadge() {
@@ -149,7 +165,7 @@ const WhiskerStore = {
     // ── Load Cart ────────────────────────────
     async loadCart() {
         try {
-            const res = await fetch(this.base('cart'));
+            const res = await fetch(this.base('cart/data'));
             const data = await res.json();
             if (data.success) {
                 this.renderItems(data.items);
@@ -229,9 +245,16 @@ const WhiskerStore = {
         const counter = wrap?.querySelector('.wk-hero-counter-current');
 
         if (dots) {
+            dots.setAttribute('role', 'tablist');
             for (let i = 0; i < total; i++) {
                 const d = document.createElement('button');
                 d.className = 'wk-carousel-dot' + (i === 0 ? ' active' : '');
+                d.type = 'button';
+                // A dot is a coloured circle with no text in it, so without
+                // this a screen reader announces it as an unnamed button.
+                d.setAttribute('role', 'tab');
+                d.setAttribute('aria-label', `Go to slide ${i + 1} of ${total}`);
+                d.setAttribute('aria-selected', i === 0 ? 'true' : 'false');
                 d.onclick = () => go(i);
                 dots.appendChild(d);
             }
@@ -240,12 +263,75 @@ const WhiskerStore = {
         function go(i) {
             current = ((i % total) + total) % total;
             track.style.transform = `translateX(-${current * 100}%)`;
-            dots?.querySelectorAll('.wk-carousel-dot').forEach((d, j) => d.classList.toggle('active', j === current));
+            dots?.querySelectorAll('.wk-carousel-dot').forEach((d, j) => {
+                const on = j === current;
+                d.classList.toggle('active', on);
+                d.setAttribute('aria-selected', on ? 'true' : 'false');
+            });
             if (counter) counter.textContent = current + 1;
         }
 
         wrap?.querySelector('.wk-carousel-prev')?.addEventListener('click', () => go(current - 1));
         wrap?.querySelector('.wk-carousel-next')?.addEventListener('click', () => go(current + 1));
+
+        // ── Dragging ─────────────────────────────
+        // On a phone the arrows are the only way through the slides, and
+        // nobody looks for them — the gesture people try first is a swipe.
+        // Pointer events cover finger, pen and a held mouse button alike.
+        let startX = 0, startY = 0, dragging = false, moved = false, width = 1;
+
+        const beginDrag = (e) => {
+            if (e.pointerType === 'mouse' && e.buttons !== 1) return;
+            dragging = true; moved = false;
+            startX = e.clientX; startY = e.clientY;
+            width = track.getBoundingClientRect().width || 1;
+            stop();
+            track.style.transition = 'none';
+        };
+
+        const duringDrag = (e) => {
+            if (!dragging) return;
+            const dx = e.clientX - startX;
+            // Until the movement is clearly sideways, leave it alone — the
+            // page still has to scroll under a finger moving up or down.
+            if (!moved && Math.abs(dx) < Math.abs(e.clientY - startY)) return;
+            if (Math.abs(dx) > 4) moved = true;
+            if (!moved) return;
+
+            // Pull against the ends rather than sliding into empty space.
+            const atEnd = (current === 0 && dx > 0) || (current === total - 1 && dx < 0);
+            track.style.transform =
+                `translateX(calc(${-current * 100}% + ${atEnd ? dx / 3 : dx}px))`;
+        };
+
+        const endDrag = (e) => {
+            if (!dragging) return;
+            dragging = false;
+            track.style.transition = '';
+            const dx = (e.clientX ?? startX) - startX;
+
+            // A short flick counts; a long drag that comes back does not.
+            if (moved && Math.abs(dx) > Math.min(60, width * 0.15)) {
+                go(dx < 0 ? current + 1 : current - 1);
+            } else {
+                go(current);
+            }
+            setTimeout(start, 3000);
+        };
+
+        track.style.touchAction = 'pan-y';
+        track.querySelectorAll('img').forEach((img) => { img.draggable = false; });
+        track.addEventListener('pointerdown', beginDrag);
+        track.addEventListener('pointermove', duringDrag);
+        track.addEventListener('pointerup', endDrag);
+        track.addEventListener('pointercancel', endDrag);
+        track.addEventListener('pointerleave', endDrag);
+
+        // A slide is a link to the product. Letting go after a swipe must not
+        // also count as tapping whatever ended up under the finger.
+        track.addEventListener('click', (e) => {
+            if (moved) { e.preventDefault(); e.stopPropagation(); }
+        }, true);
 
         function start() { stop(); timer = setInterval(() => go(current + 1), 5000); }
         function stop() { if (timer) clearInterval(timer); }
@@ -295,6 +381,15 @@ const WhiskerStore = {
 };
 
 document.addEventListener('DOMContentLoaded', () => WhiskerStore.init());
+
+// A recovery link lands here with ?cart=open, so the basket it just restored
+// is the first thing the shopper sees.
+document.addEventListener('DOMContentLoaded', () => {
+    if (/[?&]cart=open/.test(location.search)) {
+        WhiskerStore.loadCart();
+        WhiskerStore.openCart();
+    }
+});
 /**
  * Header type-ahead search.
  *
@@ -448,13 +543,18 @@ const WhiskerNav = {
     },
 
     layout() {
+        // Measure against a clipped row, so an item past the edge shows up as
+        // scrollWidth rather than being allowed to stick out. The clip goes
+        // back off at the end, and nothing repaints in between.
+        this.nav.classList.remove('wk-nav-ready');
+
         // Start from a clean slate so widening the window restores items.
         this.items.forEach((el) => { el.hidden = false; });
         this.menu.innerHTML = '';
         this.more.hidden = true;
 
         const fits = () => this.nav.scrollWidth <= this.nav.clientWidth + 1;
-        if (fits()) return;
+        if (fits()) { this.nav.classList.add('wk-nav-ready'); return; }
 
         // Move items from the end into the dropdown until the row fits.
         // Home / Shop All stay put — they are the primary links.
@@ -472,7 +572,144 @@ const WhiskerNav = {
             }
             if (fits()) break;
         }
+
+        this.nav.classList.add('wk-nav-ready');
     },
 };
 
 document.addEventListener('DOMContentLoaded', () => WhiskerNav.init());
+
+/**
+ * Live checking for the two fields people mistype: the email a receipt has to
+ * reach, and the phone number a courier has to ring.
+ *
+ * The rules here match the ones the server applies. This is the earlier, more
+ * helpful half of the pair — it says what is wrong while the field is being
+ * filled in, rather than after the form comes back.
+ */
+const WhiskerValidate = {
+    // The domains people reach for when they mean the popular one.
+    TYPOS: {
+        'gmail.co': 'gmail.com',   'gmail.con': 'gmail.com',  'gmial.com': 'gmail.com',
+        'gmai.com': 'gmail.com',   'gnail.com': 'gmail.com',  'yahoo.co': 'yahoo.com',
+        'hotmial.com': 'hotmail.com', 'hotmail.co': 'hotmail.com', 'outlook.co': 'outlook.com',
+        'iclould.com': 'icloud.com', 'icloud.co': 'icloud.com',
+    },
+
+    email(value) {
+        const v = value.trim();
+        if (v === '') return null;
+
+        if (v.indexOf('@') === -1)        return 'An email address needs an @.';
+        if (v.split('@').length > 2)      return 'An email address can only have one @.';
+
+        const [local, domain] = v.split('@');
+        if (!local)                       return 'Add the part before the @.';
+        if (!domain)                      return 'Add the part after the @, like gmail.com.';
+        if (/\s/.test(v))                 return 'An email address cannot contain spaces.';
+        if (domain.indexOf('.') === -1)   return 'The part after the @ needs a dot, like gmail.com.';
+        if (/\.\./.test(v) || domain.startsWith('.') || domain.endsWith('.')) {
+            return 'That email address has a misplaced dot.';
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(v)) return 'That does not look like a valid email address.';
+
+        const suggestion = this.TYPOS[domain.toLowerCase()];
+        if (suggestion) return { warning: 'Did you mean ' + local + '@' + suggestion + '?' };
+
+        return null;
+    },
+
+    phone(value, dial) {
+        const v = value.trim();
+        if (v === '') return null;
+
+        let cleaned = v.replace(/[\s().\-\/]/g, '');
+        const ownPrefix = cleaned.charAt(0) === '+';
+        if (ownPrefix) cleaned = cleaned.slice(1);
+
+        if (!/^[0-9]+$/.test(cleaned)) return 'A phone number can only contain digits.';
+
+        const national = ownPrefix ? cleaned : cleaned.replace(/^0+/, '');
+        const total = (ownPrefix ? 0 : (dial || '').length) + national.length;
+
+        if (national.length < 4)  return 'That phone number is too short.';
+        if (total > 15)           return 'That phone number is too long.';
+        if (/^(\d)\1+$/.test(national)) return 'That does not look like a real phone number.';
+
+        return null;
+    },
+
+    /** The dial code currently picked beside this number box. */
+    dialFor(input) {
+        const wrap = input.closest('.wk-phone-field');
+        const select = wrap && wrap.querySelector('[data-wk-phone-code]');
+        if (!select || !select.selectedOptions[0]) return '';
+        const m = select.selectedOptions[0].textContent.match(/\(\+(\d+)\)\s*$/);
+        return m ? m[1] : '';
+    },
+
+    /** The line under a field, created once and reused. */
+    noteFor(input) {
+        const wrap = input.closest('.wk-phone-field') || input;
+        let note = (wrap.parentElement || wrap).querySelector(':scope > [data-wk-note]');
+        if (!note) {
+            note = document.createElement('p');
+            note.className = 'wk-field-note';
+            note.setAttribute('data-wk-note', '');
+            wrap.insertAdjacentElement('afterend', note);
+        }
+        return note;
+    },
+
+    check(input) {
+        const kind = input.getAttribute('data-wk-validate');
+        const result = kind === 'phone'
+            ? this.phone(input.value, this.dialFor(input))
+            : this.email(input.value);
+
+        const note = this.noteFor(input);
+        const warning = result && typeof result === 'object';
+        const message = warning ? result.warning : result;
+
+        note.textContent = message || '';
+        note.style.display = message ? 'block' : 'none';
+        note.className = 'wk-field-note' + (warning ? ' wk-field-warn' : message ? ' wk-field-bad' : '');
+        input.classList.toggle('wk-field-invalid', !!message && !warning);
+
+        // A suggestion is not a refusal, so only a real error blocks the form.
+        input.setCustomValidity(message && !warning ? message : '');
+        return !message || warning;
+    },
+
+    init() {
+        const fields = document.querySelectorAll('[data-wk-validate]');
+        fields.forEach((input) => {
+            // Nothing is said until the field has been left once, so the
+            // message is not there while a correct address is still half typed.
+            let touched = false;
+            input.addEventListener('blur', () => { touched = true; this.check(input); });
+            input.addEventListener('input', () => { if (touched) this.check(input); });
+
+            const wrap = input.closest('.wk-phone-field');
+            const select = wrap && wrap.querySelector('[data-wk-phone-code]');
+            if (select) select.addEventListener('change', () => { if (touched) this.check(input); });
+        });
+
+        // Nothing invalid leaves the page, whatever route the form takes.
+        document.querySelectorAll('form').forEach((form) => {
+            form.addEventListener('submit', (e) => {
+                let ok = true;
+                form.querySelectorAll('[data-wk-validate]').forEach((input) => {
+                    if (!this.check(input)) ok = false;
+                });
+                if (!ok) {
+                    e.preventDefault();
+                    const bad = form.querySelector('.wk-field-invalid');
+                    if (bad) bad.focus();
+                }
+            });
+        });
+    },
+};
+
+document.addEventListener('DOMContentLoaded', () => WhiskerValidate.init());

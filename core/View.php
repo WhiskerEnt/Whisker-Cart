@@ -172,4 +172,53 @@ class View
         }
         return true;                                                     // bare slug — relative
     }
+
+    /**
+     * A product picture, with everything the browser needs to lay the page out
+     * before it has the picture.
+     *
+     * The WebP is offered first and the original named as the fallback, so a
+     * browser that cannot read WebP is served exactly what it was before. The
+     * width and height are the stored ones: without them the space is not
+     * reserved and everything below the image jumps when it loads.
+     *
+     * @param string $filename as stored in the database
+     * @param array{class?:string,style?:string,sizes?:string,eager?:bool} $opts
+     *        eager marks the one image visible on arrival — usually the hero —
+     *        which should not be deferred
+     */
+    public static function productImage(string $filename, string $alt = '', array $opts = []): string
+    {
+        $filename = basename(trim($filename));
+        if ($filename === '') return '';
+
+        $src  = self::url('storage/uploads/products/' . $filename);
+        $dims = \App\Services\ImageService::dimensions($filename);
+        $webp = \App\Services\ImageService::webpName($filename);
+        $eager = !empty($opts['eager']);
+
+        $attrs = ' src="' . self::e($src) . '" alt="' . self::e($alt) . '"';
+        if ($dims) $attrs .= ' width="' . $dims[0] . '" height="' . $dims[1] . '"';
+        if (!empty($opts['class'])) $attrs .= ' class="' . self::e($opts['class']) . '"';
+        if (!empty($opts['style'])) $attrs .= ' style="' . self::e($opts['style']) . '"';
+
+        // The picture at the top of the page is wanted immediately; the rest
+        // can wait until they are scrolled towards.
+        $attrs .= $eager
+            ? ' fetchpriority="high" decoding="async"'
+            : ' loading="lazy" decoding="async"';
+
+        if (!empty($opts['id']))    $attrs .= ' id="' . self::e($opts['id']) . '"';
+        if (!empty($opts['extra'])) $attrs .= ' ' . $opts['extra'];
+
+        $img = '<img' . $attrs . '>';
+
+        // A gallery that swaps the src by script must not be wrapped: the
+        // <source> would keep winning and the picture would never change.
+        if (!$webp || !empty($opts['no_webp'])) return $img;
+
+        return '<picture><source type="image/webp" srcset="'
+             . self::e(self::url('storage/uploads/products/' . $webp))
+             . '">' . $img . '</picture>';
+    }
 }
