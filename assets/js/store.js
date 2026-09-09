@@ -125,11 +125,13 @@ const WhiskerStore = {
             if (data.success) {
                 btn.innerHTML = '✓ Added!';
                 btn.classList.add('added');
+                this.announce('Added to your cart.');
                 this.bumpBadge();
                 this.loadCart();
                 setTimeout(() => { btn.innerHTML = origHTML; btn.classList.remove('added'); btn.disabled = false; }, 1500);
             } else {
                 btn.textContent = data.message || 'Error';
+                this.announce(data.message || 'That could not be added to your cart.');
                 setTimeout(() => { btn.innerHTML = origHTML; btn.disabled = false; }, 2000);
             }
         } catch (err) {
@@ -137,6 +139,20 @@ const WhiskerStore = {
             btn.textContent = 'Error';
             setTimeout(() => { btn.innerHTML = origHTML; btn.disabled = false; }, 2000);
         }
+    },
+
+    /**
+     * Says out loud what just happened.
+     *
+     * Everything the cart does happens without reloading, so a screen reader
+     * is given no reason to mention it. The message is cleared first because
+     * the same text twice is not treated as a change and goes unread.
+     */
+    announce(message) {
+        const region = document.getElementById('wkAnnounce');
+        if (!region) return;
+        region.textContent = '';
+        setTimeout(() => { region.textContent = message; }, 60);
     },
 
     bumpBadge() {

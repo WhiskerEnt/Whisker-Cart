@@ -1486,3 +1486,20 @@ input.wk-field-invalid { border-color: #ef4444 !important; }
 .wk-terms { display: flex; gap: 10px; align-items: flex-start; margin-top: 18px; font-size: 13px; line-height: 1.5; cursor: pointer; }
 .wk-terms input { margin-top: 2px; width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--wk-purple-ink); cursor: pointer; }
 .wk-terms a { color: var(--wk-purple-ink); font-weight: 700; }
+
+/* ── Announcements and the skip link ──────────
+   Present for anyone navigating by keyboard or screen reader, out of the way
+   for everyone else. */
+.wk-sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.wk-skip-link {
+    position: absolute; left: 12px; top: -60px; z-index: 500;
+    padding: 12px 20px; border-radius: 0 0 10px 10px;
+    background: var(--wk-purple-ink); color: #fff;
+    font-size: 14px; font-weight: 800; text-decoration: none;
+    transition: top .15s ease;
+}
+.wk-skip-link:focus { top: 0; outline: 3px solid var(--wk-yellow); outline-offset: 2px; }
+#wk-main:focus { outline: none; }

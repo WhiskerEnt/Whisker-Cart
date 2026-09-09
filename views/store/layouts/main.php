@@ -85,6 +85,14 @@ $currentSymbol = $currentCurrency === $baseCurrency
 <?php $storeTheme = \Core\Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='store_theme'") ?: 'purple'; ?>
 <body data-theme="<?= htmlspecialchars($storeTheme) ?>">
 
+<a class="wk-skip-link" href="#wk-main">Skip to content</a>
+
+<?php
+// Anything the page changes without reloading is announced here. A screen
+// reader otherwise gets no confirmation that adding to the cart did anything.
+?>
+<p class="wk-sr-only" id="wkAnnounce" role="status" aria-live="polite" aria-atomic="true"></p>
+
 <!-- Page Loader -->
 <div class="wk-page-loader">
     <?php if ($loaderUrl): ?>
@@ -248,7 +256,9 @@ $currentSymbol = $currentCurrency === $baseCurrency
 <?php endforeach; ?>
 
 <!-- Page Content -->
+<main id="wk-main" tabindex="-1">
 <?= $_content ?>
+</main>
 
 <!-- Cart Overlay + Drawer -->
 <div class="wk-cart-overlay" data-cart-close></div>

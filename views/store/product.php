@@ -140,7 +140,17 @@ foreach ($variants['combos'] ?? [] as $combo) {
                 <!-- Stock Status -->
                 <div id="stockDisplay" style="display:flex;align-items:center;gap:8px;margin-bottom:20px;font-size:14px;font-weight:700">
                     <?php $totalStock = $hasVariants ? array_sum(array_column($variants['combos'], 'stock_quantity')) : $p['stock_quantity']; ?>
-                    <?php if ($totalStock > 0): ?>
+                    <?php
+                    // The shop already decides what counts as running low, per
+                    // product, and has only ever told itself. Saying so is the
+                    // difference between "in stock" and a reason to decide now.
+                    $lowAt = (int) ($p['low_stock_threshold'] ?? 5);
+                    $isLow = $totalStock > 0 && $lowAt > 0 && $totalStock <= $lowAt;
+                    ?>
+                    <?php if ($isLow): ?>
+                        <span style="width:8px;height:8px;border-radius:50%;background:#d97706"></span>
+                        <span style="color:#b45309">Only <?= (int) $totalStock ?> left</span>
+                    <?php elseif ($totalStock > 0): ?>
                         <span style="width:8px;height:8px;border-radius:50%;background:#10b981"></span>
                         <span style="color:#10b981">In Stock</span>
                     <?php else: ?>
