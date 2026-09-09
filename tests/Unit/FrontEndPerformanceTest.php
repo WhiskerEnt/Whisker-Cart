@@ -167,7 +167,11 @@ class FrontEndPerformanceTest extends TestCase
     public function testAccentTextUsesTheInkTone(): void
     {
         $css = $this->css('store.css');
-        preg_match_all('/^[^\n]*color:\s*var\(--wk-purple\)[^\n]*$/m', $css, $m);
+
+        // The `color` property only. border-color and background-color both
+        // end in "color" and are legitimate uses of the fill tone — it is
+        // text that needs the darker one.
+        preg_match_all('/^[^\n]*(?<![-\w])color:\s*var\(--wk-purple\)[^\n]*$/m', $css, $m);
 
         foreach ($m[0] as $line) {
             $this->assertStringContainsString('wk-footer', $line,

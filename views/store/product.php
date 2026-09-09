@@ -41,7 +41,26 @@ foreach ($variants['combos'] ?? [] as $combo) {
 ?>
 <section class="wk-section">
     <div class="wk-container">
-        <a href="<?= $url('') ?>" style="color:var(--wk-purple-ink);font-weight:700;font-size:13px;margin-bottom:20px;display:inline-block">← Back to Shop</a>
+        <?php
+        // The trail was already being published for search engines and never
+        // shown to anyone actually on the page.
+        ?>
+        <nav class="wk-crumbs" aria-label="Breadcrumb">
+            <ol>
+                <li><a href="<?= $url('') ?>">Home</a></li>
+                <?php if (!empty($p['category_name'])): ?>
+                    <li>
+                        <?php $catSlug = \Core\Database::fetchValue("SELECT slug FROM wk_categories WHERE id = ?", [$p['category_id']]); ?>
+                        <?php if ($catSlug): ?>
+                            <a href="<?= $url('category/' . urlencode($catSlug)) ?>"><?= $e($p['category_name']) ?></a>
+                        <?php else: ?>
+                            <span><?= $e($p['category_name']) ?></span>
+                        <?php endif; ?>
+                    </li>
+                <?php endif; ?>
+                <li><span aria-current="page"><?= $e($p['name']) ?></span></li>
+            </ol>
+        </nav>
         <div class="wk-product-layout">
 
             <!-- Images -->
@@ -342,3 +361,116 @@ function findMatchingCombo() {
 }
 </script>
 <?php endif; ?>
+<?php
+// ── Recently viewed ─────────────────────────────────────────────────────
+// Kept in the browser rather than on the server: it is one person's browsing
+// on one device, nobody else needs it, and it needs no consent to store.
+// Prices are deliberately not kept — a remembered price goes stale and shows
+// somebody a number the shop will not honour.
+?>
+<section class="wk-container" id="wkRecentlyViewed" hidden style="margin-bottom:48px">
+    <h2 class="wk-section-title" style="font-size:20px;margin-bottom:16px">Recently viewed</h2>
+    <div class="wk-recent-strip" id="wkRecentStrip"></div>
+</section>
+
+<div class="wk-lightbox" id="wkLightbox" hidden>
+    <button type="button" class="wk-lightbox-close" id="wkLightboxClose" aria-label="Close image">&times;</button>
+    <img id="wkLightboxImg" alt="">
+</div>
+
+<script>
+(function () {
+    // ── Bigger picture ──────────────────────────────────────────────────
+    var box   = document.getElementById('wkLightbox');
+    var full  = document.getElementById('wkLightboxImg');
+    var main  = document.getElementById('mainImg');
+    var close = document.getElementById('wkLightboxClose');
+    var lastFocus = null;
+
+    if (main && box && full) {
+        main.style.cursor = 'zoom-in';
+        main.setAttribute('role', 'button');
+        main.setAttribute('tabindex', '0');
+        main.setAttribute('aria-label', 'View larger image');
+
+        var open = function () {
+            lastFocus = document.activeElement;
+            full.src = main.currentSrc || main.src;
+            full.alt = main.alt;
+            box.hidden = false;
+            document.body.style.overflow = 'hidden';
+            close.focus();
+        };
+        var shut = function () {
+            box.hidden = true;
+            document.body.style.overflow = '';
+            if (lastFocus) lastFocus.focus();
+        };
+
+        main.addEventListener('click', open);
+        main.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+        });
+        close.addEventListener('click', shut);
+        box.addEventListener('click', function (e) { if (e.target === box) shut(); });
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !box.hidden) shut(); });
+    }
+
+    // ── Recently viewed ─────────────────────────────────────────────────
+    var KEY = 'wk_recent_v1';
+    var KEEP = 8;
+
+    var me = {
+        slug: <?= json_encode($p['slug']) ?>,
+        name: <?= json_encode($p['name']) ?>,
+        image: <?= json_encode(!empty($images) ? $images[0]['image_path'] : null) ?>
+    };
+
+    var seen = [];
+    try { seen = JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) { seen = []; }
+    if (!Array.isArray(seen)) seen = [];
+
+    // Everything except this one, so revisiting moves it to the front rather
+    // than listing it twice.
+    var others = seen.filter(function (x) { return x && x.slug && x.slug !== me.slug; });
+
+    var strip = document.getElementById('wkRecentStrip');
+    var panel = document.getElementById('wkRecentlyViewed');
+    var base  = <?= json_encode(rtrim(\Core\View::url(''), '/')) ?>;
+
+    if (strip && others.length) {
+        others.slice(0, KEEP).forEach(function (x) {
+            var a = document.createElement('a');
+            a.href = base + '/product/' + encodeURIComponent(x.slug);
+            a.className = 'wk-recent-card';
+
+            var imgWrap = document.createElement('span');
+            imgWrap.className = 'wk-recent-img';
+            if (x.image) {
+                var img = document.createElement('img');
+                img.src = base + '/storage/uploads/products/' + encodeURIComponent(x.image);
+                img.alt = '';
+                img.loading = 'lazy';
+                img.decoding = 'async';
+                imgWrap.appendChild(img);
+            }
+
+            var name = document.createElement('span');
+            name.className = 'wk-recent-name';
+            name.textContent = x.name;
+
+            a.appendChild(imgWrap);
+            a.appendChild(name);
+            strip.appendChild(a);
+        });
+        panel.hidden = false;
+    }
+
+    try {
+        localStorage.setItem(KEY, JSON.stringify([me].concat(others).slice(0, KEEP + 1)));
+    } catch (e) {
+        // Private browsing, or storage turned off. Nothing here is worth
+        // interrupting the page for.
+    }
+})();
+</script>

@@ -387,6 +387,73 @@ class AccountController
         exit;
     }
 
+    /**
+     * Put a past order back in the basket.
+     *
+     * At today's prices and today's stock, not the ones from the order — a
+     * shopper reordering is buying now, and quoting them last year's price
+     * would be a promise the checkout could not keep. Anything no longer for
+     * sale is named rather than silently dropped.
+     */
+    public function reorder(Request $request, array $params = []): void
+    {
+        if (!Session::customerId() || !Session::verifyCsrf($request->input('wk_csrf'))) {
+            Session::flash('error', 'Session expired.');
+            Response::redirect(View::url('account/orders')); return;
+        }
+
+        $orderId = (int) $params['id'];
+        $owns = Database::fetchValue(
+            "SELECT id FROM wk_orders WHERE id = ? AND customer_id = ?",
+            [$orderId, Session::customerId()]
+        );
+        if (!$owns) { Response::notFound(); return; }
+
+        try {
+            $items = Database::fetchAll(
+                "SELECT product_id, product_name, quantity, variant_combo_id
+                   FROM wk_order_items WHERE order_id = ? AND product_id IS NOT NULL",
+                [$orderId]
+            );
+        } catch (\Exception $e) {
+            $items = Database::fetchAll(
+                "SELECT product_id, product_name, quantity FROM wk_order_items
+                  WHERE order_id = ? AND product_id IS NOT NULL",
+                [$orderId]
+            );
+        }
+
+        if (!$items) {
+            Session::flash('error', 'There is nothing on that order to reorder.');
+            Response::redirect(View::url('account/order/' . $orderId)); return;
+        }
+
+        $cartId = \App\Controllers\Store\CartController::currentCartId();
+        $added = 0;
+        $skipped = [];
+
+        foreach ($items as $item) {
+            $result = \App\Controllers\Store\CartController::addLine(
+                $cartId,
+                (int) $item['product_id'],
+                max(1, (int) $item['quantity']),
+                (int) ($item['variant_combo_id'] ?? 0)
+            );
+            if ($result['ok']) $added++;
+            else $skipped[] = $item['product_name'] . ' (' . lcfirst($result['message']) . ')';
+        }
+
+        if ($added === 0) {
+            Session::flash('error', 'Nothing from that order is available at the moment.');
+            Response::redirect(View::url('account/order/' . $orderId)); return;
+        }
+
+        Session::flash('success', $skipped
+            ? $added . ' added to your cart. Not added: ' . implode(', ', $skipped) . '.'
+            : 'Everything from that order is back in your cart.');
+        Response::redirect(View::url('cart'));
+    }
+
     public function cancelOrder(Request $request, array $params = []): void
     {
         if (!Session::customerId() || !Session::verifyCsrf($request->input('wk_csrf'))) {

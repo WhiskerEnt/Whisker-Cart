@@ -254,6 +254,11 @@ $countries = \App\Services\CurrencyService::countries();
     </div>
     <?php endif; ?>
 
+    <form method="POST" action="<?= $url('account/order/' . $o['id'] . '/reorder') ?>" style="margin:0 0 12px">
+        <?= \Core\Session::csrfField() ?>
+        <button type="submit" class="wk-checkout-btn" style="width:100%">Order this again</button>
+    </form>
+
     <a href="<?= $url('account/order/' . $o['id'] . '/invoice') ?>" target="_blank" rel="noopener"
        style="display:block;width:100%;padding:14px;margin-bottom:12px;background:none;border:2px solid var(--wk-border);border-radius:8px;color:var(--wk-text);font-family:var(--font);font-size:14px;font-weight:800;text-align:center;text-decoration:none">
         Download invoice

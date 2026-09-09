@@ -61,62 +61,81 @@ class CartController
 
     public function add(Request $request, array $params = []): void
     {
-        $productId = (int)$request->input('product_id');
-        $quantity = max(1, (int)($request->input('quantity') ?? 1));
-        $comboId = (int)($request->input('variant_combo_id') ?? 0);
-
-        $product = Database::fetch("SELECT id,price,sale_price,stock_quantity FROM wk_products WHERE id=? AND is_active=1", [$productId]);
-        if (!$product) { Response::json(['success'=>false,'message'=>'Product not found'], 404); return; }
-
-        $unitPrice = $product['sale_price'] ?: $product['price'];
-        $stockAvailable = $product['stock_quantity'];
-        $variantLabel = '';
-
-        // If variant selected, use combo's price and stock
-        if ($comboId) {
-            $combo = Database::fetch("SELECT * FROM wk_variant_combos WHERE id=? AND product_id=? AND is_active=1", [$comboId, $productId]);
-            if (!$combo) { Response::json(['success'=>false,'message'=>'Variant not available'], 400); return; }
-            if ($combo['price_override']) $unitPrice = (float)$combo['price_override'];
-            $stockAvailable = $combo['stock_quantity'];
-            $variantLabel = $combo['label'];
-        }
-
-        if ($stockAvailable <= 0) {
-            Response::json(['success'=>false,'message'=>'Out of stock'], 400);
-            return;
-        }
-
-        $cart = $this->getCart();
-
-        // Check existing — match by product_id AND variant_combo_id
-        $existing = Database::fetch(
-            "SELECT id,quantity FROM wk_cart_items WHERE cart_id=? AND product_id=? AND COALESCE(variant_combo_id,0)=?",
-            [$cart['id'], $productId, $comboId]
+        $result = self::addLine(
+            $this->getCart()['id'],
+            (int) $request->input('product_id'),
+            max(1, (int) ($request->input('quantity') ?? 1)),
+            (int) ($request->input('variant_combo_id') ?? 0)
         );
 
-        if ($existing) {
-            $newQty = $existing['quantity'] + $quantity;
-            if ($newQty > $stockAvailable) {
-                Response::json(['success'=>false,'message'=>'Only '.$stockAvailable.' available'], 400);
-                return;
-            }
-            Database::update('wk_cart_items', ['quantity'=>$newQty,'unit_price'=>$unitPrice], 'id=?', [$existing['id']]);
-        } else {
-            if ($quantity > $stockAvailable) {
-                Response::json(['success'=>false,'message'=>'Only '.$stockAvailable.' available'], 400);
-                return;
-            }
-            $insertData = [
-                'cart_id'=>$cart['id'], 'product_id'=>$productId,
-                'quantity'=>$quantity, 'unit_price'=>$unitPrice,
-            ];
-            // Add variant fields if they exist in the table
-            try {
-                $insertData['variant_combo_id'] = $comboId ?: null;
-            } catch (\Exception $e) {}
-            Database::insert('wk_cart_items', $insertData);
+        Response::json(
+            ['success' => $result['ok'], 'message' => $result['message']],
+            $result['ok'] ? 200 : $result['status']
+        );
+    }
+
+    /**
+     * Put something in a cart, at today's price.
+     *
+     * Shared by the add button and by reordering, so stock and pricing are
+     * decided in one place: a second implementation would eventually disagree
+     * with this one about what an item costs.
+     *
+     * @return array{ok:bool,message:string,status:int}
+     */
+    public static function addLine(int $cartId, int $productId, int $quantity, int $comboId = 0): array
+    {
+        $fail = fn(string $why, int $status = 400): array
+            => ['ok' => false, 'message' => $why, 'status' => $status];
+
+        $product = Database::fetch(
+            "SELECT id, name, price, sale_price, stock_quantity FROM wk_products WHERE id=? AND is_active=1",
+            [$productId]
+        );
+        if (!$product) return $fail('Product not found', 404);
+
+        $unitPrice      = $product['sale_price'] ?: $product['price'];
+        $stockAvailable = $product['stock_quantity'];
+
+        if ($comboId) {
+            $combo = Database::fetch(
+                "SELECT * FROM wk_variant_combos WHERE id=? AND product_id=? AND is_active=1",
+                [$comboId, $productId]
+            );
+            if (!$combo) return $fail('Variant not available');
+            if ($combo['price_override']) $unitPrice = (float) $combo['price_override'];
+            $stockAvailable = $combo['stock_quantity'];
         }
-        Response::json(['success'=>true,'message'=>'Added to cart']);
+
+        if ($stockAvailable <= 0) return $fail('Out of stock');
+
+        $existing = Database::fetch(
+            "SELECT id,quantity FROM wk_cart_items WHERE cart_id=? AND product_id=? AND COALESCE(variant_combo_id,0)=?",
+            [$cartId, $productId, $comboId]
+        );
+
+        $wanted = ($existing['quantity'] ?? 0) + $quantity;
+        if ($wanted > $stockAvailable) return $fail('Only ' . $stockAvailable . ' available');
+
+        if ($existing) {
+            Database::update('wk_cart_items', ['quantity'=>$wanted, 'unit_price'=>$unitPrice], 'id=?', [$existing['id']]);
+        } else {
+            Database::insert('wk_cart_items', [
+                'cart_id'          => $cartId,
+                'product_id'       => $productId,
+                'quantity'         => $quantity,
+                'unit_price'       => $unitPrice,
+                'variant_combo_id' => $comboId ?: null,
+            ]);
+        }
+
+        return ['ok' => true, 'message' => 'Added to cart', 'status' => 200];
+    }
+
+    /** The cart this session should be writing to, for callers outside it. */
+    public static function currentCartId(): int
+    {
+        return (int) (new self())->getCart()['id'];
     }
 
     public function update(Request $request, array $params = []): void

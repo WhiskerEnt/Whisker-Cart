@@ -81,6 +81,7 @@ $router->get('/account/orders',            [AccountController::class, 'orders'])
 $router->get('/account/order/{id}',        [AccountController::class, 'orderDetail']);
 $router->post('/account/order/cancel/{id}',[AccountController::class, 'cancelOrder'], ['csrf']);
 $router->get('/account/order/{id}/invoice', [AccountController::class, 'invoice']);
+$router->post('/account/order/{id}/reorder', [AccountController::class, 'reorder'], ['csrf']);
 $router->get('/account/forgot-password',   [AccountController::class, 'showForgotPassword']);
 $router->post('/account/forgot-password',  [AccountController::class, 'forgotPassword'], ['csrf']);
 $router->get('/account/reset-password',    [AccountController::class, 'showResetPassword']);
