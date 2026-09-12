@@ -2,6 +2,8 @@
 require_once __DIR__ . '/../../core/PaymentGatewayInterface.php';
 require_once __DIR__ . '/../../core/BaseGateway.php';
 
+use App\Services\CurrencyService;
+
 class NowPaymentsGateway extends \Core\BaseGateway
 {
     private function apiUrl(): string {
@@ -10,7 +12,8 @@ class NowPaymentsGateway extends \Core\BaseGateway
 
     public function createOrder(array $order): array
     {
-        $resp = $this->api('/invoice', ['price_amount'=>$order['total'], 'price_currency'=>strtolower($order['currency']??'usd'),
+        $currency = strtolower(($order['currency'] ?? '') ?: CurrencyService::baseCurrency());
+        $resp = $this->api('/invoice', ['price_amount'=>$order['total'], 'price_currency'=>$currency,
             'order_id'=>$order['order_number'], 'order_description'=>'Order '.$order['order_number'],
             'ipn_callback_url'=>\Core\View::url('webhook/nowpayments/callback'),
             'success_url'=>\Core\View::url('order-success?order='.$order['order_number']),

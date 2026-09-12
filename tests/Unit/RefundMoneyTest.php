@@ -50,13 +50,14 @@ class RefundMoneyTest extends TestCase
 
     public function testNoGatewayConvertsAmountsByHand(): void
     {
-        // (int)($amount*100) inline in a gateway is the bug this replaces.
+        // Multiplying or dividing by 100 inline is the bug this replaces:
+        // it truncates and it is wrong for every zero-decimal currency.
         foreach (glob(WK_ROOT . '/plugins/*/*.php') as $file) {
             $src = (string) file_get_contents($file);
             $this->assertSame(
                 0,
-                preg_match('/\(int\)\s*\(\s*\$amount\s*\*\s*100\s*\)/', $src),
-                basename($file) . ' converts an amount by hand — use CurrencyService::toMinorUnits()'
+                preg_match('/[*\/]\s*100/', $src),
+                basename($file) . ' converts an amount by hand, use CurrencyService::toMinorUnits() or fromMinorUnits()'
             );
         }
     }

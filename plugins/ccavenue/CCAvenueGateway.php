@@ -2,12 +2,15 @@
 require_once __DIR__ . '/../../core/PaymentGatewayInterface.php';
 require_once __DIR__ . '/../../core/BaseGateway.php';
 
+use App\Services\CurrencyService;
+
 class CCAvenueGateway extends \Core\BaseGateway
 {
     public function createOrder(array $order): array
     {
+        $currency = strtoupper(($order['currency'] ?? '') ?: CurrencyService::baseCurrency());
         $params = ['merchant_id'=>$this->cfg('merchant_id'), 'order_id'=>$order['order_number'],
-            'amount'=>number_format($order['total'],2,'.',''), 'currency'=>$order['currency']??'INR',
+            'amount'=>number_format((float)$order['total'],2,'.',''), 'currency'=>$currency,
             'redirect_url'=>\Core\View::url('webhook/ccavenue/callback'), 'cancel_url'=>\Core\View::url('checkout?cancelled=1'), 'language'=>'EN'];
         $enc = $this->encrypt(http_build_query($params));
         $this->logTransaction($order['id'], ['gateway_order_id'=>$order['order_number'], 'amount'=>$order['total'], 'status'=>'initiated', 'response'=>$params]);
