@@ -54,6 +54,9 @@ class View
             throw new \RuntimeException("View not found: {$view} ({$file})");
         }
 
+        // Every view, layout and partial can call $icon('cart').
+        $icon = fn (string $name, int $size = 16, string $class = '', string $label = '') => self::icon($name, $size, $class, $label);
+
         extract($data, EXTR_SKIP);
         ob_start();
         require $file;
@@ -98,6 +101,30 @@ class View
     public static function e(string $value): string
     {
         return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+    }
+
+    /**
+     * An inline SVG icon from the Lucide set in Core\Icons.
+     *
+     * Icons are decorative: each sits beside a text label, so the SVG is
+     * hidden from assistive technology. Pass a label when an icon stands
+     * alone, as on an icon-only button, and it becomes the accessible name.
+     * The markup is emitted in full each time rather than through a
+     * sprite, so it works in fragments fetched later and in JavaScript.
+     */
+    public static function icon(string $name, int $size = 16, string $class = '', string $label = ''): string
+    {
+        if (!isset(Icons::SET[$name])) {
+            throw new \InvalidArgumentException("Unknown icon: {$name}");
+        }
+        $a11y = $label === ''
+            ? 'aria-hidden="true"'
+            : 'role="img" aria-label="' . self::e($label) . '"';
+        $class = trim('wk-icon ' . $class);
+
+        return '<svg class="' . self::e($class) . '" width="' . $size . '" height="' . $size . '" viewBox="0 0 24 24"'
+            . ' fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"'
+            . ' ' . $a11y . ' focusable="false">' . Icons::SET[$name] . '</svg>';
     }
 
     /**

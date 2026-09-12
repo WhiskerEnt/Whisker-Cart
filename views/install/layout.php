@@ -50,6 +50,7 @@
         .field-hint { font-size:11px; color:var(--muted); margin-top:3px; }
         .field-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
 
+        .wk-icon { display:inline-block; vertical-align:-0.125em; flex-shrink:0; }
         .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:12px 24px; border-radius:8px;
             font-family:'Nunito',sans-serif; font-size:14px; font-weight:800; border:none; cursor:pointer; transition:all .2s; }
         .btn-primary { background:linear-gradient(135deg,var(--purple),var(--pink)); color:#fff;

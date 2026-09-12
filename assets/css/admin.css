@@ -47,6 +47,12 @@ body {
     -webkit-font-smoothing: antialiased;
 }
 
+/* ── Icons ──────────────────────────────────── */
+/* Inline SVG from View::icon(). Sized by its width/height attributes and
+   coloured by the text it sits in; the baseline shift lines it up with
+   lowercase letters. */
+.wk-icon { display: inline-block; vertical-align: -0.125em; flex-shrink: 0; }
+
 /* ── Page Loader ────────────────────────────── */
 .wk-loader {
     position: fixed; inset: 0; background: var(--wk-bg);

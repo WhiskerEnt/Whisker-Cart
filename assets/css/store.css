@@ -118,6 +118,12 @@ img { max-width: 100%; height: auto; display: block; }
    parent then measures against the wrapper instead of the parent. */
 picture { display: contents; }
 
+/* ── Icons ──────────────────────────────────── */
+/* Inline SVG from View::icon(). Sized by its width/height attributes and
+   coloured by the text it sits in; the baseline shift lines it up with
+   lowercase letters. */
+.wk-icon { display: inline-block; vertical-align: -0.125em; flex-shrink: 0; }
+
 /* ── Branded Page Loader ────────────────────── */
 .wk-page-loader {
     position: fixed; inset: 0; background: var(--wk-bg);
