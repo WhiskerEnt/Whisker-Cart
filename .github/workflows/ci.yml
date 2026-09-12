@@ -28,6 +28,19 @@ jobs:
             -not -path './vendor/*' \
             -not -path './storage/*' \
             -print0 | xargs -0 -n1 -P4 php -l > /dev/null
+      # A shop installed from the zip has no vendor/ directory. This job
+      # never runs composer, so it is the place to prove the front
+      # controller still boots without one.
+      - name: Boot without Composer
+        run: |
+          test ! -d vendor
+          php -S 127.0.0.1:8080 index.php > /tmp/server.log 2>&1 &
+          for i in $(seq 1 20); do
+            curl -sf -o /tmp/body.html http://127.0.0.1:8080/ && break
+            sleep 0.5
+          done
+          grep -q 'Install Whisker' /tmp/body.html
+          ! grep -Ei 'fatal|warning|deprecated' /tmp/server.log
 
   unit:
     name: Unit tests
@@ -41,6 +54,8 @@ jobs:
           coverage: none
       - name: Install dev dependencies (PHPUnit only — the product itself has none)
         run: composer update --no-interaction --no-progress --prefer-dist
+      - name: Validate composer.json
+        run: composer validate --strict --no-check-lock
       - name: Run unit suite
         run: vendor/bin/phpunit --testsuite unit
 
