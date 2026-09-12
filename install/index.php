@@ -15,6 +15,11 @@ if (!defined('WK_ROOT')) {
     define('WK_ROOT', dirname(__DIR__));
 }
 
+// The installer runs without the autoloader; the icon set is all it draws from.
+require_once WK_ROOT . '/core/Icons.php';
+require_once WK_ROOT . '/core/View.php';
+$icon = fn (string $name, int $size = 16, string $class = '', string $label = '') => \Core\View::icon($name, $size, $class, $label);
+
 // ── Dual-sentinel lockout ─────────────────────────────────────────────
 // The front controller (index.php) treats /config/config.php as the
 // authoritative installed marker. /storage/.installed is a second sentinel
@@ -24,7 +29,7 @@ if (!defined('WK_ROOT')) {
 if (file_exists(WK_ROOT . '/config/config.php') || file_exists(WK_ROOT . '/storage/.installed')) {
     http_response_code(403);
     echo '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Whisker</title></head><body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#faf8f6">';
-    echo '<div style="text-align:center"><h1>🐱 Already Installed</h1><p>Whisker is already installed and running.</p><p style="color:#6b7280;font-size:13px;margin-top:12px">For security, the installer is locked. To re-install, remove <code>config/config.php</code> and <code>storage/.installed</code>.</p><p><a href="/" style="color:#8b5cf6">Go to your store →</a></p></div>';
+    echo '<div style="text-align:center"><h1>' . $icon('cat', 28) . ' Already Installed</h1><p>Whisker is already installed and running.</p><p style="color:#6b7280;font-size:13px;margin-top:12px">For security, the installer is locked. To re-install, remove <code>config/config.php</code> and <code>storage/.installed</code>.</p><p><a href="/" style="color:#8b5cf6">Go to your store →</a></p></div>';
     echo '</body></html>';
     exit;
 }
@@ -40,7 +45,7 @@ $_install_is_local = in_array($_install_remote, ['127.0.0.1', '::1', 'localhost'
 if (!$_install_is_https && !$_install_is_local) {
     http_response_code(400);
     echo '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Whisker — HTTPS Required</title></head><body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#faf8f6">';
-    echo '<div style="text-align:center;max-width:500px;padding:24px"><h1>🔒 HTTPS Required</h1><p style="color:#6b7280;margin-top:12px;line-height:1.6">The Whisker installer accepts database credentials, gateway secrets, and your admin password. Running it over plain HTTP would leak these in transit.</p><p style="color:#6b7280;margin-top:12px;line-height:1.6">Please install an SSL certificate (most hosts include free Let\'s Encrypt) and reload this page over <code>https://</code>.</p></div>';
+    echo '<div style="text-align:center;max-width:500px;padding:24px"><h1>' . $icon('lock', 28) . ' HTTPS Required</h1><p style="color:#6b7280;margin-top:12px;line-height:1.6">The Whisker installer accepts database credentials, gateway secrets, and your admin password. Running it over plain HTTP would leak these in transit.</p><p style="color:#6b7280;margin-top:12px;line-height:1.6">Please install an SSL certificate (most hosts include free Let\'s Encrypt) and reload this page over <code>https://</code>.</p></div>';
     echo '</body></html>';
     exit;
 }

@@ -143,7 +143,7 @@
     </div>
 
     <div class="installer-body">
-        <?php if ($error): ?><div class="alert alert-error">⚠ <?= htmlspecialchars($error) ?></div><?php endif; ?>
+        <?php if ($error): ?><div class="alert alert-error"><?= $icon('triangle-alert') ?> <?= htmlspecialchars($error) ?></div><?php endif; ?>
 
         <!-- ═══ STEP 1: Requirements ═══ -->
         <?php if ($step === 1): ?>
@@ -164,7 +164,7 @@
                 $htaccessExists = file_exists(WK_ROOT . '/.htaccess') && str_contains(file_get_contents(WK_ROOT . '/.htaccess'), 'RewriteRule ^(.*)$ index.php');
                 ?>
                 <?php if (!$htaccessExists): ?>
-                    <div class="alert alert-success" style="margin-bottom:12px">📝 The .htaccess file will be auto-generated in the next step to enable clean URLs.</div>
+                    <div class="alert alert-success" style="margin-bottom:12px"><?= $icon('notebook-pen') ?> The .htaccess file will be auto-generated in the next step to enable clean URLs.</div>
                 <?php endif; ?>
                 <?php if (!empty($_SESSION['wk_htaccess_created'])): ?>
                     <div class="alert alert-success" style="margin-bottom:12px">✓ .htaccess was created automatically!</div>
@@ -191,7 +191,7 @@
                 <div class="field"><label>Username</label><input type="text" name="db_user" id="db_user" value="<?= htmlspecialchars($_POST['db_user'] ?? '') ?>" required placeholder="root"></div>
                 <div class="field"><label>Password</label><input type="password" name="db_pass" id="db_pass"></div>
                 <div style="display:flex;gap:12px;margin-top:8px">
-                    <button type="button" class="btn btn-test" onclick="testDB()">🔌 Test Connection</button>
+                    <button type="button" class="btn btn-test" onclick="testDB()"><?= $icon('plug') ?> Test Connection</button>
                     <div style="flex:1"></div>
                     <a href="?step=1" class="btn btn-secondary">← Back</a>
                     <button type="submit" class="btn btn-primary">Connect & Setup →</button>
@@ -302,11 +302,11 @@
                 <input type="hidden" name="_install_csrf" value="<?= htmlspecialchars($csrfToken) ?>">
                 <label class="gw-option" onclick="selectGw(this, '')" id="gw-skip">
                     <input type="radio" name="gateway" value="" checked>
-                    <div><div style="font-weight:800">⏭ Skip for now</div><div style="font-size:12px;color:var(--muted)">Set up later in Admin → Payment Gateways</div></div>
+                    <div><div style="font-weight:800">Skip for now</div><div style="font-size:12px;color:var(--muted)">Set up later in Admin → Payment Gateways</div></div>
                 </label>
                 <label class="gw-option" onclick="selectGw(this, 'razorpay')">
                     <input type="radio" name="gateway" value="razorpay">
-                    <div><div style="font-weight:800">⚡ Razorpay</div><div style="font-size:12px;color:var(--muted)">UPI, Cards, Netbanking & Wallets</div></div>
+                    <div><div style="font-weight:800"><?= $icon('zap') ?> Razorpay</div><div style="font-size:12px;color:var(--muted)">UPI, Cards, Netbanking & Wallets</div></div>
                 </label>
                 <div class="gw-fields" id="fields-razorpay">
                     <div class="field"><label>Test Key ID</label><input type="text" name="gw_test_key_id" placeholder="rzp_test_..."></div>
@@ -315,7 +315,7 @@
 
                 <label class="gw-option" onclick="selectGw(this, 'stripe')">
                     <input type="radio" name="gateway" value="stripe">
-                    <div><div style="font-weight:800">💳 Stripe</div><div style="font-size:12px;color:var(--muted)">International cards — 195+ countries</div></div>
+                    <div><div style="font-weight:800"><?= $icon('credit-card') ?> Stripe</div><div style="font-size:12px;color:var(--muted)">International cards — 195+ countries</div></div>
                 </label>
                 <div class="gw-fields" id="fields-stripe">
                     <div class="field"><label>Test Publishable Key</label><input type="text" name="gw_test_publishable_key" placeholder="pk_test_..."></div>
@@ -324,7 +324,7 @@
 
                 <label class="gw-option" onclick="selectGw(this, 'ccavenue')">
                     <input type="radio" name="gateway" value="ccavenue">
-                    <div><div style="font-weight:800">🏦 CCAvenue</div><div style="font-size:12px;color:var(--muted)">India's largest payment gateway</div></div>
+                    <div><div style="font-weight:800"><?= $icon('landmark') ?> CCAvenue</div><div style="font-size:12px;color:var(--muted)">India's largest payment gateway</div></div>
                 </label>
                 <div class="gw-fields" id="fields-ccavenue">
                     <div class="field"><label>Test Merchant ID</label><input type="text" name="gw_test_merchant_id"></div>
@@ -334,7 +334,7 @@
 
                 <label class="gw-option" onclick="selectGw(this, 'nowpayments')">
                     <input type="radio" name="gateway" value="nowpayments">
-                    <div><div style="font-weight:800">₿ NOWPayments</div><div style="font-size:12px;color:var(--muted)">Bitcoin, Ethereum & 300+ crypto</div></div>
+                    <div><div style="font-weight:800"><?= $icon('bitcoin') ?> NOWPayments</div><div style="font-size:12px;color:var(--muted)">Bitcoin, Ethereum & 300+ crypto</div></div>
                 </label>
                 <div class="gw-fields" id="fields-nowpayments">
                     <div class="field"><label>Sandbox API Key</label><input type="password" name="gw_test_api_key"></div>
@@ -342,14 +342,14 @@
 
                 <div class="btn-row" style="margin-top:16px">
                     <a href="?step=4" class="btn btn-secondary">← Back</a>
-                    <button type="submit" class="btn btn-primary">Install Whisker 🚀</button>
+                    <button type="submit" class="btn btn-primary">Install Whisker</button>
                 </div>
             </form>
 
         <!-- ═══ STEP 6: Complete ═══ -->
         <?php elseif ($step === 6): ?>
             <div class="success-wrap">
-                <div class="success-icon">🐱</div>
+                <div class="success-icon"><?= $icon('cat', 40) ?></div>
                 <h2 style="font-size:24px;font-weight:900;margin-bottom:8px">Whisker is installed!</h2>
                 <p style="color:var(--muted);margin-bottom:24px;line-height:1.6">Your store is ready. Add products, configure payments, and start selling!</p>
                 <div style="display:flex;gap:12px;justify-content:center;margin-bottom:24px">
@@ -359,7 +359,7 @@
                 <div style="background:linear-gradient(135deg,#8b5cf6,#ec4899);border-radius:12px;padding:20px;color:#fff;text-align:center;margin-top:16px">
                     <h3 style="margin:0 0 6px;font-size:16px">Need Custom Features?</h3>
                     <p style="margin:0 0 12px;opacity:.9;font-size:13px;line-height:1.5">Payment integrations, custom themes, APIs, multi-vendor, analytics — delivered as a ready-to-deploy package.</p>
-                    <a href="mailto:mail@lohit.me" style="display:inline-block;background:#fff;color:#8b5cf6;padding:8px 20px;border-radius:8px;font-weight:800;text-decoration:none;font-size:13px">📧 mail@lohit.me — Get a Quote</a>
+                    <a href="mailto:mail@lohit.me" style="display:inline-block;background:#fff;color:#8b5cf6;padding:8px 20px;border-radius:8px;font-weight:800;text-decoration:none;font-size:13px"><?= $icon('mail', 14) ?> mail@lohit.me — Get a Quote</a>
                 </div>
             </div>
         <?php endif; ?>
@@ -372,7 +372,7 @@
 // ── Test DB Connection ───────────────────────
 async function testDB() {
     const result = document.getElementById('dbTestResult');
-    result.innerHTML = '<div class="alert" style="background:#ede9fe;border:1px solid #c4b5fd;color:var(--purple)">🔌 Testing connection...</div>';
+    result.innerHTML = '<div class="alert" style="background:#ede9fe;border:1px solid #c4b5fd;color:var(--purple)"><?= $icon('plug') ?> Testing connection...</div>';
 
     const form = new FormData();
     form.append('_ajax_action', 'test_db');
