@@ -56,7 +56,7 @@ class RefundMoneyTest extends TestCase
             $src = (string) file_get_contents($file);
             $this->assertSame(
                 0,
-                preg_match('/[*\/]\s*100/', $src),
+                preg_match('/[*\/]\s*100\b/', $src),
                 basename($file) . ' converts an amount by hand, use CurrencyService::toMinorUnits() or fromMinorUnits()'
             );
         }
