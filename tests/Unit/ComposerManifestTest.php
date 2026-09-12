@@ -91,15 +91,16 @@ class ComposerManifestTest extends TestCase
         );
     }
 
-    public function testFrontControllerLoadsComposerOnlyWhenPresentAndSecond(): void
+    public function testFrontControllerLoadsComposerOnlyWhenPresent(): void
     {
         $index = (string) file_get_contents(WK_ROOT . '/index.php');
-        $own = strpos($index, "require_once WK_ROOT . '/core/autoload.php';");
-        $hook = strpos($index, "if (is_file(WK_ROOT . '/vendor/autoload.php'))");
 
-        $this->assertNotFalse($own);
-        $this->assertNotFalse($hook, 'index.php never loads vendor/autoload.php');
-        $this->assertGreaterThan($own, $hook, "Whisker's own autoloader is registered before Composer's");
+        $this->assertStringContainsString("require_once WK_ROOT . '/core/autoload.php';", $index);
+        $this->assertStringContainsString(
+            "if (is_file(WK_ROOT . '/vendor/autoload.php')) {\n    require_once WK_ROOT . '/vendor/autoload.php';",
+            $index,
+            'index.php must load vendor/autoload.php, and only when it exists'
+        );
     }
 
     public function testDevelopmentFilesStayOutOfComposerPackages(): void

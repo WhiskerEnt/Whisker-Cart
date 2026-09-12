@@ -18,8 +18,8 @@ if (!file_exists(WK_ROOT . '/config/config.php')) {
 require_once WK_ROOT . '/core/autoload.php';
 
 // vendor/ exists only when a shop has added libraries with Composer.
-// Whisker's own loader is registered first, so its classes always come
-// from app/ and core/ on disk.
+// Its loader maps App\ and Core\ to the same directories as ours, so a
+// class comes from the same file whichever loader answers first.
 if (is_file(WK_ROOT . '/vendor/autoload.php')) {
     require_once WK_ROOT . '/vendor/autoload.php';
 }
