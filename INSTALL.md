@@ -49,7 +49,38 @@ there whenever your cookie policy changes and everyone is asked again.
 - PHP 8.0 or higher
 - MySQL 5.7+ or MariaDB 10.3+
 - Apache with mod_rewrite enabled
-- PHP Extensions: PDO, pdo_mysql, mbstring, curl, openssl, json
+- PHP Extensions: PDO, pdo_mysql, mbstring, curl, openssl, json, GD
+
+
+## Installing with Composer
+
+The zip is the normal way in and needs no command line. If you prefer
+Composer:
+
+```bash
+composer create-project whiskerent/whisker-cart shop --no-dev
+```
+
+This downloads the same files into `shop/`, checks that PHP and the required
+extensions are present, and tells you to open `/install/`. From there the
+installer is identical.
+
+Whisker has no dependencies of its own, so Composer changes nothing about how
+it runs. What it adds:
+
+- `composer require vendor/library` inside the shop makes that library
+  available to your own code and plugins. Whisker loads `vendor/autoload.php`
+  whenever it exists.
+- The manifest declares the `App\` and `Core\` namespaces, so editors and
+  static analysis tools understand the code.
+
+Updates work the same way as for a zip install: from the admin dashboard, or
+by overwriting the files. An update never writes to `vendor/` or
+`composer.json`, so libraries you added stay put. `composer update` updates
+your libraries only, not Whisker itself.
+
+On nginx, `.htaccess` does not apply, so make sure `vendor/` is not reachable
+over the web (see below).
 
 
 ## Compression & Caching
@@ -91,11 +122,36 @@ is off** — read on.
 
 `.htaccess` is ignored on nginx, and on Apache hosts that set
 `AllowOverride None`. Whisker still runs; it just serves everything
-uncompressed. Use whichever of these matches your server.
+uncompressed, and, more importantly, the rules that keep `config/`, `app/`
+and the rest off the web do not apply either. Use whichever of these matches
+your server.
 
-**nginx** — add to your `server` block, then `nginx -t && systemctl reload nginx`:
+**nginx** — add to your `server` block, then `nginx -t && systemctl reload nginx`.
+The first part is what `.htaccess` does for routing and access; the second is
+compression and caching.
 
 ```nginx
+root  /var/www/shop;
+index index.php;
+
+# Anything that is not a real file goes through the front controller.
+location / {
+    try_files $uri $uri/ /index.php?$query_string;
+}
+
+# Code, configuration, schema, templates and libraries are never served.
+location ~ ^/(app|core|config|sql|views|tests|vendor|node_modules|storage/(logs|cache))(/|$) { return 403; }
+location ~ ^/plugins/.*\.php$ { return 403; }
+location ~ ^/storage/uploads/.*\.(php|phtml|php3|php4|php5|php7|phps|phar|shtml)$ { return 403; }
+location ~ /\. { return 403; }
+location ~ \.(env|sql|sh|lock|log|md|json)$ { return 403; }
+
+location ~ \.php$ {
+    include       fastcgi_params;
+    fastcgi_pass  unix:/run/php/php8.2-fpm.sock;
+    fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+}
+
 gzip              on;
 gzip_vary         on;
 gzip_min_length   1024;

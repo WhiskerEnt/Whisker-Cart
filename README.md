@@ -200,7 +200,22 @@ Whisker refuses to process a webhook when its secret is missing, rather than tru
    - **Step 6:** Done! 🎉
 5. Log into your admin panel at `https://yourdomain.com/admin`
 
-No command line. No Composer. No SSH. Works on any cPanel hosting.
+No command line, Composer or SSH needed. Works on any cPanel hosting.
+
+### With Composer
+
+If you would rather work from a terminal:
+
+```bash
+composer create-project whiskerent/whisker-cart shop --no-dev
+```
+
+Then point your web server at the `shop` directory and open `/install/`.
+
+Whisker has no dependencies of its own. Composer is a way to get the files,
+and later a way to add libraries a custom plugin needs with `composer require`.
+Anything in `vendor/` is loaded automatically. Updates work exactly as they do
+for a zip install and never touch `vendor/` or your `composer.json`.
 
 ---
 
