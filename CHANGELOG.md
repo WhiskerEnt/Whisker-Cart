@@ -3,6 +3,63 @@
 All notable changes to Whisker are recorded here. Versions follow
 [semantic versioning](https://semver.org/).
 
+## v1.4.2 (unreleased)
+
+No database changes. Update from the admin dashboard as usual.
+
+### Payments
+
+- **Gateways are asked for the exact total.** Stripe and Razorpay converted
+  the total to minor units by multiplying by 100 and truncating, which sent
+  about one in twenty totals a cent short (0.29 became 28 cents). Currencies
+  with no minor unit, such as yen, were charged a hundred times over, and the
+  paid amount was read back the same way so the mismatch check could not see
+  it. Both now use the same conversion the refund path already used.
+- **The fallback currency is the shop's own.** Where a gateway had no order
+  currency to go on it assumed USD or INR; it now uses the currency set in
+  Settings.
+
+### Money
+
+- **Arithmetic is done in whole cents.** Prices come out of the database as
+  decimals that binary floating point cannot hold exactly. A basket of 0.10
+  and 0.70 came to 0.7999999999999999 and missed a 0.80 free-delivery
+  threshold, and a weight-based delivery charge went into the total
+  unrounded. Every sum, percentage and comparison in the cart, checkout,
+  tax, shipping and refunds now rounds to the cent, so a total is always
+  the sum of the parts as printed.
+
+### Installing with Composer
+
+- **`composer create-project whiskerent/whisker-cart`** installs the same
+  files the zip does, checks PHP and the required extensions, and hands
+  over to `/install/`. Inside any shop, `composer require` makes a library
+  available to custom code and plugins; Whisker loads `vendor/` whenever it
+  exists. Nothing changes for zip installs, and an update never touches
+  `vendor/` or a shop's own `composer.json`.
+
+### Server
+
+- **The installer and the dashboard say when private files are readable
+  from the internet.** The shipped `.htaccess` keeps `config/`, `app/` and
+  the database schema off the web, but nginx never reads it and Apache
+  ignores it under `AllowOverride None`, and until now nothing said so.
+  Four files that must be refused are requested over HTTP; a warning with
+  the fix appears if any come back.
+- **nginx gets the full set of rules** in the install guide: routing, the
+  access denials that `.htaccess` provides on Apache, and compression.
+
+### Appearance
+
+- **Icons are drawn, not typed.** Every emoji that stood in for an icon in
+  the storefront, the admin and the installer is replaced by an icon from
+  the Lucide set, drawn inline in the colour of the text beside it. Email
+  keeps its emoji, because mail clients strip inline images.
+- **The admin's two-column forms collapse on a phone.** They used to stay
+  two columns however narrow the screen.
+- Around a quarter of the inline styles in the views have moved into
+  stylesheet classes, with a test that keeps the count from rising again.
+
 ## v1.4.1 (10 September 2026)
 
 Database migrations run automatically when you next open the admin dashboard.
