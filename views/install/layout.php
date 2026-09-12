@@ -155,6 +155,9 @@
                     </li>
                 <?php endforeach; ?>
             </ul>
+            <?php if (!empty($exposureWarning)): ?>
+                <div class="alert alert-error" style="margin-bottom:12px"><?= htmlspecialchars($exposureWarning) ?> You can continue and fix this after installing.</div>
+            <?php endif; ?>
             <?php if ($allPassed): ?>
                 <?php
                 $htaccessExists = file_exists(WK_ROOT . '/.htaccess') && str_contains(file_get_contents(WK_ROOT . '/.htaccess'), 'RewriteRule ^(.*)$ index.php');

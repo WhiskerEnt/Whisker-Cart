@@ -171,6 +171,12 @@ class DashboardController
             try { $dbSize = \App\Services\UpdateService::estimateDbSize(); } catch (\Exception $e) {}
         }
 
+        // Whether the web server refuses the files it should (cached, once a week)
+        $exposureWarning = null;
+        try {
+            $exposureWarning = \App\Services\ExposureCheck::cachedMessage(WK_BASE_URL);
+        } catch (\Throwable $e) {}
+
         View::render('admin/dashboard', [
             'pageTitle'        => 'Dashboard',
             'stats'            => $stats,
@@ -181,6 +187,7 @@ class DashboardController
             'recentCustomers'  => $recentCustomers,
             'currency'         => $currencySymbol,
             'updateAvailable'  => $updateAvailable,
+            'exposureWarning'  => $exposureWarning,
             'backups'          => $backups,
             'dbSize'           => $dbSize,
         ], 'admin/layouts/main');

@@ -96,6 +96,14 @@ if (updateForm) {
 </script>
 <?php endif; ?>
 
+<?php if (!empty($exposureWarning)): ?>
+<div role="alert" style="background:var(--wk-surface);border:2px solid #dc2626;border-radius:12px;padding:14px 20px;margin-bottom:24px">
+    <div style="font-weight:800;font-size:13px;color:var(--wk-text)">Private files are readable from the internet</div>
+    <div style="font-size:12px;color:var(--wk-text-muted);margin-top:4px;line-height:1.5"><?= $e($exposureWarning) ?>
+        <a href="https://github.com/WhiskerEnt/Whisker-Cart/wiki/Installation-Guide" target="_blank" rel="noopener" style="color:var(--wk-text);font-weight:700">Install guide</a></div>
+</div>
+<?php endif; ?>
+
 <?php if (!empty($backups)): ?>
 <!-- Rollback Option -->
 <div style="background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:12px;padding:14px 20px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">

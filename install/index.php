@@ -601,6 +601,18 @@ $requirements = [
 ];
 $allPassed = !in_array(false, array_column($requirements, 1));
 
+// Whether the server refuses the files it should. Only worth asking on
+// the requirements page, and only once the basics pass.
+$exposureWarning = null;
+if ($step === 1 && $allPassed && !empty($_SERVER['HTTP_HOST'])) {
+    require_once WK_ROOT . '/app/Services/ExposureCheck.php';
+    $scheme  = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $base    = preg_replace('#/(install/)?index\.php$#', '', (string) ($_SERVER['SCRIPT_NAME'] ?? ''));
+    $exposureWarning = \App\Services\ExposureCheck::message(
+        \App\Services\ExposureCheck::run($scheme . '://' . $_SERVER['HTTP_HOST'] . $base)
+    );
+}
+
 /**
  * Currency choices for the install wizard. The installer runs standalone
  * (no autoloader / no DB yet), so this list is intentionally duplicated
