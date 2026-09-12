@@ -1,6 +1,7 @@
 <?php
 namespace App\Controllers\Store;
 use Core\{Request, Response, Session, Database};
+use App\Services\Money;
 
 class CartController
 {
@@ -14,8 +15,8 @@ class CartController
     public function show(Request $request, array $params = []): void
     {
         $cart  = $this->getCart();
-        $items = $this->getItems($cart['id']);
-        $subtotal = array_reduce($items, fn($s, $i) => $s + ($i['unit_price'] * $i['quantity']), 0);
+        $items = Money::withLineTotals($this->getItems($cart['id']));
+        $subtotal = Money::subtotal($items);
 
         \Core\View::render('store/cart', [
             'pageTitle'    => 'Your Cart',
@@ -31,7 +32,7 @@ class CartController
     {
         $cart = $this->getCart();
         $items = $this->getItems($cart['id']);
-        $subtotal = array_reduce($items, fn($s,$i) => $s + ($i['unit_price'] * $i['quantity']), 0);
+        $subtotal = Money::subtotal($items);
 
         // Pre-format prices server-side, honoring the storefront currency
         // switcher the same way product/shop pages do. The drawer JS used to
@@ -47,7 +48,7 @@ class CartController
             return \App\Services\CurrencyService::baseSymbol() . number_format($amount, 2);
         };
         foreach ($items as &$item) {
-            $item['line_total_formatted'] = $fmt((float)$item['unit_price'] * (int)$item['quantity']);
+            $item['line_total_formatted'] = $fmt(Money::lineTotal($item));
         }
         unset($item);
 
@@ -209,12 +210,8 @@ class CartController
         if ($minOrder > 0) {
             $cart = $this->getCart();
             $items = $this->getItems($cart['id']);
-            $subtotal = array_reduce(
-                $items,
-                fn($sum, $i) => $sum + ((float)$i['unit_price'] * (int)$i['quantity']),
-                0.0
-            );
-            if ($subtotal + 0.0001 < $minOrder) {
+            $subtotal = Money::subtotal($items);
+            if (!Money::atLeast($subtotal, $minOrder)) {
                 $currency = Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='currency_symbol'") ?: '';
                 Response::json([
                     'success' => false,
@@ -333,8 +330,8 @@ class CartController
 
         return [
             'threshold' => $threshold,
-            'remaining' => max(0, $threshold - $subtotal),
-            'qualified' => $subtotal >= $threshold,
+            'remaining' => max(0.0, Money::subtract($threshold, $subtotal)),
+            'qualified' => Money::atLeast($subtotal, $threshold),
         ];
     }
 

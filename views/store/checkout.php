@@ -225,7 +225,7 @@ $defAddr = !empty($addrs) ? $addrs[0] : [];
                             <?php endif; ?>
                             <div style="font-size:12px;color:var(--wk-muted)">Qty: <?= $item['quantity'] ?></div>
                         </div>
-                        <div style="font-family:var(--font-mono);font-weight:700;text-align:right;white-space:nowrap"><?= $showPrice($item['unit_price'] * $item['quantity']) ?></div>
+                        <div style="font-family:var(--font-mono);font-weight:700;text-align:right;white-space:nowrap"><?= $showPrice($item['line_total']) ?></div>
                     </div>
                     <?php endforeach; ?>
 

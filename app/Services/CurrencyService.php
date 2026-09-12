@@ -84,7 +84,7 @@ class CurrencyService
         $rate = self::getRate($from, $to);
         if ($rate === null) return $amount; // Fallback: return unconverted
 
-        return round($amount * $rate, 2);
+        return Money::times($amount, $rate);
     }
 
     /**

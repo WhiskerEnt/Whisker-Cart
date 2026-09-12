@@ -336,8 +336,7 @@ class CartRecoveryService
         $store    = Database::setting('general', 'site_name') ?: 'Our store';
         $name     = trim(($cart['first_name'] ?? '') . ' ' . ($cart['last_name'] ?? '')) ?: 'there';
 
-        $total = 0.0;
-        foreach ($items as $item) $total += $item['unit_price'] * $item['quantity'];
+        $total = Money::subtotal($items);
 
         $sent = EmailService::sendFromTemplate('abandoned-cart', $email, [
             '{{customer_name}}'   => $name,
@@ -431,7 +430,7 @@ class CartRecoveryService
     {
         $html = '<table style="width:100%;font-size:14px;border-collapse:collapse">';
         foreach ($items as $item) {
-            $line = $item['unit_price'] * $item['quantity'];
+            $line = Money::times((float)$item['unit_price'], (float)$item['quantity']);
             $img = !empty($item['image'])
                 ? '<img src="' . View::url('storage/uploads/products/' . $item['image']) . '" style="width:48px;height:48px;object-fit:cover;border-radius:6px" alt="">'
                 : '<div style="width:48px;height:48px;background:#faf8f6;border-radius:6px"></div>';

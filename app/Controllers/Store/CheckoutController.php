@@ -1,6 +1,7 @@
 <?php
 namespace App\Controllers\Store;
 use Core\{Request, Response, Session, Database, View, Validator, PluginManager};
+use App\Services\Money;
 
 class CheckoutController
 {
@@ -328,7 +329,7 @@ class CheckoutController
                         'order_id'=>$orderId, 'product_id'=>$item['product_id'],
                         'product_name'=>$item['name'], 'product_sku'=>'',
                         'quantity'=>$item['quantity'], 'unit_price'=>$item['unit_price'],
-                        'total_price'=>$item['unit_price'] * $item['quantity'],
+                        'total_price'=>Money::lineTotal($item),
                     ];
                     $comboId = $item['variant_combo_id'] ?? null;
                     if ($comboId) {
@@ -802,8 +803,8 @@ class CheckoutController
                 [$cart['id']]
             );
         }
-        $subtotal = array_reduce($items, fn($s,$i) => $s + ($i['unit_price'] * $i['quantity']), 0);
-        return ['items'=>$items, 'subtotal'=>$subtotal, 'count'=>array_sum(array_column($items,'quantity'))];
+        $items = Money::withLineTotals($items);
+        return ['items'=>$items, 'subtotal'=>Money::subtotal($items), 'count'=>array_sum(array_column($items,'quantity'))];
     }
 
     /**
@@ -887,11 +888,11 @@ class CheckoutController
             );
             if ($fresh) {
                 $minOrder = (float)($fresh['min_order_amount'] ?? 0);
-                if ($subtotal + 0.0001 >= $minOrder) {
+                if (Money::atLeast($subtotal, $minOrder)) {
                     if ($fresh['type'] === 'percentage') {
-                        $discount = round($subtotal * ((float)$fresh['value'] / 100), 2);
+                        $discount = Money::percent($subtotal, (float)$fresh['value']);
                     } else { // 'fixed'
-                        $discount = round((float)$fresh['value'], 2);
+                        $discount = Money::round((float)$fresh['value']);
                     }
                     // Cap by max_discount if set, and never exceed subtotal.
                     if (!empty($fresh['max_discount'])) {
@@ -904,19 +905,18 @@ class CheckoutController
             }
         }
 
-        $total = $subtotal + $tax + $shipping - $discount;
-        if ($total < 0) $total = 0.0;
+        $total = max(0.0, Money::subtract(Money::sum($subtotal, $tax, $shipping), $discount));
 
         return [
-            'subtotal'      => round($subtotal, 2),
-            'tax'           => round($tax, 2),
+            'subtotal'      => Money::round($subtotal),
+            'tax'           => Money::round($tax),
             'tax_label'     => $taxLabel,
             'tax_known'     => $taxKnown,
             'tax_breakdown' => $taxBreakdown,
-            'shipping'      => round($shipping, 2),
-            'discount'      => round($discount, 2),
+            'shipping'      => Money::round($shipping),
+            'discount'      => Money::round($discount),
             'discount_code' => $discountCode,
-            'total'         => round($total, 2),
+            'total'         => $total,
         ];
     }
 
@@ -983,7 +983,7 @@ class CheckoutController
                     "SELECT setting_value FROM wk_settings WHERE setting_group='product_meta' AND setting_key=?",
                     ['shipping_charge_' . $item['product_id']]
                 ) ?: 0);
-                $overrideTotal += $charge * $item['quantity'];
+                $overrideTotal = Money::sum($overrideTotal, Money::times($charge, (float)$item['quantity']));
             } else {
                 $normalItems[] = $item;
             }
@@ -1006,16 +1006,16 @@ class CheckoutController
 
         $method = $getSetting('method', 'flat');
         $normalCount = array_sum(array_column($normalItems, 'quantity'));
-        $normalSubtotal = array_reduce($normalItems, fn($s, $i) => $s + ($i['unit_price'] * $i['quantity']), 0);
+        $normalSubtotal = Money::subtotal($normalItems);
 
         $storeShipping = match($method) {
             'free' => 0,
 
-            'free_above' => $normalSubtotal >= (float)$getSetting('free_threshold', '500')
+            'free_above' => Money::atLeast($normalSubtotal, (float)$getSetting('free_threshold', '500'))
                 ? 0 : (float)$getSetting('flat_rate_below', '50'),
 
             'per_item' => min(
-                (float)$getSetting('per_item', '10') * $normalCount,
+                Money::times((float)$getSetting('per_item', '10'), (float)$normalCount),
                 (float)($getSetting('per_item_cap') ?: PHP_FLOAT_MAX)
             ),
 
@@ -1027,7 +1027,7 @@ class CheckoutController
                     $totalWeight += ((float)($item['weight'] ?? 0)) * $item['quantity'];
                 }
                 if ($totalWeight <= 1) return $baseRate;
-                return $baseRate + (($totalWeight - 1) * $perKg);
+                return Money::sum($baseRate, Money::times($perKg, $totalWeight - 1));
             })(),
 
             default => (float)$getSetting('flat_rate',
@@ -1035,7 +1035,7 @@ class CheckoutController
             ),
         };
 
-        return $overrideTotal + $storeShipping;
+        return Money::sum($overrideTotal, (float)$storeShipping);
     }
 
     /**

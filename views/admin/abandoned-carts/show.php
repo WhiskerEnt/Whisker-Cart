@@ -29,7 +29,7 @@ $name = trim(($c['first_name'] ?? '') . ' ' . ($c['last_name'] ?? '')) ?: 'Guest
                     <?php if (!empty($item['variant_label'])): ?><div style="font-size:12px;color:var(--wk-purple);font-weight:700"><?= $e($item['variant_label']) ?></div><?php endif; ?>
                     <div style="font-size:12px;color:var(--wk-text-muted)">Qty: <?= $item['quantity'] ?> × <?= $price($item['unit_price']) ?></div>
                 </div>
-                <div style="font-family:var(--font-mono);font-weight:800;font-size:15px"><?= $price($item['unit_price'] * $item['quantity']) ?></div>
+                <div style="font-family:var(--font-mono);font-weight:800;font-size:15px"><?= $price($item['line_total']) ?></div>
             </div>
             <?php endforeach; ?>
             <div style="display:flex;justify-content:space-between;padding:16px 20px;font-size:18px">

@@ -47,7 +47,7 @@ class TaxService
         // Try custom rates first
         $customRate = self::getCustomRate($custCountry, $custState, $taxClass);
         if ($customRate !== null) {
-            $amount = round($subtotal * ($customRate['rate'] / 100), 2);
+            $amount = Money::percent($subtotal, (float)$customRate['rate']);
             return [
                 'amount' => $amount,
                 'rate' => $customRate['rate'],
@@ -78,7 +78,7 @@ class TaxService
 
         // Fallback: use global tax rate from settings
         $fallbackRate = (float)(Database::setting('checkout', 'tax_rate') ?? 0);
-        $amount = round($subtotal * ($fallbackRate / 100), 2);
+        $amount = Money::percent($subtotal, (float)$fallbackRate);
         return [
             'amount' => $amount,
             'rate' => $fallbackRate,
@@ -95,11 +95,11 @@ class TaxService
         $rates = ['standard' => 18, 'reduced' => 12, 'low' => 5];
         $gstRate = $rates[$taxClass] ?? 18;
 
-        $amount = round($subtotal * ($gstRate / 100), 2);
+        $amount = Money::percent($subtotal, (float)$gstRate);
 
         if ($custState && $storeState && strtoupper($custState) === strtoupper($storeState)) {
             // Intra-state: split into CGST + SGST
-            $half = round($amount / 2, 2);
+            $half = Money::percent($amount, 50);
             $halfRate = $gstRate / 2;
             return [
                 'amount' => $amount,
@@ -107,7 +107,7 @@ class TaxService
                 'label' => 'GST (' . $gstRate . '%)',
                 'breakdown' => [
                     ['label' => 'CGST', 'rate' => $halfRate, 'amount' => $half],
-                    ['label' => 'SGST', 'rate' => $halfRate, 'amount' => $amount - $half],
+                    ['label' => 'SGST', 'rate' => $halfRate, 'amount' => Money::subtract($amount, $half)],
                 ],
             ];
         }
@@ -146,7 +146,7 @@ class TaxService
         $rateMap = $vatRates[$taxClass] ?? $vatRates['standard'];
         $rate = $rateMap[$country] ?? 20; // Default 20% if country not in list
 
-        $amount = round($subtotal * ($rate / 100), 2);
+        $amount = Money::percent($subtotal, (float)$rate);
         return [
             'amount' => $amount,
             'rate' => $rate,
@@ -165,7 +165,7 @@ class TaxService
             'zero' => 0,
             default => 20,
         };
-        $amount = round($subtotal * ($rate / 100), 2);
+        $amount = Money::percent($subtotal, (float)$rate);
         return [
             'amount' => $amount,
             'rate' => $rate,
@@ -195,7 +195,7 @@ class TaxService
         ];
 
         $rate = $stateRates[strtoupper($custState)] ?? 0;
-        $amount = round($subtotal * ($rate / 100), 2);
+        $amount = Money::percent($subtotal, (float)$rate);
 
         return [
             'amount' => $amount,

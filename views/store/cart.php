@@ -82,7 +82,7 @@ $count = array_sum(array_column($items, 'quantity'));
                                 </div>
                             </div>
 
-                            <div class="wk-cart-line-total"><?= $e($price($item['unit_price'] * $item['quantity'])) ?></div>
+                            <div class="wk-cart-line-total"><?= $e($price($item['line_total'])) ?></div>
                         </li>
                     <?php endforeach; ?>
                 </ul>
