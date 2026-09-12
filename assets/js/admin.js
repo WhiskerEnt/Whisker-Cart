@@ -68,7 +68,6 @@ const Whisker = {
             document.body.appendChild(container);
         }
 
-        const icons = { success: '✓', error: '✗', warning: '⚠', info: 'ℹ' };
         const colors = {
             success: { bg: '#d1fae5', color: '#10b981', border: '#10b981' },
             error:   { bg: '#fee2e2', color: '#ef4444', border: '#ef4444' },
@@ -88,7 +87,8 @@ const Whisker = {
             display:flex; align-items:center; gap:10px;
             animation:toastIn .3s ease;
         `;
-        toast.innerHTML = `<span style="font-size:16px">${icons[type]}</span> ${message}`;
+        const iconTpl = document.getElementById('wk-icon-toast-' + (type in colors ? type : 'success'));
+        toast.innerHTML = `<span style="display:inline-flex">${iconTpl ? iconTpl.innerHTML : ''}</span> ${message}`;
         container.appendChild(toast);
 
         setTimeout(() => {

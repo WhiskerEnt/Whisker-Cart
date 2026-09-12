@@ -1,12 +1,12 @@
 <?php $e=fn($v)=>\Core\View::e($v); $url=fn($p)=>\Core\View::url($p); $price=fn($v)=>\Core\View::price($v); ?>
 
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
-    <p style="color:var(--wk-text-muted);font-weight:600"><?= count($products) ?> product<?= count($products)!==1?'s':'' ?></p>
+<div class="wk-row-between">
+    <p class="wk-muted wk-semibold"><?= count($products) ?> product<?= count($products)!==1?'s':'' ?></p>
     <a href="<?= $url('admin/products/create') ?>" class="wk-btn wk-btn-primary">+ Add Product</a>
 </div>
 
 <?php if (empty($products)): ?>
-    <div class="wk-card"><div class="wk-empty"><div class="wk-empty-icon">📦</div><p style="font-weight:800;margin-bottom:4px">No products yet</p><p><a href="<?= $url('admin/products/create') ?>">Add your first product</a></p></div></div>
+    <div class="wk-card"><div class="wk-empty"><div class="wk-empty-icon"><?= $icon('package', 48) ?></div><p style="font-weight:800;margin-bottom:4px">No products yet</p><p><a href="<?= $url('admin/products/create') ?>">Add your first product</a></p></div></div>
 <?php else: ?>
     <div class="wk-card">
         <table class="wk-table">
@@ -17,16 +17,16 @@
                     <td>
                         <div style="width:44px;height:44px;border-radius:8px;background:var(--wk-bg);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:18px">
                             <?php if ($p['image']): ?>
-                                <img src="<?= $url('storage/uploads/products/'.$p['image']) ?>" style="width:100%;height:100%;object-fit:cover" alt="">
-                            <?php else: ?>📦<?php endif; ?>
+                                <img src="<?= $url('storage/uploads/products/'.$p['image']) ?>" class="wk-cover" alt="">
+                            <?php else: ?><?= $icon('package', 18) ?><?php endif; ?>
                         </div>
                     </td>
                     <td>
-                        <div style="font-weight:800"><?= $e($p['name']) ?></div>
+                        <div class="wk-heavy"><?= $e($p['name']) ?></div>
                         <?php if ($p['category_name']): ?><div style="font-size:11px;color:var(--wk-purple);font-weight:700"><?= $e($p['category_name']) ?></div><?php endif; ?>
                     </td>
                     <td><code style="font-family:var(--font-mono);font-size:12px;background:var(--wk-bg);padding:2px 6px;border-radius:4px"><?= $e($p['sku']) ?></code></td>
-                    <td style="font-family:var(--font-mono);font-weight:700">
+                    <td class="wk-mono wk-bold">
                         <?= $price($p['sale_price'] ?? $p['price']) ?>
                         <?php if ($p['sale_price'] && $p['sale_price'] < $p['price']): ?>
                             <span style="text-decoration:line-through;color:var(--wk-text-muted);font-size:11px;margin-left:4px"><?= $price($p['price']) ?></span>
@@ -38,7 +38,7 @@
                         <?php elseif ($p['stock_quantity'] <= ($p['low_stock_threshold'] ?? 5)): ?>
                             <span class="wk-badge wk-badge-warning"><?= $p['stock_quantity'] ?> left</span>
                         <?php else: ?>
-                            <span style="font-weight:700"><?= $p['stock_quantity'] ?></span>
+                            <span class="wk-bold"><?= $p['stock_quantity'] ?></span>
                         <?php endif; ?>
                     </td>
                     <td>

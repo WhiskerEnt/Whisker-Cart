@@ -4,7 +4,7 @@ $o=$order;
 $billing = json_decode($o['billing_address']??'{}', true) ?: [];
 $shipping_addr = json_decode($o['shipping_address']??'{}', true) ?: [];
 $notes = json_decode($o['notes']??'{}', true) ?: [];
-$sm=['pending'=>['warning','⏳'],'processing'=>['info','🔄'],'paid'=>['success','✓'],'shipped'=>['purple','📦'],'delivered'=>['success','✅'],'cancelled'=>['danger','✗'],'refunded'=>['danger','↩']];
+$sm=['pending'=>['warning','hourglass'],'processing'=>['info','refresh-cw'],'paid'=>['success','check'],'shipped'=>['purple','package'],'delivered'=>['success','circle-check'],'cancelled'=>['danger','x'],'refunded'=>['danger','undo-2']];
 $s=$sm[$o['status']]??['info','?'];
 ?>
 
@@ -12,16 +12,16 @@ $s=$sm[$o['status']]??['info','?'];
 
 <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
     <h2 style="font-size:20px;font-weight:900;font-family:var(--font-mono);color:var(--wk-purple)"><?= $e($o['order_number']) ?></h2>
-    <span class="wk-badge wk-badge-<?= $s[0] ?>"><?= $s[1] ?> <?= ucfirst($o['status']) ?></span>
+    <span class="wk-badge wk-badge-<?= $s[0] ?>"><?= $icon($s[1], 12) ?> <?= ucfirst($o['status']) ?></span>
     <div style="margin-left:auto">
-        <a href="<?= $url('admin/orders/invoice/'.$o['id']) ?>" target="_blank" class="wk-btn wk-btn-secondary wk-btn-sm">🧾 Invoice / Receipt</a>
+        <a href="<?= $url('admin/orders/invoice/'.$o['id']) ?>" target="_blank" class="wk-btn wk-btn-secondary wk-btn-sm"><?= $icon('receipt') ?> Invoice / Receipt</a>
     </div>
 </div>
 
 <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:20px">
     <div>
         <!-- Items -->
-        <div class="wk-card" style="margin-bottom:20px">
+        <div class="wk-mb-20 wk-card">
             <div class="wk-card-header"><h2>Items Ordered</h2></div>
             <table class="wk-table"><thead><tr><th>Product</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead><tbody>
             <?php foreach ($items as $i):
@@ -32,13 +32,13 @@ $s=$sm[$o['status']]??['info','?'];
             ?>
             <tr>
                 <td>
-                    <div style="font-weight:700"><?= $e($i['product_name']) ?></div>
+                    <div class="wk-bold"><?= $e($i['product_name']) ?></div>
                     <?php if ($vLabel): ?><div style="font-size:12px;color:var(--wk-purple);font-weight:700"><?= $e($vLabel) ?></div><?php endif; ?>
-                    <?php if($i['product_sku']):?><code style="font-size:11px;color:var(--wk-text-muted)"><?= $e($i['product_sku']) ?></code><?php endif; ?>
+                    <?php if($i['product_sku']):?><code class="wk-fine"><?= $e($i['product_sku']) ?></code><?php endif; ?>
                 </td>
-                <td style="font-weight:700"><?= $i['quantity'] ?></td>
-                <td style="font-family:var(--font-mono)"><?= $price($i['unit_price']) ?></td>
-                <td style="font-family:var(--font-mono);font-weight:700"><?= $price($i['total_price']) ?></td>
+                <td class="wk-bold"><?= $i['quantity'] ?></td>
+                <td class="wk-mono"><?= $price($i['unit_price']) ?></td>
+                <td class="wk-mono wk-bold"><?= $price($i['total_price']) ?></td>
             </tr>
             <?php endforeach; ?>
             </tbody></table>
@@ -52,7 +52,7 @@ $s=$sm[$o['status']]??['info','?'];
             $country = fn($code) => $code !== '' ? \App\Services\CountryService::name((string) $code) : '';
             ?>
             <div class="wk-card">
-                <div class="wk-card-header"><h2>📍 Billing Address</h2></div>
+                <div class="wk-card-header"><h2><?= $icon('map-pin') ?> Billing Address</h2></div>
                 <div class="wk-card-body" style="font-size:14px;line-height:1.8">
                     <strong><?= $e($billing['name']??'') ?></strong><br>
                     <?= $e($billing['line1']??'') ?><br>
@@ -63,7 +63,7 @@ $s=$sm[$o['status']]??['info','?'];
             </div>
             <?php $isPickup = !empty($shipping_addr['pickup']); ?>
             <div class="wk-card">
-                <div class="wk-card-header"><h2><?= $isPickup ? '📦 Pickup Point' : '🚚 Shipping Address' ?></h2></div>
+                <div class="wk-card-header"><h2><?= $isPickup ? $icon('package') . ' Pickup Point' : $icon('truck') . ' Shipping Address' ?></h2></div>
                 <div class="wk-card-body" style="font-size:14px;line-height:1.8">
                     <?php if ($isPickup): ?><span class="wk-badge wk-badge-purple" style="margin-bottom:6px;display:inline-block">Locker / collection point</span><br><?php endif; ?>
                     <strong><?= $e($shipping_addr['name']??'') ?></strong><br>
@@ -72,7 +72,7 @@ $s=$sm[$o['status']]??['info','?'];
                     <?= $e(($shipping_addr['city']??'').', '.($shipping_addr['state']??'').' '.($shipping_addr['zip']??'')) ?><br>
                     <?= $e($country($shipping_addr['country'] ?? '')) ?>
                     <?php if ($isPickup && !empty($shipping_addr['opening_hours'])): ?>
-                        <br><span style="color:var(--wk-text-muted);font-size:13px">🕐 <?= $e($shipping_addr['opening_hours']) ?></span>
+                        <br><span style="color:var(--wk-text-muted);font-size:13px"><?= $icon('clock', 14) ?> <?= $e($shipping_addr['opening_hours']) ?></span>
                     <?php endif; ?>
                 </div>
             </div>
@@ -81,7 +81,7 @@ $s=$sm[$o['status']]??['info','?'];
         <?php if (!empty($o['customer_note'])): ?>
         <!-- What the customer asked for -->
         <div class="wk-card">
-            <div class="wk-card-header"><h2>📝 Delivery notes from the customer</h2></div>
+            <div class="wk-card-header"><h2><?= $icon('notebook-pen') ?> Delivery notes from the customer</h2></div>
             <div class="wk-card-body">
                 <p style="margin:0;white-space:pre-wrap;line-height:1.6"><?= $e($o['customer_note']) ?></p>
             </div>
@@ -90,7 +90,7 @@ $s=$sm[$o['status']]??['info','?'];
 
         <!-- Shipping & Tracking -->
         <div class="wk-card">
-            <div class="wk-card-header"><h2>📦 Shipping & Tracking</h2></div>
+            <div class="wk-card-header"><h2><?= $icon('package') ?> Shipping & Tracking</h2></div>
             <div class="wk-card-body">
                 <?php if (!empty($notes['tracking_number'])): ?>
                     <div style="background:var(--wk-purple-soft);border-radius:8px;padding:16px;margin-bottom:16px">
@@ -127,7 +127,7 @@ $s=$sm[$o['status']]??['info','?'];
                         <label>Tracking URL <span style="font-weight:400;text-transform:none">(optional)</span></label>
                         <input type="url" name="tracking_url" class="wk-input" value="<?= $e($notes['tracking_url']??'') ?>" placeholder="https://track.carrier.com/...">
                     </div>
-                    <button type="submit" class="wk-btn wk-btn-primary" style="width:100%;justify-content:center">Update Shipping & Notify Customer 📧</button>
+                    <button type="submit" class="wk-btn-block wk-btn wk-btn-primary"><?= $icon('mail') ?> Update Shipping & Notify Customer</button>
                 </form>
             </div>
         </div>
@@ -135,26 +135,26 @@ $s=$sm[$o['status']]??['info','?'];
 
     <div>
         <!-- Summary -->
-        <div class="wk-card" style="margin-bottom:20px">
+        <div class="wk-mb-20 wk-card">
             <div class="wk-card-header"><h2>Summary</h2></div>
             <div class="wk-card-body" style="font-size:14px">
-                <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span style="color:var(--wk-text-muted)">Subtotal</span><span style="font-weight:700"><?= $price($o['subtotal']) ?></span></div>
-                <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span style="color:var(--wk-text-muted)">Tax</span><span style="font-weight:700"><?= $price($o['tax_amount']) ?></span></div>
-                <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span style="color:var(--wk-text-muted)">Shipping</span><span style="font-weight:700"><?= $price($o['shipping_amount']) ?></span></div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span class="wk-muted">Subtotal</span><span class="wk-bold"><?= $price($o['subtotal']) ?></span></div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span class="wk-muted">Tax</span><span class="wk-bold"><?= $price($o['tax_amount']) ?></span></div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span class="wk-muted">Shipping</span><span class="wk-bold"><?= $price($o['shipping_amount']) ?></span></div>
                 <?php if ($o['discount_amount'] > 0): ?>
-                <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span style="color:var(--wk-green)">Discount</span><span style="font-weight:700;color:var(--wk-green)">-<?= $price($o['discount_amount']) ?></span></div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span class="wk-text-green">Discount</span><span style="font-weight:700;color:var(--wk-green)">-<?= $price($o['discount_amount']) ?></span></div>
                 <?php endif; ?>
                 <div style="display:flex;justify-content:space-between;padding-top:12px;border-top:2px solid var(--wk-border);font-size:20px"><span style="font-weight:900">Total</span><span style="font-weight:900;font-family:var(--font-mono)"><?= $price($o['total']) ?></span></div>
             </div>
         </div>
 
         <!-- Customer Info -->
-        <div class="wk-card" style="margin-bottom:20px">
+        <div class="wk-mb-20 wk-card">
             <div class="wk-card-header"><h2>Customer</h2></div>
             <div class="wk-card-body" style="font-size:14px">
-                <div style="margin-bottom:6px"><strong>Email:</strong> <?= $e($o['customer_email']??'') ?></div>
-                <div style="margin-bottom:6px"><strong>Phone:</strong> <?= $e($o['customer_phone']??'—') ?></div>
-                <div style="margin-bottom:6px"><strong>IP:</strong> <code style="font-size:12px"><?= $e($o['ip_address']??'') ?></code></div>
+                <div class="wk-mb-6"><strong>Email:</strong> <?= $e($o['customer_email']??'') ?></div>
+                <div class="wk-mb-6"><strong>Phone:</strong> <?= $e($o['customer_phone']??'—') ?></div>
+                <div class="wk-mb-6"><strong>IP:</strong> <code style="font-size:12px"><?= $e($o['ip_address']??'') ?></code></div>
             </div>
         </div>
 
@@ -185,16 +185,16 @@ $s=$sm[$o['status']]??['info','?'];
                     <div style="padding:10px 0;border-bottom:1px solid var(--wk-border)">
                         <div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline">
                             <code style="font-size:12px;font-weight:700"><?= $e($r['refund_ref']) ?></code>
-                            <strong style="font-family:var(--font-mono)"><?= $e($money($r['amount'])) ?></strong>
+                            <strong class="wk-mono"><?= $e($money($r['amount'])) ?></strong>
                         </div>
                         <div style="display:flex;justify-content:space-between;gap:10px;margin-top:3px">
                             <span style="font-size:11px;font-weight:800;color:<?= $tone ?>;text-transform:uppercase">
                                 <?= $e($r['status']) ?><?= $r['is_manual'] ? ' &middot; by hand' : '' ?>
                             </span>
-                            <span style="font-size:11px;color:var(--wk-text-muted)"><?= $e(date('j M Y, H:i', strtotime($r['created_at']))) ?></span>
+                            <span class="wk-fine"><?= $e(date('j M Y, H:i', strtotime($r['created_at']))) ?></span>
                         </div>
                         <?php if ($r['gateway_refund_id']): ?>
-                            <div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">
+                            <div class="wk-hint">
                                 Gateway ID <code><?= $e($r['gateway_refund_id']) ?></code>
                             </div>
                         <?php endif; ?>
@@ -207,7 +207,7 @@ $s=$sm[$o['status']]??['info','?'];
                     </div>
                     <?php endforeach; ?>
                     <div style="display:flex;justify-content:space-between;padding-top:10px;font-size:13px;font-weight:800">
-                        <span>Refunded</span><span style="font-family:var(--font-mono)"><?= $e($money($refunded)) ?></span>
+                        <span>Refunded</span><span class="wk-mono"><?= $e($money($refunded)) ?></span>
                     </div>
                 </div>
                 <?php endif; ?>
@@ -226,13 +226,13 @@ $s=$sm[$o['status']]??['info','?'];
                     <form method="POST" action="<?= $url('admin/orders/refund/'.$o['id']) ?>" id="refundForm">
                         <?= \Core\Session::csrfField() ?>
                         <div class="wk-form-group">
-                            <label>Amount <span style="font-weight:500;color:var(--wk-text-muted)">(up to <?= $e($money($refundable)) ?>)</span></label>
+                            <label>Amount <span class="wk-subtle">(up to <?= $e($money($refundable)) ?>)</span></label>
                             <input type="number" name="amount" class="wk-input" step="0.01" min="0.01"
                                    max="<?= $e(number_format((float) $refundable, 2, '.', '')) ?>"
                                    value="<?= $e(number_format((float) $refundable, 2, '.', '')) ?>" required>
                         </div>
                         <div class="wk-form-group">
-                            <label>Reason <span style="font-weight:500;color:var(--wk-text-muted)">(for your records)</span></label>
+                            <label>Reason <span class="wk-subtle">(for your records)</span></label>
                             <input type="text" name="reason" class="wk-input" maxlength="255" placeholder="Returned damaged">
                         </div>
                         <?php if (!$apiRefundable): ?>
@@ -252,7 +252,7 @@ $s=$sm[$o['status']]??['info','?'];
                                 <span>I already refunded this by hand &mdash; record it without contacting <?= $e(ucfirst($gwName)) ?>.</span>
                             </label>
                         <?php endif; ?>
-                        <button type="submit" class="wk-btn wk-btn-primary" style="width:100%;justify-content:center">
+                        <button type="submit" class="wk-btn-block wk-btn wk-btn-primary">
                             Refund <?= $e($money($refundable)) ?>
                         </button>
                     </form>
@@ -284,12 +284,12 @@ $s=$sm[$o['status']]??['info','?'];
             <div class="wk-card-body">
                 <form method="POST" action="<?= $url('admin/orders/status/'.$o['id']) ?>">
                     <?= \Core\Session::csrfField() ?>
-                    <select name="status" class="wk-select" style="margin-bottom:12px">
+                    <select name="status" class="wk-mb-12 wk-select">
                         <?php foreach (['pending','processing','paid','shipped','delivered','cancelled','refunded'] as $st): ?>
                             <option value="<?= $st ?>" <?= $o['status']===$st?'selected':'' ?>><?= ucfirst($st) ?></option>
                         <?php endforeach; ?>
                     </select>
-                    <button type="submit" class="wk-btn wk-btn-secondary" style="width:100%;justify-content:center">Update Status</button>
+                    <button type="submit" class="wk-btn-block wk-btn wk-btn-secondary">Update Status</button>
                 </form>
             </div>
         </div>

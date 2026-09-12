@@ -22,7 +22,7 @@
 
 <!-- Carrier List -->
 <?php if (empty($carriers)): ?>
-    <div class="wk-card"><div class="wk-empty"><div class="wk-empty-icon">🚚</div><p style="font-weight:800">No carriers yet</p><p style="font-size:13px">Add your first shipping carrier above</p></div></div>
+    <div class="wk-card"><div class="wk-empty"><div class="wk-empty-icon"><?= $icon('truck', 48) ?></div><p class="wk-heavy">No carriers yet</p><p style="font-size:13px">Add your first shipping carrier above</p></div></div>
 <?php else: ?>
     <div class="wk-card">
         <div class="wk-card-header"><h2>Carriers</h2><span style="font-size:12px;color:var(--wk-text-muted);font-weight:600"><?= count($carriers) ?> total</span></div>
@@ -31,7 +31,7 @@
             <tbody>
             <?php foreach ($carriers as $c): ?>
                 <tr>
-                    <td style="font-weight:800"><?= $e($c['name']) ?></td>
+                    <td class="wk-heavy"><?= $e($c['name']) ?></td>
                     <td><code style="font-family:var(--font-mono);font-size:12px;background:var(--wk-bg);padding:2px 6px;border-radius:4px"><?= $e($c['code'] ?? '—') ?></code></td>
                     <td style="font-size:12px;color:var(--wk-text-muted);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><?= $e($c['tracking_url_template'] ?: '—') ?></td>
                     <td><span class="wk-badge <?= $c['is_active']?'wk-badge-success':'wk-badge-danger' ?>"><?= $c['is_active']?'Active':'Inactive' ?></span></td>
@@ -68,10 +68,10 @@
             <div class="wk-form-group"><label>Carrier Name</label><input type="text" name="name" id="editName" class="wk-input" required></div>
             <div class="wk-form-group"><label>Code</label><input type="text" name="code" id="editCode" class="wk-input"></div>
             <div class="wk-form-group"><label>Tracking URL Template</label><input type="text" name="tracking_url_template" id="editUrl" class="wk-input"></div>
-            <div class="wk-form-group"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" name="is_active" value="1" id="editActive"> Active</label></div>
+            <div class="wk-form-group"><label class="wk-check"><input type="checkbox" name="is_active" value="1" id="editActive"> Active</label></div>
             <div style="display:flex;gap:12px">
-                <button type="button" class="wk-btn wk-btn-secondary" style="flex:1;justify-content:center" onclick="closeEdit()">Cancel</button>
-                <button type="submit" class="wk-btn wk-btn-primary" style="flex:1;justify-content:center">Save</button>
+                <button type="button" class="wk-btn-grow wk-btn wk-btn-secondary" onclick="closeEdit()">Cancel</button>
+                <button type="submit" class="wk-btn-grow wk-btn wk-btn-primary">Save</button>
             </div>
         </form>
     </div>

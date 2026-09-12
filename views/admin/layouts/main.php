@@ -91,20 +91,20 @@ $currentPath = (new \Core\Request())->path();
                 $pendingReviews = \App\Services\ReviewService::pendingCount();
                 $pendingQuestions = \App\Services\QuestionService::pendingCount();
                 $navItems = [
-                    ['/admin', '/admin/dashboard', 'Dashboard', '📊', null],
-                    ['/admin/orders', null, 'Orders', '🛍️', $pendingOrders > 0 ? $pendingOrders : null],
-                    ['/admin/tickets', null, 'Tickets', '🎫', $openTickets > 0 ? $openTickets : null],
-                    ['/admin/abandoned-carts', null, 'Abandoned Carts', '🛒', $abandonedCount > 0 ? $abandonedCount : null],
-                    ['/admin/products', null, 'Products', '📦', null],
-                    ['/admin/customers', null, 'Customers', '👥', null],
-                    ['/admin/reviews', null, 'Reviews', '⭐', $pendingReviews > 0 ? $pendingReviews : null],
-                    ['/admin/questions', null, 'Questions', '💬', $pendingQuestions > 0 ? $pendingQuestions : null],
+                    ['/admin', '/admin/dashboard', 'Dashboard', 'layout-dashboard', null],
+                    ['/admin/orders', null, 'Orders', 'shopping-bag', $pendingOrders > 0 ? $pendingOrders : null],
+                    ['/admin/tickets', null, 'Tickets', 'ticket', $openTickets > 0 ? $openTickets : null],
+                    ['/admin/abandoned-carts', null, 'Abandoned Carts', 'shopping-cart', $abandonedCount > 0 ? $abandonedCount : null],
+                    ['/admin/products', null, 'Products', 'package', null],
+                    ['/admin/customers', null, 'Customers', 'users', null],
+                    ['/admin/reviews', null, 'Reviews', 'star', $pendingReviews > 0 ? $pendingReviews : null],
+                    ['/admin/questions', null, 'Questions', 'message-circle', $pendingQuestions > 0 ? $pendingQuestions : null],
                 ];
-                foreach ($navItems as [$href, $alt, $label, $icon, $badge]):
+                foreach ($navItems as [$href, $alt, $label, $navIcon, $badge]):
                     $isActive = $currentPath === $href || $currentPath === $alt;
                 ?>
                 <a href="<?= \Core\View::url(ltrim($href, '/')) ?>" class="wk-nav-item <?= $isActive ? 'active' : '' ?>">
-                    <span class="wk-nav-icon"><?= $icon ?></span>
+                    <span class="wk-nav-icon"><?= $icon($navIcon, 18) ?></span>
                     <span class="wk-nav-text"><?= $label ?></span>
                     <?php if ($badge): ?>
                         <span class="wk-nav-badge"><?= $badge ?></span>
@@ -117,18 +117,18 @@ $currentPath = (new \Core\Request())->path();
                 <div class="wk-nav-label">Commerce</div>
                 <?php
                 $commerceItems = [
-                    ['/admin/gateways', 'Payment Gateways', '💳'],
-                    ['/admin/coupons', 'Coupons', '🏷️'],
-                    ['/admin/categories', 'Categories', '📂'],
-                    ['/admin/shipping', 'Shipping Carriers', '🚚'],
-                    ['/admin/shipping/settings', 'Shipping Rates', '📦'],
-                    ['/admin/shipping/zones', 'Shipping Zones', '🌍'],
+                    ['/admin/gateways', 'Payment Gateways', 'credit-card'],
+                    ['/admin/coupons', 'Coupons', 'tag'],
+                    ['/admin/categories', 'Categories', 'folder'],
+                    ['/admin/shipping', 'Shipping Carriers', 'truck'],
+                    ['/admin/shipping/settings', 'Shipping Rates', 'package'],
+                    ['/admin/shipping/zones', 'Shipping Zones', 'globe'],
                 ];
-                foreach ($commerceItems as [$href, $label, $icon]):
+                foreach ($commerceItems as [$href, $label, $navIcon]):
                     $isActive = $currentPath === $href;
                 ?>
                 <a href="<?= \Core\View::url(ltrim($href, '/')) ?>" class="wk-nav-item <?= $isActive ? 'active' : '' ?>">
-                    <span class="wk-nav-icon"><?= $icon ?></span>
+                    <span class="wk-nav-icon"><?= $icon($navIcon, 18) ?></span>
                     <span class="wk-nav-text"><?= $label ?></span>
                 </a>
                 <?php endforeach; ?>
@@ -137,11 +137,11 @@ $currentPath = (new \Core\Request())->path();
             <div class="wk-nav-group">
                 <div class="wk-nav-label">System</div>
                 <a href="<?= \Core\View::url('admin/settings') ?>" class="wk-nav-item <?= $currentPath === '/admin/settings' ? 'active' : '' ?>">
-                    <span class="wk-nav-icon">⚙️</span>
+                    <span class="wk-nav-icon"><?= $icon('settings', 18) ?></span>
                     <span class="wk-nav-text">Settings</span>
                 </a>
                 <a href="<?= \Core\View::url('admin/email-templates') ?>" class="wk-nav-item <?= str_starts_with($currentPath, '/admin/email-templates') ? 'active' : '' ?>">
-                    <span class="wk-nav-icon">📧</span>
+                    <span class="wk-nav-icon"><?= $icon('mail', 18) ?></span>
                     <span class="wk-nav-text">Email Templates</span>
                 </a>
                 <?php
@@ -154,18 +154,18 @@ $currentPath = (new \Core\Request())->path();
                 } catch (\Throwable $wkE) {}
                 ?>
                 <a href="<?= \Core\View::url('admin/pages') ?>" class="wk-nav-item <?= str_starts_with($currentPath, '/admin/pages') ? 'active' : '' ?>">
-                    <span class="wk-nav-icon">📄</span>
+                    <span class="wk-nav-icon"><?= $icon('file-text', 18) ?></span>
                     <span class="wk-nav-text">Pages</span>
                     <?php if ($wkPagesMissing): ?>
                         <span class="wk-nav-badge" title="<?= (int) $wkPagesMissing ?> recommended page<?= $wkPagesMissing === 1 ? '' : 's' ?> not published"><?= (int) $wkPagesMissing ?></span>
                     <?php endif; ?>
                 </a>
                 <a href="<?= \Core\View::url('admin/seo') ?>" class="wk-nav-item <?= str_starts_with($currentPath, '/admin/seo') ? 'active' : '' ?>">
-                    <span class="wk-nav-icon">🔍</span>
+                    <span class="wk-nav-icon"><?= $icon('search', 18) ?></span>
                     <span class="wk-nav-text">SEO</span>
                 </a>
                 <a href="<?= \Core\View::url('admin/import') ?>" class="wk-nav-item <?= str_starts_with($currentPath, '/admin/import') ? 'active' : '' ?>">
-                    <span class="wk-nav-icon">📤</span>
+                    <span class="wk-nav-icon"><?= $icon('upload', 18) ?></span>
                     <span class="wk-nav-text">CSV Import</span>
                 </a>
             </div>
@@ -184,7 +184,7 @@ $currentPath = (new \Core\Request())->path();
         <!-- Topbar -->
         <header class="wk-topbar">
             <div class="wk-topbar-left">
-                <button class="wk-mobile-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+                <button class="wk-mobile-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')"><?= $icon('menu', 22) ?></button>
                 <h1 class="wk-topbar-title"><?= htmlspecialchars($pageTitle ?? 'Dashboard') ?></h1>
             </div>
             <div class="wk-topbar-right">
@@ -198,10 +198,10 @@ $currentPath = (new \Core\Request())->path();
                     <div id="adminDrop" style="display:none;position:absolute;right:0;top:calc(100% + 8px);background:var(--wk-surface);border:1px solid var(--wk-border);border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,.08);width:200px;z-index:200;overflow:hidden">
                         <div style="padding:12px 16px;border-bottom:1px solid var(--wk-border)">
                             <div style="font-weight:800;font-size:13px"><?= htmlspecialchars($admin['username'] ?? 'Admin') ?></div>
-                            <div style="font-size:11px;color:var(--wk-text-muted)"><?= htmlspecialchars($admin['email'] ?? '') ?></div>
+                            <div class="wk-fine"><?= htmlspecialchars($admin['email'] ?? '') ?></div>
                         </div>
-                        <a href="<?= \Core\View::url('admin/settings') ?>" style="display:block;padding:10px 16px;font-size:13px;font-weight:700;color:var(--wk-text);text-decoration:none;border-bottom:1px solid var(--wk-border)">⚙️ Settings</a>
-                        <form method="POST" action="<?= \Core\View::url('admin/logout') ?>" style="margin:0">
+                        <a href="<?= \Core\View::url('admin/settings') ?>" style="display:block;padding:10px 16px;font-size:13px;font-weight:700;color:var(--wk-text);text-decoration:none;border-bottom:1px solid var(--wk-border)"><?= $icon('settings') ?> Settings</a>
+                        <form method="POST" action="<?= \Core\View::url('admin/logout') ?>" class="wk-m-0">
                             <?= \Core\Session::csrfField() ?>
                             <button type="submit" style="display:block;width:100%;padding:10px 16px;font-size:13px;font-weight:700;color:var(--wk-red);text-decoration:none;background:none;border:none;text-align:left;cursor:pointer;font-family:inherit">Sign Out</button>
                         </form>
@@ -214,7 +214,7 @@ $currentPath = (new \Core\Request())->path();
         <!-- Flash Messages -->
         <?php foreach ($_flashes as $flash): ?>
             <div class="wk-flash wk-flash-<?= $flash['type'] ?>">
-                <span class="wk-flash-icon"><?= $flash['type'] === 'success' ? '✓' : ($flash['type'] === 'error' ? '✗' : 'ℹ') ?></span>
+                <span class="wk-flash-icon"><?= $icon($flash['type'] === 'success' ? 'circle-check' : ($flash['type'] === 'error' ? 'circle-x' : 'info'), 18) ?></span>
                 <?= htmlspecialchars($flash['message']) ?>
                 <button class="wk-flash-close" onclick="this.parentElement.remove()">×</button>
             </div>
@@ -227,6 +227,11 @@ $currentPath = (new \Core\Request())->path();
     </main>
 </div>
 
+<?php // Icons that scripts on the page build markup with ?>
+<template id="wk-icon-toast-success"><?= $icon('circle-check', 18) ?></template>
+<template id="wk-icon-toast-error"><?= $icon('circle-x', 18) ?></template>
+<template id="wk-icon-toast-warning"><?= $icon('triangle-alert', 18) ?></template>
+<template id="wk-icon-toast-info"><?= $icon('info', 18) ?></template>
 <script src="<?= \Core\View::asset('js/admin.js') ?>"></script>
 </body>
 </html>

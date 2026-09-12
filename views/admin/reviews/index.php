@@ -9,19 +9,19 @@ $stars = function (int $n) {
 ?>
 
 <div class="wk-card" style="margin-bottom:20px;max-width:900px">
-    <div class="wk-card-header"><h2>⭐ Review Settings</h2></div>
+    <div class="wk-card-header"><h2><?= $icon('star') ?> Review Settings</h2></div>
     <div class="wk-card-body">
         <form method="POST" action="<?= $url('admin/reviews/settings') ?>">
             <?= \Core\Session::csrfField() ?>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px">
-                <div class="wk-form-group" style="margin:0">
+                <div class="wk-m-0 wk-form-group">
                     <label>Reviews</label>
                     <select name="reviews_enabled" class="wk-select">
                         <option value="1" <?= ($s['reviews_enabled'] ?? '1') === '1' ? 'selected' : '' ?>>On — customers can rate and review</option>
                         <option value="0" <?= ($s['reviews_enabled'] ?? '1') === '0' ? 'selected' : '' ?>>Off — hide reviews everywhere</option>
                     </select>
                 </div>
-                <div class="wk-form-group" style="margin:0">
+                <div class="wk-m-0 wk-form-group">
                     <label>Who can review</label>
                     <select name="review_policy" class="wk-select">
                         <option value="anyone" <?= $policy === 'anyone' ? 'selected' : '' ?>>Anyone — no purchase needed</option>
@@ -29,14 +29,14 @@ $stars = function (int $n) {
                         <option value="received" <?= $policy === 'received' ? 'selected' : '' ?>>Customers who received it</option>
                     </select>
                 </div>
-                <div class="wk-form-group" style="margin:0">
+                <div class="wk-m-0 wk-form-group">
                     <label>New reviews</label>
                     <select name="auto_approve" class="wk-select">
                         <option value="0" <?= ($s['auto_approve'] ?? '0') !== '1' ? 'selected' : '' ?>>Wait for your approval</option>
                         <option value="1" <?= ($s['auto_approve'] ?? '0') === '1' ? 'selected' : '' ?>>Publish straight away</option>
                     </select>
                 </div>
-                <div class="wk-form-group" style="margin:0">
+                <div class="wk-m-0 wk-form-group">
                     <label>Stars on product cards</label>
                     <select name="show_on_cards" class="wk-select">
                         <option value="1" <?= ($s['show_on_cards'] ?? '1') === '1' ? 'selected' : '' ?>>Show</option>
@@ -71,7 +71,7 @@ $stars = function (int $n) {
 
 <?php if (!$reviews): ?>
     <div class="wk-card"><div class="wk-card-body" style="text-align:center;padding:44px 20px">
-        <div style="font-size:40px;margin-bottom:10px">⭐</div>
+        <div style="font-size:40px;margin-bottom:10px"><?= $icon('star', 40) ?></div>
         <p style="font-weight:800;margin:0 0 4px">
             <?= $filter === 'pending' ? 'Nothing waiting for approval' : 'No ' . $e($filter) . ' reviews' ?>
         </p>
@@ -127,7 +127,7 @@ $stars = function (int $n) {
                     </div>
                 <?php endif; ?>
 
-                <details style="margin-bottom:12px">
+                <details class="wk-mb-12">
                     <summary style="font-size:12px;font-weight:800;color:var(--wk-purple);cursor:pointer">
                         <?= $r['admin_reply'] ? 'Edit your reply' : 'Reply publicly' ?>
                     </summary>
@@ -135,7 +135,7 @@ $stars = function (int $n) {
                         <?= \Core\Session::csrfField() ?>
                         <input type="hidden" name="from" value="<?= $e($filter) ?>">
                         <textarea name="reply" class="wk-input" rows="3" maxlength="2000" placeholder="Shown under the review on the product page."><?= $e($r['admin_reply'] ?? '') ?></textarea>
-                        <button type="submit" class="wk-btn wk-btn-secondary wk-btn-sm" style="margin-top:8px">Save reply</button>
+                        <button type="submit" class="wk-mt-8 wk-btn wk-btn-secondary wk-btn-sm">Save reply</button>
                     </form>
                 </details>
 
@@ -168,7 +168,7 @@ $stars = function (int $n) {
                           onsubmit="return confirm('Delete this review for good?')" style="margin-left:auto">
                         <?= \Core\Session::csrfField() ?>
                         <input type="hidden" name="from" value="<?= $e($filter) ?>">
-                        <button type="submit" class="wk-btn wk-btn-secondary wk-btn-sm" style="color:var(--wk-red)">Delete</button>
+                        <button type="submit" class="wk-text-red wk-btn wk-btn-secondary wk-btn-sm">Delete</button>
                     </form>
                 </div>
             </div>

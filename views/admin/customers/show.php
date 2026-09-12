@@ -23,8 +23,7 @@
             kept for several years even after a deletion request.
         </p>
         <form method="POST" action="<?= \Core\View::url('admin/customers/'.$c['id'].'/pseudonymize') ?>"
-              onsubmit="return confirm('Pseudonymize this customer? Their personal data will be wiped and they will no longer be able to log in. Order records will be retained with anonymized contact details. This cannot be undone.')"
-              style="margin:0">
+              onsubmit="return confirm('Pseudonymize this customer? Their personal data will be wiped and they will no longer be able to log in. Order records will be retained with anonymized contact details. This cannot be undone.')" class="wk-m-0">
             <?= \Core\Session::csrfField() ?>
             <button type="submit" class="wk-btn" style="background:#dc2626;color:#fff;font-size:13px;padding:8px 16px;border-radius:6px;border:none;cursor:pointer;font-weight:700">Pseudonymize Customer</button>
         </form>

@@ -3,7 +3,7 @@
 <!-- All-in-One Highlight -->
 <div class="wk-card" style="margin-bottom:20px;border:2px solid var(--wk-purple)">
     <div class="wk-card-header" style="background:linear-gradient(135deg,var(--wk-purple-soft),var(--wk-pink-soft))">
-        <h2>⚡ All-in-One Import <span style="font-size:11px;background:var(--wk-purple);color:#fff;padding:2px 8px;border-radius:10px;margin-left:8px;font-weight:800">RECOMMENDED</span></h2>
+        <h2><?= $icon('zap') ?> All-in-One Import <span style="font-size:11px;background:var(--wk-purple);color:#fff;padding:2px 8px;border-radius:10px;margin-left:8px;font-weight:800">RECOMMENDED</span></h2>
     </div>
     <div class="wk-card-body">
         <p style="font-size:14px;margin-bottom:14px">Import categories, products, and variants from a <strong>single CSV file</strong>. Each row has a <code>row_type</code> column that tells Whisker what it is.</p>
@@ -26,27 +26,27 @@
             <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:2px">
                 <input type="checkbox" name="skip_existing" value="1" checked style="width:16px;height:16px;accent-color:var(--wk-purple)"> Skip existing
             </label>
-            <button type="submit" class="wk-btn wk-btn-primary" style="margin-bottom:2px">⚡ Import All</button>
+            <button type="submit" class="wk-btn wk-btn-primary" style="margin-bottom:2px"><?= $icon('zap') ?> Import All</button>
         </form>
-        <div style="margin-top:12px">
-            <a href="<?= $url('admin/import/sample/all') ?>" class="wk-btn wk-btn-secondary wk-btn-sm">📥 Download Sample All-in-One CSV</a>
+        <div class="wk-mt-12">
+            <a href="<?= $url('admin/import/sample/all') ?>" class="wk-btn wk-btn-secondary wk-btn-sm"><?= $icon('download', 14) ?> Download Sample All-in-One CSV</a>
         </div>
     </div>
 </div>
 
 <!-- Individual Imports -->
-<div class="wk-card" style="margin-bottom:20px">
-    <div class="wk-card-header"><h2>📤 Import by Type</h2><span style="font-size:12px;color:var(--wk-muted)">Import categories, products, or variants separately</span></div>
+<div class="wk-mb-20 wk-card">
+    <div class="wk-card-header"><h2><?= $icon('upload') ?> Import by Type</h2><span style="font-size:12px;color:var(--wk-muted)">Import categories, products, or variants separately</span></div>
     <div class="wk-card-body">
         <form method="POST" action="<?= $url('admin/import/process') ?>" enctype="multipart/form-data">
             <?= \Core\Session::csrfField() ?>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div class="wk-grid-2">
                 <div class="wk-form-group">
                     <label>Import Type</label>
                     <select name="import_type" class="wk-select" id="importType" onchange="updateGuide()">
-                        <option value="categories">📂 Categories</option>
-                        <option value="products">📦 Products</option>
-                        <option value="variants">🔀 Variants</option>
+                        <option value="categories">Categories</option>
+                        <option value="products">Products</option>
+                        <option value="variants">Variants</option>
                     </select>
                 </div>
                 <div class="wk-form-group">
@@ -60,23 +60,23 @@
                 </label>
                 <span style="font-size:11px;color:var(--wk-muted)">Uncheck to update existing products by SKU</span>
             </div>
-            <button type="submit" class="wk-btn wk-btn-primary">📤 Import</button>
+            <button type="submit" class="wk-btn wk-btn-primary"><?= $icon('upload') ?> Import</button>
         </form>
         <div style="margin-top:14px;display:flex;gap:10px">
-            <a href="<?= $url('admin/import/sample/categories') ?>" class="wk-btn wk-btn-secondary wk-btn-sm">📥 Categories CSV</a>
-            <a href="<?= $url('admin/import/sample/products') ?>" class="wk-btn wk-btn-secondary wk-btn-sm">📥 Products CSV</a>
-            <a href="<?= $url('admin/import/sample/variants') ?>" class="wk-btn wk-btn-secondary wk-btn-sm">📥 Variants CSV</a>
+            <a href="<?= $url('admin/import/sample/categories') ?>" class="wk-btn wk-btn-secondary wk-btn-sm"><?= $icon('download', 14) ?> Categories CSV</a>
+            <a href="<?= $url('admin/import/sample/products') ?>" class="wk-btn wk-btn-secondary wk-btn-sm"><?= $icon('download', 14) ?> Products CSV</a>
+            <a href="<?= $url('admin/import/sample/variants') ?>" class="wk-btn wk-btn-secondary wk-btn-sm"><?= $icon('download', 14) ?> Variants CSV</a>
         </div>
     </div>
 </div>
 
 <!-- Instructions -->
-<div class="wk-card" style="margin-bottom:20px">
-    <div class="wk-card-header"><h2>📖 How It Works</h2></div>
+<div class="wk-mb-20 wk-card">
+    <div class="wk-card-header"><h2><?= $icon('book-open') ?> How It Works</h2></div>
     <div class="wk-card-body" style="font-size:13px;line-height:1.8">
 
         <div style="background:var(--wk-bg);border:1px solid var(--wk-border);border-radius:var(--radius-sm);padding:16px;margin-bottom:16px">
-            <strong style="font-size:14px">⚡ All-in-One CSV Format</strong>
+            <strong style="font-size:14px"><?= $icon('zap', 14) ?> All-in-One CSV Format</strong>
             <p style="margin:8px 0 4px;color:var(--wk-muted)">Single file with a <code>row_type</code> column. Put categories first, then products, then variants, then combo overrides.</p>
             <div style="overflow-x:auto;margin-top:10px">
                 <table class="wk-table" style="font-size:11px;white-space:nowrap">
@@ -95,20 +95,20 @@
 
         <!-- Individual format guides -->
         <div id="guide-categories">
-            <strong>📂 Categories CSV:</strong> <code>name, parent, description, sort_order, is_active</code>
+            <strong><?= $icon('folder', 14) ?> Categories CSV:</strong> <code>name, parent, description, sort_order, is_active</code>
             <p style="color:var(--wk-muted);margin:4px 0">Leave <code>parent</code> empty for top-level. Child categories reference parent by exact name.</p>
         </div>
         <div id="guide-products" style="display:none">
-            <strong>📦 Products CSV:</strong> <code>sku, name, category, price, sale_price, stock_quantity, description, short_description, weight, is_active, is_featured, faq, meta_title, meta_description, meta_keywords</code>
+            <strong><?= $icon('package', 14) ?> Products CSV:</strong> <code>sku, name, category, price, sale_price, stock_quantity, description, short_description, weight, is_active, is_featured, faq, meta_title, meta_description, meta_keywords</code>
             <p style="color:var(--wk-muted);margin:4px 0"><code>sku</code> and <code>name</code> required. <code>category</code> matches by exact name. SEO fields auto-generate if empty.</p>
         </div>
         <div id="guide-variants" style="display:none">
-            <strong>🔀 Variants CSV:</strong> <code>product_sku, variant_group, options, combo_sku, combo_price, combo_stock</code>
+            <strong><?= $icon('shuffle', 14) ?> Variants CSV:</strong> <code>product_sku, variant_group, options, combo_sku, combo_price, combo_stock</code>
             <p style="color:var(--wk-muted);margin:4px 0">Group rows define dimensions (Size: S,M,L). Combos auto-generate. Combo rows override individual SKU/price/stock.</p>
         </div>
 
         <div style="margin-top:14px;padding:14px;background:var(--wk-purple-soft,#ede9fe);border-radius:var(--radius-sm)">
-            <strong>❓ The <code>faq</code> column</strong>
+            <strong><?= $icon('circle-question-mark', 14) ?> The <code>faq</code> column</strong>
             <p style="color:var(--wk-text-muted);margin:6px 0 8px;line-height:1.7">
                 Questions you answer up front, shown on the product page under the description. One cell holds
                 the lot: separate a question from its answer with <code>::</code> and one pair from the next
@@ -134,7 +134,7 @@
 <div style="text-align:center;padding:20px;background:linear-gradient(135deg,#8b5cf6,#ec4899);border-radius:12px;color:#fff;margin-bottom:20px">
     <h3 style="margin:0 0 6px;font-size:15px">Need Help Importing?</h3>
     <p style="margin:0 0 10px;opacity:.9;font-size:12px">Send me your spreadsheet and I'll import it for you.</p>
-    <a href="mailto:mail@lohit.me" style="display:inline-block;background:#fff;color:#8b5cf6;padding:6px 20px;border-radius:8px;font-weight:800;text-decoration:none;font-size:12px">📧 mail@lohit.me</a>
+    <a href="mailto:mail@lohit.me" style="display:inline-block;background:#fff;color:#8b5cf6;padding:6px 20px;border-radius:8px;font-weight:800;text-decoration:none;font-size:12px"><?= $icon('mail', 14) ?> mail@lohit.me</a>
 </div>
 
 <script>

@@ -21,10 +21,10 @@ if (!empty($seoData['_product_id'])) {
     if ($imgPath) $_seoPrimaryImage = $_seoBaseUrl . '/storage/uploads/products/' . $imgPath;
 }
 ?>
-<div class="wk-card" style="margin-bottom:20px">
+<div class="wk-mb-20 wk-card">
     <div class="wk-card-header" style="cursor:pointer" onclick="document.getElementById('seoBody').style.display=document.getElementById('seoBody').style.display==='none'?'block':'none'">
-        <h2>🔍 SEO Settings</h2>
-        <span style="font-size:11px;color:var(--wk-text-muted)"><?=$collapsed?'▸ Click to expand':'▾ Expanded'?></span>
+        <h2><?= $icon('search') ?> SEO Settings</h2>
+        <span class="wk-fine"><?=$collapsed?'▸ Click to expand':'▾ Expanded'?></span>
     </div>
     <div class="wk-card-body" id="seoBody" style="display:<?=$collapsed?'none':'block'?>">
 
@@ -36,7 +36,7 @@ if (!empty($seoData['_product_id'])) {
                     <!-- Site name + breadcrumb (how Google actually shows it) -->
                     <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
                         <img src="<?= htmlspecialchars($_faviconUrl) ?>" style="width:28px;height:28px;border-radius:50%;border:1px solid #eee" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" alt="">
-                        <div style="display:none;width:28px;height:28px;border-radius:50%;background:#f1f3f4;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">🌐</div>
+                        <div style="display:none;width:28px;height:28px;border-radius:50%;background:#f1f3f4;align-items:center;justify-content:center;font-size:14px;flex-shrink:0"><?= $icon('globe', 14) ?></div>
                         <div style="min-width:0">
                             <div style="font-size:14px;color:#202124;line-height:1.3" id="seoPreviewSiteName"><?= htmlspecialchars($_seoSiteName) ?></div>
                             <div style="font-size:12px;color:#4d5156" id="seoPreviewBreadcrumb"><?= htmlspecialchars($_seoBaseUrl) ?> › <?= htmlspecialchars(str_replace('/', ' › ', $slug)) ?></div>
@@ -49,7 +49,7 @@ if (!empty($seoData['_product_id'])) {
                 </div>
                 <!-- Product image thumbnail -->
                 <div id="seoPreviewImgWrap" style="flex-shrink:0;width:92px;height:92px;border-radius:8px;overflow:hidden;background:#f8f9fa;border:1px solid #eee;display:<?= $_seoPrimaryImage ? 'block' : 'none' ?>;align-self:center">
-                    <img id="seoPreviewImg" src="<?= htmlspecialchars($_seoPrimaryImage) ?>" style="width:100%;height:100%;object-fit:cover" alt="">
+                    <img id="seoPreviewImg" src="<?= htmlspecialchars($_seoPrimaryImage) ?>" class="wk-cover" alt="">
                 </div>
             </div>
         </div>
@@ -57,13 +57,13 @@ if (!empty($seoData['_product_id'])) {
         <div class="wk-form-group">
             <label>Meta Title <span style="font-weight:500;text-transform:none;letter-spacing:0;font-size:11px;color:var(--wk-muted)">(leave empty = auto from product name)</span></label>
             <input type="text" name="meta_title" class="wk-input" id="seoMetaTitle" value="<?=$mt?>" placeholder="Auto-generates from product name" maxlength="70">
-            <div class="wk-form-hint"><span id="seoTitleCt" style="font-weight:700"><?=mb_strlen($seoData['meta_title']??'')?></span>/60 · <?php if(empty($seoData['meta_title'])):?><span style="color:var(--wk-green)">✓ Auto</span><?php else:?><span style="color:var(--wk-purple)">Custom</span><?php endif;?></div>
+            <div class="wk-form-hint"><span id="seoTitleCt" class="wk-bold"><?=mb_strlen($seoData['meta_title']??'')?></span>/60 · <?php if(empty($seoData['meta_title'])):?><span class="wk-text-green">✓ Auto</span><?php else:?><span style="color:var(--wk-purple)">Custom</span><?php endif;?></div>
         </div>
 
         <div class="wk-form-group">
             <label>Meta Description <span style="font-weight:500;text-transform:none;letter-spacing:0;font-size:11px;color:var(--wk-muted)">(leave empty = auto from description)</span></label>
             <textarea name="meta_description" class="wk-textarea" id="seoMetaDesc" rows="3" maxlength="160" placeholder="Auto-generates from product description..."><?=$md?></textarea>
-            <div class="wk-form-hint"><span id="seoDescCt" style="font-weight:700"><?=mb_strlen($seoData['meta_description']??'')?></span>/155 · <?php if(empty($seoData['meta_description'])):?><span style="color:var(--wk-green)">✓ Auto</span><?php else:?><span style="color:var(--wk-purple)">Custom</span><?php endif;?></div>
+            <div class="wk-form-hint"><span id="seoDescCt" class="wk-bold"><?=mb_strlen($seoData['meta_description']??'')?></span>/155 · <?php if(empty($seoData['meta_description'])):?><span class="wk-text-green">✓ Auto</span><?php else:?><span style="color:var(--wk-purple)">Custom</span><?php endif;?></div>
         </div>
 
         <div class="wk-form-group"><label>Meta Keywords</label><input type="text" name="meta_keywords" class="wk-input" value="<?=$mk?>" placeholder="Auto-generates from content"></div>

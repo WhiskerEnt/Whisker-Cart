@@ -13,15 +13,15 @@
                 </select>
             </div>
             <div class="wk-form-group"><label>Description</label><textarea name="description" class="wk-textarea" placeholder="Optional description..."></textarea></div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div class="wk-grid-2">
                 <div class="wk-form-group"><label>Sort Order</label><input type="number" name="sort_order" class="wk-input" value="0"></div>
                 <div class="wk-form-group" style="display:flex;align-items:flex-end">
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding-bottom:10px"><input type="checkbox" name="is_active" value="1" checked> Active</label>
                 </div>
             </div>
             <div style="display:flex;gap:12px;margin-top:8px">
-                <a href="<?= $url('admin/categories') ?>" class="wk-btn wk-btn-secondary" style="flex:1;justify-content:center">Cancel</a>
-                <button type="submit" class="wk-btn wk-btn-primary" style="flex:1;justify-content:center">Create Category</button>
+                <a href="<?= $url('admin/categories') ?>" class="wk-btn-grow wk-btn wk-btn-secondary">Cancel</a>
+                <button type="submit" class="wk-btn-grow wk-btn wk-btn-primary">Create Category</button>
             </div>
         </div>
     </div>

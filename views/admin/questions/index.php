@@ -5,19 +5,19 @@ $s   = $settings;
 ?>
 
 <div class="wk-card" style="margin-bottom:20px;max-width:900px">
-    <div class="wk-card-header"><h2>💬 Question Settings</h2></div>
+    <div class="wk-card-header"><h2><?= $icon('message-circle') ?> Question Settings</h2></div>
     <div class="wk-card-body">
         <form method="POST" action="<?= $url('admin/questions/settings') ?>">
             <?= \Core\Session::csrfField() ?>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px">
-                <div class="wk-form-group" style="margin:0">
+                <div class="wk-m-0 wk-form-group">
                     <label>Questions</label>
                     <select name="questions_enabled" class="wk-select">
                         <option value="1" <?= ($s['questions_enabled'] ?? '1') === '1' ? 'selected' : '' ?>>On — customers can ask about a product</option>
                         <option value="0" <?= ($s['questions_enabled'] ?? '1') === '0' ? 'selected' : '' ?>>Off — hide questions everywhere</option>
                     </select>
                 </div>
-                <div class="wk-form-group" style="margin:0">
+                <div class="wk-m-0 wk-form-group">
                     <label>When you publish an answer</label>
                     <select name="notify_on_answer" class="wk-select">
                         <option value="1" <?= ($s['notify_on_answer'] ?? '1') === '1' ? 'selected' : '' ?>>Email the customer who asked</option>
@@ -45,7 +45,7 @@ $s   = $settings;
 
 <?php if (!$questions): ?>
     <div class="wk-card"><div class="wk-card-body" style="text-align:center;padding:44px 20px">
-        <div style="font-size:40px;margin-bottom:10px">💬</div>
+        <div style="font-size:40px;margin-bottom:10px"><?= $icon('message-circle', 40) ?></div>
         <p style="font-weight:800;margin:0 0 4px">
             <?= $filter === 'pending' ? 'No questions waiting' : 'Nothing here' ?>
         </p>
@@ -63,7 +63,7 @@ $s   = $settings;
                        style="font-weight:800;font-size:14px;color:var(--wk-purple);text-decoration:none">
                         <?= $e($q['product_name'] ?? 'deleted product') ?>
                     </a>
-                    <span style="font-size:12px;color:var(--wk-text-muted)"><?= $e(date('j M Y, H:i', strtotime($q['created_at']))) ?></span>
+                    <span class="wk-note"><?= $e(date('j M Y, H:i', strtotime($q['created_at']))) ?></span>
                 </div>
 
                 <div style="background:var(--wk-bg);border-radius:var(--radius-sm);padding:13px 15px;margin-bottom:14px">
@@ -84,7 +84,7 @@ $s   = $settings;
                     <?= \Core\Session::csrfField() ?>
                     <input type="hidden" name="from" value="<?= $e($filter) ?>">
                     <div class="wk-form-group">
-                        <label>Your answer <span style="font-weight:500;color:var(--wk-text-muted)">(shown publicly under the product)</span></label>
+                        <label>Your answer <span class="wk-subtle">(shown publicly under the product)</span></label>
                         <textarea name="answer" class="wk-input" rows="4" maxlength="4000"
                                   placeholder="Answer the question as you would to a customer standing in front of you."><?= $e($q['answer'] ?? '') ?></textarea>
                     </div>

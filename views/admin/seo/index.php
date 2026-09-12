@@ -6,18 +6,18 @@ $baseUrl = defined('WK_BASE_URL') ? rtrim(WK_BASE_URL, '/') : 'https://yourstore
 $currentSiteName = \Core\Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='site_name'") ?: 'Whisker Store';
 ?>
 
-<div class="wk-stats" style="margin-bottom:20px">
+<div class="wk-mb-20 wk-stats">
     <div class="wk-stat-card"><div class="wk-stat-label">Products with Custom SEO</div><div class="wk-stat-value"><?= $customMetaProducts ?>/<?= $totalProducts ?></div><div class="wk-stat-sub"><?= $totalProducts>0?round(($customMetaProducts/$totalProducts)*100):0 ?>% coverage</div></div>
     <div class="wk-stat-card"><div class="wk-stat-label">Categories with Custom SEO</div><div class="wk-stat-value"><?= $customMetaCategories ?>/<?= $totalCategories ?></div><div class="wk-stat-sub"><?= $totalCategories>0?round(($customMetaCategories/$totalCategories)*100):0 ?>% coverage</div></div>
-    <div class="wk-stat-card"><div class="wk-stat-label">Sitemap</div><div class="wk-stat-value" style="font-size:14px"><?= $sitemapExists?'<span style="color:var(--wk-green)">✓ Active</span>':'<span style="color:var(--wk-yellow)">Not generated</span>' ?></div><?php if($sitemapDate):?><div class="wk-stat-sub"><?=$sitemapDate?></div><?php endif;?></div>
-    <div class="wk-stat-card"><div class="wk-stat-label">robots.txt</div><div class="wk-stat-value" style="font-size:14px"><?= $robotsExists?'<span style="color:var(--wk-green)">✓ Active</span>':'<span style="color:var(--wk-yellow)">Not generated</span>' ?></div></div>
+    <div class="wk-stat-card"><div class="wk-stat-label">Sitemap</div><div class="wk-stat-value" style="font-size:14px"><?= $sitemapExists?'<span class="wk-text-green">✓ Active</span>':'<span style="color:var(--wk-yellow)">Not generated</span>' ?></div><?php if($sitemapDate):?><div class="wk-stat-sub"><?=$sitemapDate?></div><?php endif;?></div>
+    <div class="wk-stat-card"><div class="wk-stat-label">robots.txt</div><div class="wk-stat-value" style="font-size:14px"><?= $robotsExists?'<span class="wk-text-green">✓ Active</span>':'<span style="color:var(--wk-yellow)">Not generated</span>' ?></div></div>
 </div>
 
 <form method="POST" action="<?= $url('admin/seo/update') ?>">
     <?= \Core\Session::csrfField() ?>
 
-    <div class="wk-card" style="margin-bottom:20px">
-        <div class="wk-card-header"><h2>🔍 Site-Wide Meta Tags</h2></div>
+    <div class="wk-mb-20 wk-card">
+        <div class="wk-card-header"><h2><?= $icon('search') ?> Site-Wide Meta Tags</h2></div>
         <div class="wk-card-body">
             <div class="wk-form-group"><label>Site Meta Title</label><input type="text" name="site_meta_title" class="wk-input" id="seoSiteTitle" value="<?=$v('site_meta_title')?>" placeholder="<?= htmlspecialchars($currentSiteName) ?>" maxlength="70"><div class="wk-form-hint">Homepage title in search results. Leave empty to use store name.</div></div>
             <div class="wk-form-group"><label>Site Meta Description</label><textarea name="site_meta_description" class="wk-textarea" rows="3" maxlength="160" id="seoSiteDesc" placeholder="A compelling description of your store..."><?=$v('site_meta_description')?></textarea><div class="wk-form-hint"><span id="descCount"><?=mb_strlen($s['site_meta_description']??'')?></span>/160 characters</div></div>
@@ -26,10 +26,10 @@ $currentSiteName = \Core\Database::fetchValue("SELECT setting_value FROM wk_sett
         </div>
     </div>
 
-    <div class="wk-card" style="margin-bottom:20px">
-        <div class="wk-card-header"><h2>📝 Title Format</h2></div>
+    <div class="wk-mb-20 wk-card">
+        <div class="wk-card-header"><h2><?= $icon('notebook-pen') ?> Title Format</h2></div>
         <div class="wk-card-body">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div class="wk-grid-2">
                 <div class="wk-form-group"><label>Title Format</label><select name="title_format" class="wk-select" id="seoFormat">
                     <option value="{page} {sep} {site}" <?=($s['title_format']??'')=='{page} {sep} {site}'?'selected':''?>>Page — Site Name</option>
                     <option value="{site} {sep} {page}" <?=($s['title_format']??'')=='{site} {sep} {page}'?'selected':''?>>Site Name — Page</option>
@@ -44,9 +44,9 @@ $currentSiteName = \Core\Database::fetchValue("SELECT setting_value FROM wk_sett
 
             <!-- Proper Google Preview -->
             <div style="background:#fff;border:1px solid #dadce0;border-radius:10px;padding:16px 18px;margin-top:12px">
-                <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#70757a;margin-bottom:8px">📍 Google Search Preview — Homepage</div>
+                <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#70757a;margin-bottom:8px"><?= $icon('eye', 12) ?> Google Search Preview — Homepage</div>
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-                    <div style="width:26px;height:26px;border-radius:50%;background:#f1f3f4;display:flex;align-items:center;justify-content:center;font-size:12px">🌐</div>
+                    <div style="width:26px;height:26px;border-radius:50%;background:#f1f3f4;display:flex;align-items:center;justify-content:center;font-size:12px"><?= $icon('globe', 12) ?></div>
                     <div>
                         <div style="font-size:12px;color:#202124"><?= htmlspecialchars($baseUrl) ?></div>
                         <div style="font-size:12px;color:#4d5156"><?= htmlspecialchars($baseUrl) ?></div>
@@ -58,9 +58,9 @@ $currentSiteName = \Core\Database::fetchValue("SELECT setting_value FROM wk_sett
 
             <!-- Product page example preview -->
             <div style="background:#fff;border:1px solid #dadce0;border-radius:10px;padding:16px 18px;margin-top:10px">
-                <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#70757a;margin-bottom:8px">📍 Google Search Preview — Product Page Example</div>
+                <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#70757a;margin-bottom:8px"><?= $icon('eye', 12) ?> Google Search Preview — Product Page Example</div>
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-                    <div style="width:26px;height:26px;border-radius:50%;background:#f1f3f4;display:flex;align-items:center;justify-content:center;font-size:12px">🌐</div>
+                    <div style="width:26px;height:26px;border-radius:50%;background:#f1f3f4;display:flex;align-items:center;justify-content:center;font-size:12px"><?= $icon('globe', 12) ?></div>
                     <div style="font-size:12px;color:#4d5156"><?= htmlspecialchars($baseUrl) ?>/product/example-product</div>
                 </div>
                 <div id="prevProductTitle" style="font-size:20px;color:#1a0dab;font-weight:400;line-height:1.3;margin-bottom:4px">Example Product<?= htmlspecialchars(($s['title_separator'] ?? ' — ') . ($s['site_meta_title'] ?? $currentSiteName)) ?></div>
@@ -69,19 +69,19 @@ $currentSiteName = \Core\Database::fetchValue("SELECT setting_value FROM wk_sett
         </div>
     </div>
 
-    <div class="wk-card" style="margin-bottom:20px">
-        <div class="wk-card-header"><h2>🌐 Social & Verification</h2></div>
+    <div class="wk-mb-20 wk-card">
+        <div class="wk-card-header"><h2><?= $icon('globe') ?> Social & Verification</h2></div>
         <div class="wk-card-body">
             <div class="wk-form-group"><label>Twitter / X Handle</label><input type="text" name="twitter_handle" class="wk-input" value="<?=$v('twitter_handle')?>" placeholder="@yourstore"></div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div class="wk-grid-2">
                 <div class="wk-form-group"><label>Google Verification</label><input type="text" name="google_verification" class="wk-input" value="<?=$v('google_verification')?>" placeholder="Code from Google Search Console"></div>
                 <div class="wk-form-group"><label>Bing Verification</label><input type="text" name="bing_verification" class="wk-input" value="<?=$v('bing_verification')?>" placeholder="Code from Bing Webmaster"></div>
             </div>
         </div>
     </div>
 
-    <div class="wk-card" style="margin-bottom:20px">
-        <div class="wk-card-header"><h2>🤖 Crawling & Indexing</h2></div>
+    <div class="wk-mb-20 wk-card">
+        <div class="wk-card-header"><h2><?= $icon('bot') ?> Crawling & Indexing</h2></div>
         <div class="wk-card-body" style="display:flex;flex-direction:column;gap:16px">
             <?php
             $toggles = [
@@ -101,24 +101,24 @@ $currentSiteName = \Core\Database::fetchValue("SELECT setting_value FROM wk_sett
         </div>
     </div>
 
-    <button type="submit" class="wk-btn wk-btn-primary" style="margin-bottom:20px"><span>💾</span> Save SEO Settings</button>
+    <button type="submit" class="wk-mb-20 wk-btn wk-btn-primary"><?= $icon('save') ?> Save SEO Settings</button>
 </form>
 
-<div class="wk-card" style="margin-bottom:20px">
-    <div class="wk-card-header"><h2>🗺️ Sitemap & robots.txt</h2></div>
+<div class="wk-mb-20 wk-card">
+    <div class="wk-card-header"><h2><?= $icon('map') ?> Sitemap & robots.txt</h2></div>
     <div class="wk-card-body">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
             <div style="background:var(--wk-bg);border:1px solid var(--wk-border);border-radius:8px;padding:16px">
                 <h3 style="font-size:14px;margin-bottom:6px">sitemap.xml</h3>
                 <p style="font-size:12px;color:var(--wk-text-muted);margin-bottom:12px">All active products, categories, and pages for search engines.</p>
                 <?php if($sitemapDate):?><p style="font-size:11px;color:var(--wk-green);margin-bottom:8px">✓ Last: <?=$sitemapDate?></p><?php endif;?>
-                <form method="POST" action="<?=$url('admin/seo/generate-sitemap')?>"><?=\Core\Session::csrfField()?><button type="submit" class="wk-btn wk-btn-secondary wk-btn-sm"><?=$sitemapExists?'🔄 Regenerate':'🗺️ Generate'?> Sitemap</button></form>
+                <form method="POST" action="<?=$url('admin/seo/generate-sitemap')?>"><?=\Core\Session::csrfField()?><button type="submit" class="wk-btn wk-btn-secondary wk-btn-sm"><?= $sitemapExists ? $icon('refresh-cw', 14) . ' Regenerate' : $icon('map', 14) . ' Generate' ?> Sitemap</button></form>
             </div>
             <div style="background:var(--wk-bg);border:1px solid var(--wk-border);border-radius:8px;padding:16px">
                 <h3 style="font-size:14px;margin-bottom:6px">robots.txt</h3>
                 <p style="font-size:12px;color:var(--wk-text-muted);margin-bottom:12px">Blocks admin, API, checkout. Links to sitemap.</p>
                 <?php if($robotsExists):?><p style="font-size:11px;color:var(--wk-green);margin-bottom:8px">✓ File exists</p><?php endif;?>
-                <form method="POST" action="<?=$url('admin/seo/generate-robots')?>"><?=\Core\Session::csrfField()?><button type="submit" class="wk-btn wk-btn-secondary wk-btn-sm"><?=$robotsExists?'🔄 Regenerate':'🤖 Generate'?> robots.txt</button></form>
+                <form method="POST" action="<?=$url('admin/seo/generate-robots')?>"><?=\Core\Session::csrfField()?><button type="submit" class="wk-btn wk-btn-secondary wk-btn-sm"><?= $robotsExists ? $icon('refresh-cw', 14) . ' Regenerate' : $icon('bot', 14) . ' Generate' ?> robots.txt</button></form>
             </div>
         </div>
     </div>
@@ -127,7 +127,7 @@ $currentSiteName = \Core\Database::fetchValue("SELECT setting_value FROM wk_sett
 <div style="text-align:center;padding:24px;background:linear-gradient(135deg,#8b5cf6,#ec4899);border-radius:12px;color:#fff;margin-bottom:20px">
     <h3 style="margin:0 0 6px">Need Custom SEO Features?</h3>
     <p style="margin:0 0 12px;opacity:.9;font-size:13px">Advanced analytics, Google Merchant Center, structured data for reviews, and more.</p>
-    <a href="mailto:mail@lohit.me" style="display:inline-block;background:#fff;color:#8b5cf6;padding:8px 24px;border-radius:8px;font-weight:800;text-decoration:none;font-size:13px">📧 mail@lohit.me</a>
+    <a href="mailto:mail@lohit.me" style="display:inline-block;background:#fff;color:#8b5cf6;padding:8px 24px;border-radius:8px;font-weight:800;text-decoration:none;font-size:13px"><?= $icon('mail', 14) ?> mail@lohit.me</a>
 </div>
 
 <script>

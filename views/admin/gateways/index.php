@@ -2,7 +2,7 @@
 $e = fn($v) => \Core\View::e($v);
 $url = fn($p) => \Core\View::url($p);
 
-$icons = ['razorpay'=>'⚡','ccavenue'=>'🏦','stripe'=>'💳','nowpayments'=>'₿'];
+$icons = ['razorpay'=>'zap','ccavenue'=>'landmark','stripe'=>'credit-card','nowpayments'=>'bitcoin'];
 
 $fields = [
     'razorpay' => [
@@ -36,7 +36,7 @@ $fields = [
     <?php foreach ($gateways as $gw):
         $code   = $gw['gateway_code'];
         $config = json_decode($gw['config'], true) ?? [];
-        $icon   = $icons[$code] ?? '💰';
+        $gwIcon = $icons[$code] ?? 'wallet';
         $currencies = json_decode($gw['supported_currencies'] ?? '[]', true);
     ?>
     <div class="wk-gateway-card <?= $gw['is_active'] ? 'active' : '' ?>" style="position:relative">
@@ -46,7 +46,7 @@ $fields = [
 
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
             <h3 style="font-size:17px;font-weight:900"><?= $e($gw['display_name']) ?></h3>
-            <div style="width:44px;height:44px;border-radius:10px;background:var(--wk-bg);display:flex;align-items:center;justify-content:center;font-size:20px"><?= $icon ?></div>
+            <div style="width:44px;height:44px;border-radius:10px;background:var(--wk-bg);display:flex;align-items:center;justify-content:center;font-size:20px"><?= $icon($gwIcon, 20) ?></div>
         </div>
 
         <p style="font-size:13px;color:var(--wk-text-muted);margin-bottom:14px;line-height:1.5"><?= $e($gw['description']) ?></p>
@@ -72,14 +72,14 @@ $fields = [
                 <span style="font-size:12px;font-weight:700;color:var(--wk-text-muted)"><?= $gw['is_active'] ? 'Active' : 'Inactive' ?></span>
             </form>
             <span class="wk-badge <?= $gw['is_test_mode'] ? 'wk-badge-warning' : 'wk-badge-success' ?>">
-                <?= $gw['is_test_mode'] ? '🧪 Test' : '🟢 Live' ?>
+                <?= $gw['is_test_mode'] ? $icon('flask-conical', 12) . ' Test' : $icon('dot', 12, 'wk-text-green') . ' Live' ?>
             </span>
         </div>
 
         <!-- Configure -->
         <details style="margin-top:16px;padding-top:16px;border-top:1px solid var(--wk-border)">
             <summary style="font-size:13px;font-weight:800;color:var(--wk-purple);cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px">
-                ⚙ Configure
+                <?= $icon('settings', 14) ?> Configure
             </summary>
             <form method="POST" action="<?= $url('admin/gateways/configure') ?>" style="margin-top:16px">
                 <?= \Core\Session::csrfField() ?>
@@ -135,7 +135,7 @@ $fields = [
                 <?php if ($setup): ?>
                 <div style="background:var(--wk-bg);border:1px solid var(--wk-border);border-radius:var(--radius-sm);padding:12px 14px;font-size:12px;color:var(--wk-text-muted);margin-bottom:14px;line-height:1.6">
                     <div style="font-weight:800;color:var(--wk-text);margin-bottom:4px">Setup</div>
-                    <div style="margin-bottom:6px"><strong>Keys:</strong> <?= $setup['keys'] ?></div>
+                    <div class="wk-mb-6"><strong>Keys:</strong> <?= $setup['keys'] ?></div>
                     <div><strong>Webhook:</strong> <?= $setup['hook'] ?></div>
                 </div>
                 <?php endif; ?>
@@ -157,7 +157,7 @@ $fields = [
                     <span id="gwtest-<?= $e($code) ?>" style="font-size:12px;font-weight:700"></span>
                 </div>
 
-                <button type="submit" class="wk-btn wk-btn-primary" style="width:100%;justify-content:center">Save <?= $e($gw['display_name']) ?> Settings</button>
+                <button type="submit" class="wk-btn-block wk-btn wk-btn-primary">Save <?= $e($gw['display_name']) ?> Settings</button>
             </form>
         </details>
     </div>

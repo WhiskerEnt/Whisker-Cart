@@ -2,14 +2,14 @@
 
 <div style="display:flex;gap:12px;margin-bottom:24px">
     <a href="<?= $url('admin/email-templates') ?>" class="wk-btn wk-btn-secondary">← Back</a>
-    <a href="<?= $url('admin/email-templates/preview/'.$t['id']) ?>" target="_blank" class="wk-btn wk-btn-secondary">👁 Preview</a>
+    <a href="<?= $url('admin/email-templates/preview/'.$t['id']) ?>" target="_blank" class="wk-btn wk-btn-secondary"><?= $icon('eye') ?> Preview</a>
 </div>
 
 <form method="POST" action="<?= $url('admin/email-templates/update/'.$t['id']) ?>">
     <?= \Core\Session::csrfField() ?>
     <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px">
         <div>
-            <div class="wk-card" style="margin-bottom:20px">
+            <div class="wk-mb-20 wk-card">
                 <div class="wk-card-header"><h2>Template Details</h2></div>
                 <div class="wk-card-body">
                     <div class="wk-form-group"><label>Template Name</label><input type="text" name="name" class="wk-input" value="<?= $e($t['name']) ?>" required></div>
@@ -17,7 +17,7 @@
                 </div>
             </div>
             <div class="wk-card">
-                <div class="wk-card-header"><h2>Email Body</h2><span style="font-size:11px;color:var(--wk-text-muted)">Click &lt;/&gt; for HTML</span></div>
+                <div class="wk-card-header"><h2>Email Body</h2><span class="wk-fine">Click &lt;/&gt; for HTML</span></div>
                 <div class="wk-card-body" style="padding:0">
                     <div style="display:flex;flex-wrap:wrap;gap:3px;padding:10px 14px;border-bottom:1px solid var(--wk-border);background:var(--wk-bg)">
                         <button type="button" onclick="execCmd('bold')" style="background:none;border:1px solid var(--wk-border);border-radius:4px;padding:5px 9px;cursor:pointer;font-weight:900;font-size:13px">B</button>
@@ -28,15 +28,15 @@
                         <button type="button" onclick="execCmd('formatBlock','<h2>')" style="background:none;border:1px solid var(--wk-border);border-radius:4px;padding:5px 8px;cursor:pointer;font-size:11px;font-weight:800">H2</button>
                         <button type="button" onclick="execCmd('formatBlock','<p>')" style="background:none;border:1px solid var(--wk-border);border-radius:4px;padding:5px 8px;cursor:pointer;font-size:11px">¶</button>
                         <span style="width:1px;background:var(--wk-border);margin:0 3px"></span>
-                        <button type="button" onclick="execCmd('justifyCenter')" style="background:none;border:1px solid var(--wk-border);border-radius:4px;padding:5px 8px;cursor:pointer;font-size:11px">Center</button>
-                        <button type="button" onclick="insertLink()" style="background:none;border:1px solid var(--wk-border);border-radius:4px;padding:5px 8px;cursor:pointer;font-size:11px">🔗</button>
+                        <button type="button" onclick="execCmd('justifyCenter')" class="wk-btn-mini">Center</button>
+                        <button type="button" onclick="insertLink()" class="wk-btn-mini"><?= $icon('link', 12) ?></button>
                         <button type="button" onclick="insertButton()" style="background:var(--wk-purple);color:#fff;border:none;border-radius:4px;padding:5px 10px;cursor:pointer;font-size:11px;font-weight:700">+ Button</button>
-                        <button type="button" onclick="insertDivider()" style="background:none;border:1px solid var(--wk-border);border-radius:4px;padding:5px 8px;cursor:pointer;font-size:11px">― Line</button>
+                        <button type="button" onclick="insertDivider()" class="wk-btn-mini">― Line</button>
                         <select onchange="if(this.value){insertVariable(this.value);this.selectedIndex=0}" style="padding:5px 8px;border:1px solid var(--wk-border);border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;max-width:180px">
                             <option value="">+ Variable</option>
                             <?php foreach ($variables as $var => $desc): ?><option value="<?= $e($var) ?>"><?= $e($var) ?></option><?php endforeach; ?>
                         </select>
-                        <span style="flex:1"></span>
+                        <span class="wk-grow"></span>
                         <button type="button" onclick="toggleSource()" style="background:#1e1b2e;color:#e2e8f0;border:none;border-radius:4px;padding:5px 10px;cursor:pointer;font-size:11px;font-family:var(--font-mono);font-weight:700">&lt;/&gt;</button>
                     </div>
                     <?php
@@ -52,26 +52,26 @@
             </div>
         </div>
         <div>
-            <div class="wk-card" style="margin-bottom:20px">
+            <div class="wk-mb-20 wk-card">
                 <div class="wk-card-header"><h2>Settings</h2></div>
                 <div class="wk-card-body">
                     <div class="wk-form-group"><label>Slug</label><input type="text" class="wk-input" value="<?= $e($t['slug']) ?>" disabled style="opacity:.6;font-family:var(--font-mono);font-size:12px"></div>
-                    <div class="wk-form-group"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" name="is_active" value="1" <?= $t['is_active']?'checked':'' ?>> Active</label></div>
-                    <div style="font-size:11px;color:var(--wk-text-muted)">Updated: <?= date('M j, Y g:i A', strtotime($t['updated_at'])) ?></div>
+                    <div class="wk-form-group"><label class="wk-check"><input type="checkbox" name="is_active" value="1" <?= $t['is_active']?'checked':'' ?>> Active</label></div>
+                    <div class="wk-fine">Updated: <?= date('M j, Y g:i A', strtotime($t['updated_at'])) ?></div>
                 </div>
             </div>
 
             <!-- Send Test Email -->
             <div class="wk-card" style="margin-bottom:20px;border:2px solid var(--wk-purple)">
-                <div class="wk-card-header" style="background:var(--wk-purple-soft)"><h2>📨 Send Test Email</h2></div>
+                <div class="wk-card-header" style="background:var(--wk-purple-soft)"><h2><?= $icon('mail') ?> Send Test Email</h2></div>
                 <div class="wk-card-body">
                     <div class="wk-form-group"><label>Send to</label><input type="email" id="testEmail" class="wk-input" placeholder="your@email.com"></div>
-                    <button type="button" onclick="sendTestEmail()" id="testSendBtn" class="wk-btn wk-btn-primary wk-btn-sm" style="width:100%;justify-content:center">Send Test Email →</button>
+                    <button type="button" onclick="sendTestEmail()" id="testSendBtn" class="wk-btn-block wk-btn wk-btn-primary wk-btn-sm">Send Test Email →</button>
                     <div id="testResult" style="margin-top:8px;font-size:12px;font-weight:700;min-height:18px"></div>
                 </div>
             </div>
 
-            <div class="wk-card" style="margin-bottom:20px">
+            <div class="wk-mb-20 wk-card">
                 <div class="wk-card-header"><h2>Variables</h2></div>
                 <div class="wk-card-body" style="max-height:350px;overflow-y:auto">
                     <?php foreach ($variables as $var => $desc): ?>
@@ -83,8 +83,8 @@
                 </div>
             </div>
 
-            <button type="submit" class="wk-btn wk-btn-primary" style="width:100%;justify-content:center">Save Template</button>
-            <a href="<?= $url('admin/email-templates/preview/'.$t['id']) ?>" target="_blank" class="wk-btn wk-btn-secondary" style="width:100%;justify-content:center;margin-top:10px">👁 Preview</a>
+            <button type="submit" class="wk-btn-block wk-btn wk-btn-primary">Save Template</button>
+            <a href="<?= $url('admin/email-templates/preview/'.$t['id']) ?>" target="_blank" class="wk-btn wk-btn-secondary" style="width:100%;justify-content:center;margin-top:10px"><?= $icon('eye') ?> Preview</a>
         </div>
     </div>
 </form>
@@ -106,16 +106,16 @@ async function sendTestEmail() {
     const email = document.getElementById('testEmail').value.trim();
     const btn = document.getElementById('testSendBtn');
     const result = document.getElementById('testResult');
-    if (!email) { result.innerHTML = '<span style="color:var(--wk-red)">Enter an email address</span>'; return; }
+    if (!email) { result.innerHTML = '<span class="wk-text-red">Enter an email address</span>'; return; }
     btn.disabled = true; btn.textContent = 'Sending...'; result.innerHTML = '';
     const form = new FormData(); form.append('test_email', email);
     try {
         const res = await fetch('<?= $url('admin/email-templates/test-send/'.$t['id']) ?>', {method:'POST', body:form});
         const data = await res.json();
         result.innerHTML = data.success
-            ? '<span style="color:var(--wk-green)">✓ ' + data.message + '</span>'
-            : '<span style="color:var(--wk-red)">✗ ' + data.message + '</span>';
-    } catch(e) { result.innerHTML = '<span style="color:var(--wk-red)">Network error</span>'; }
+            ? '<span class="wk-text-green">✓ ' + data.message + '</span>'
+            : '<span class="wk-text-red">✗ ' + data.message + '</span>';
+    } catch(e) { result.innerHTML = '<span class="wk-text-red">Network error</span>'; }
     btn.disabled = false; btn.textContent = 'Send Test Email →';
 }
 </script>

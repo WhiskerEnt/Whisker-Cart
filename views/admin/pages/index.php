@@ -1,6 +1,6 @@
 <?php $e=fn($v)=>\Core\View::e($v); $url=fn($p)=>\Core\View::url($p); ?>
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
-    <p style="color:var(--wk-text-muted);font-weight:600"><?= count($pages) ?> page<?= count($pages)!==1?'s':'' ?></p>
+<div class="wk-row-between">
+    <p class="wk-muted wk-semibold"><?= count($pages) ?> page<?= count($pages)!==1?'s':'' ?></p>
     <a href="<?= $url('admin/pages/create') ?>" class="wk-btn wk-btn-primary">+ New Page</a>
 </div>
 
@@ -44,7 +44,7 @@ $drafts  = array_values(array_filter($recommended, fn($r) => $r['state'] === 'dr
                         <?php if ($r['state'] === 'draft'): ?>
                             <a href="<?= $url('admin/pages/edit/' . (int) $r['id']) ?>" class="wk-btn wk-btn-secondary wk-btn-sm">Finish it</a>
                         <?php else: ?>
-                            <form method="POST" action="<?= $url('admin/pages/add-recommended') ?>" style="margin:0">
+                            <form method="POST" action="<?= $url('admin/pages/add-recommended') ?>" class="wk-m-0">
                                 <?= \Core\Session::csrfField() ?>
                                 <input type="hidden" name="slug" value="<?= $e($r['slug']) ?>">
                                 <button type="submit" class="wk-btn wk-btn-primary wk-btn-sm">Start this page</button>
@@ -65,7 +65,7 @@ $drafts  = array_values(array_filter($recommended, fn($r) => $r['state'] === 'dr
 <table class="wk-table"><thead><tr><th>Page</th><th>URL</th><th>Status</th><th>Updated</th><th>Actions</th></tr></thead><tbody>
 <?php foreach ($pages as $p): ?>
 <tr>
-    <td style="font-weight:800"><?= $e($p['title']) ?></td>
+    <td class="wk-heavy"><?= $e($p['title']) ?></td>
     <td><a href="<?= $url('page/'.$p['slug']) ?>" target="_blank" style="font-family:var(--font-mono);font-size:12px;color:var(--wk-purple)">/page/<?= $e($p['slug']) ?> ↗</a></td>
     <td><span class="wk-badge <?= $p['is_active']?'wk-badge-success':'wk-badge-danger' ?>"><?= $p['is_active']?'Active':'Hidden' ?></span></td>
     <td style="font-size:13px;color:var(--wk-text-muted)"><?= date('M j, Y', strtotime($p['updated_at'])) ?></td>

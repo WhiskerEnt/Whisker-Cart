@@ -147,7 +147,7 @@ body {
     width: 3px; border-radius: 0 3px 3px 0;
     background: linear-gradient(180deg, var(--wk-purple), var(--wk-pink));
 }
-.wk-nav-icon { font-size: 16px; width: 22px; text-align: center; }
+.wk-nav-icon { width: 22px; display: flex; align-items: center; justify-content: center; }
 .wk-nav-badge {
     margin-left: auto;
     background: linear-gradient(135deg, var(--wk-pink), var(--wk-purple));
@@ -223,7 +223,7 @@ body {
 .wk-flash-error   { background: var(--wk-red-soft); color: var(--wk-red); }
 .wk-flash-warning  { background: var(--wk-yellow-soft); color: var(--wk-yellow); }
 .wk-flash-info     { background: var(--wk-blue-soft); color: var(--wk-blue); }
-.wk-flash-icon { font-size: 16px; }
+.wk-flash-icon { display: flex; align-items: center; }
 .wk-flash-close {
     margin-left: auto; background: none; border: none;
     font-size: 18px; cursor: pointer; color: inherit; opacity: .5;

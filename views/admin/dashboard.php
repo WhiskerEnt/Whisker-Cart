@@ -1,6 +1,6 @@
 <?php
 $e=fn($v)=>\Core\View::e($v); $url=fn($p)=>\Core\View::url($p); $price=fn($v)=>$currency.number_format((float)$v,2);
-$statusMap = ['pending'=>['warning','⏳'],'processing'=>['info','🔄'],'paid'=>['success','✓'],'shipped'=>['purple','📦'],'delivered'=>['success','✅'],'cancelled'=>['danger','✗'],'refunded'=>['danger','↩']];
+$statusMap = ['pending'=>['warning','hourglass'],'processing'=>['info','refresh-cw'],'paid'=>['success','check'],'shipped'=>['purple','package'],'delivered'=>['success','circle-check'],'cancelled'=>['danger','x'],'refunded'=>['danger','undo-2']];
 $customerName = function($o) {
     if (!empty($o['first_name'])) return trim($o['first_name'].' '.($o['last_name']??''));
     $b = json_decode($o['billing_address']??'{}', true);
@@ -21,8 +21,8 @@ if ($showUpdate && $dismissedData) {
 <?php if ($showUpdate): ?>
 <!-- Update Banner -->
 <div id="updateBanner" style="background:linear-gradient(135deg,#1e1b2e,#2d2640);border:2px solid <?= ($updateAvailable['severity'] ?? '') === 'critical' ? '#ef4444' : '#8b5cf6' ?>;border-radius:14px;padding:20px 24px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
-    <div style="display:flex;align-items:center;gap:14px">
-        <div style="width:44px;height:44px;border-radius:12px;background:<?= ($updateAvailable['severity'] ?? '') === 'critical' ? '#ef4444' : '#8b5cf6' ?>;display:flex;align-items:center;justify-content:center;font-size:22px">🚀</div>
+    <div class="wk-row">
+        <div style="width:44px;height:44px;border-radius:12px;background:<?= ($updateAvailable['severity'] ?? '') === 'critical' ? '#ef4444' : '#8b5cf6' ?>;display:flex;align-items:center;justify-content:center;font-size:22px"><?= $icon('refresh-cw', 22) ?></div>
         <div>
             <div style="font-weight:800;font-size:15px;color:#fff">
                 Whisker v<?= $e($updateAvailable['version'] ?? '') ?> is available!
@@ -108,10 +108,10 @@ if (updateForm) {
 <!-- Rollback Option -->
 <div style="background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:12px;padding:14px 20px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
     <div style="display:flex;align-items:center;gap:10px">
-        <span style="font-size:18px">🔄</span>
+        <?= $icon('refresh-cw', 18) ?>
         <div>
             <div style="font-weight:800;font-size:13px;color:var(--wk-text)">Rollback Available</div>
-            <div style="font-size:12px;color:var(--wk-text-muted)"><?= count($backups) ?> backup<?= count($backups) > 1 ? 's' : '' ?> saved</div>
+            <div class="wk-note"><?= count($backups) ?> backup<?= count($backups) > 1 ? 's' : '' ?> saved</div>
         </div>
     </div>
     <form method="POST" action="<?= $url('admin/update/rollback') ?>" onsubmit="return confirm('This will restore your store to the selected backup version. Your config, database, and uploads will NOT be affected. Continue?')" style="display:flex;align-items:center;gap:8px">
@@ -127,45 +127,45 @@ if (updateForm) {
 <?php endif; ?>
 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px">
     <div class="wk-card" style="padding:20px">
-        <div style="display:flex;align-items:center;gap:14px">
-            <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#8b5cf6,#a78bfa);display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff">💰</div>
+        <div class="wk-row">
+            <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#8b5cf6,#a78bfa);display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff"><?= $icon('wallet', 22) ?></div>
             <div>
-                <div style="font-size:11px;font-weight:800;text-transform:uppercase;color:var(--wk-text-muted)">Total Revenue</div>
+                <div class="wk-label">Total Revenue</div>
                 <div style="font-size:24px;font-weight:900;font-family:var(--font-mono)"><?= $price($stats['revenue']) ?></div>
                 <div style="font-size:11px;color:var(--wk-green);font-weight:700">Today: <?= $price($stats['today_revenue']) ?></div>
             </div>
         </div>
     </div>
     <div class="wk-card" style="padding:20px">
-        <div style="display:flex;align-items:center;gap:14px">
-            <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#ec4899,#f472b6);display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff">📦</div>
+        <div class="wk-row">
+            <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#ec4899,#f472b6);display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff"><?= $icon('package', 22) ?></div>
             <div>
-                <div style="font-size:11px;font-weight:800;text-transform:uppercase;color:var(--wk-text-muted)">Orders</div>
+                <div class="wk-label">Orders</div>
                 <div style="font-size:24px;font-weight:900"><?= $stats['orders'] ?></div>
-                <div style="font-size:11px;font-weight:700"><span style="color:var(--wk-yellow)"><?= $stats['pending'] ?> pending</span> · <span style="color:var(--wk-green)"><?= $stats['today_orders'] ?> today</span></div>
+                <div style="font-size:11px;font-weight:700"><span style="color:var(--wk-yellow)"><?= $stats['pending'] ?> pending</span> · <span class="wk-text-green"><?= $stats['today_orders'] ?> today</span></div>
             </div>
         </div>
     </div>
     <div class="wk-card" style="padding:20px">
-        <div style="display:flex;align-items:center;gap:14px">
-            <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#10b981,#34d399);display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff">👥</div>
+        <div class="wk-row">
+            <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#10b981,#34d399);display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff"><?= $icon('users', 22) ?></div>
             <div>
-                <div style="font-size:11px;font-weight:800;text-transform:uppercase;color:var(--wk-text-muted)">Customers</div>
+                <div class="wk-label">Customers</div>
                 <div style="font-size:24px;font-weight:900"><?= $stats['customers'] ?></div>
                 <div style="font-size:11px;color:var(--wk-text-muted);font-weight:700">Avg order: <?= $price($stats['avg_order']) ?></div>
             </div>
         </div>
     </div>
     <div class="wk-card" style="padding:20px">
-        <div style="display:flex;align-items:center;gap:14px">
-            <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#f59e0b,#fbbf24);display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff">🏪</div>
+        <div class="wk-row">
+            <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#f59e0b,#fbbf24);display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff"><?= $icon('store', 22) ?></div>
             <div>
-                <div style="font-size:11px;font-weight:800;text-transform:uppercase;color:var(--wk-text-muted)">Products</div>
+                <div class="wk-label">Products</div>
                 <div style="font-size:24px;font-weight:900"><?= $stats['products'] ?></div>
                 <div style="font-size:11px;font-weight:700">
-                    <?php if ($stats['out_of_stock']): ?><span style="color:var(--wk-red)"><?= $stats['out_of_stock'] ?> out of stock</span><?php endif; ?>
+                    <?php if ($stats['out_of_stock']): ?><span class="wk-text-red"><?= $stats['out_of_stock'] ?> out of stock</span><?php endif; ?>
                     <?php if ($stats['low_stock']): ?> · <span style="color:var(--wk-yellow)"><?= $stats['low_stock'] ?> low</span><?php endif; ?>
-                    <?php if (!$stats['out_of_stock'] && !$stats['low_stock']): ?><span style="color:var(--wk-green)">All stocked</span><?php endif; ?>
+                    <?php if (!$stats['out_of_stock'] && !$stats['low_stock']): ?><span class="wk-text-green">All stocked</span><?php endif; ?>
                 </div>
             </div>
         </div>
@@ -195,8 +195,8 @@ if (updateForm) {
                     $colors = ['pending'=>'#f59e0b','processing'=>'#3b82f6','paid'=>'#10b981','shipped'=>'#8b5cf6','delivered'=>'#10b981','cancelled'=>'#ef4444','refunded'=>'#6b7280'];
                 ?>
                 <div style="display:flex;align-items:center;justify-content:space-between;padding:3px 0;font-size:12px">
-                    <div style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:<?= $colors[$sb['status']]??'#6b7280' ?>"></span><span style="font-weight:700"><?= ucfirst($sb['status']) ?></span></div>
-                    <span style="font-weight:800"><?= $sb['count'] ?></span>
+                    <div style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:<?= $colors[$sb['status']]??'#6b7280' ?>"></span><span class="wk-bold"><?= ucfirst($sb['status']) ?></span></div>
+                    <span class="wk-heavy"><?= $sb['count'] ?></span>
                 </div>
                 <?php endforeach; ?>
             </div>
@@ -208,7 +208,7 @@ if (updateForm) {
 <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:20px;margin-bottom:24px">
     <!-- Top Selling Products -->
     <div class="wk-card">
-        <div class="wk-card-header"><h2>🏆 Top Selling Products</h2></div>
+        <div class="wk-card-header"><h2><?= $icon('trophy') ?> Top Selling Products</h2></div>
         <?php if (empty($topProducts)): ?>
             <div style="text-align:center;padding:32px;color:var(--wk-text-muted)">No sales yet</div>
         <?php else: ?>
@@ -216,11 +216,11 @@ if (updateForm) {
         <div style="display:flex;align-items:center;gap:14px;padding:12px 20px;border-bottom:1px solid var(--wk-border)">
             <div style="font-size:16px;font-weight:900;color:<?= $i===0?'var(--wk-purple)':($i===1?'var(--wk-pink)':'var(--wk-text-muted)') ?>;width:24px">#<?= $i+1 ?></div>
             <div style="width:40px;height:40px;border-radius:8px;overflow:hidden;background:var(--wk-bg);flex-shrink:0">
-                <?php if ($tp['image']): ?><img src="<?= $url('storage/uploads/products/'.$tp['image']) ?>" style="width:100%;height:100%;object-fit:cover"><?php else: ?><div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:16px">📦</div><?php endif; ?>
+                <?php if ($tp['image']): ?><img src="<?= $url('storage/uploads/products/'.$tp['image']) ?>" class="wk-cover"><?php else: ?><div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:16px"><?= $icon('package', 16) ?></div><?php endif; ?>
             </div>
-            <div style="flex:1">
+            <div class="wk-grow">
                 <div style="font-weight:800;font-size:13px"><?= $e($tp['name']) ?></div>
-                <div style="font-size:11px;color:var(--wk-text-muted)"><?= $tp['sold'] ?> sold</div>
+                <div class="wk-fine"><?= $tp['sold'] ?> sold</div>
             </div>
             <div style="font-family:var(--font-mono);font-weight:800;font-size:14px;color:var(--wk-green)"><?= $price($tp['revenue']) ?></div>
         </div>
@@ -230,18 +230,18 @@ if (updateForm) {
 
     <!-- Recent Customers -->
     <div class="wk-card">
-        <div class="wk-card-header"><h2>👥 Recent Customers</h2><a href="<?= $url('admin/customers') ?>" class="wk-btn wk-btn-secondary wk-btn-sm">View All →</a></div>
+        <div class="wk-card-header"><h2><?= $icon('users') ?> Recent Customers</h2><a href="<?= $url('admin/customers') ?>" class="wk-btn wk-btn-secondary wk-btn-sm">View All →</a></div>
         <?php if (empty($recentCustomers)): ?>
             <div style="text-align:center;padding:32px;color:var(--wk-text-muted)">No customers yet</div>
         <?php else: ?>
         <?php foreach ($recentCustomers as $rc): ?>
         <div style="display:flex;align-items:center;gap:12px;padding:10px 20px;border-bottom:1px solid var(--wk-border)">
             <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--wk-purple),var(--wk-pink));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:13px"><?= strtoupper(substr($rc['first_name']??'?',0,1)) ?></div>
-            <div style="flex:1">
+            <div class="wk-grow">
                 <div style="font-weight:700;font-size:13px"><?= $e($rc['first_name'].' '.$rc['last_name']) ?></div>
-                <div style="font-size:11px;color:var(--wk-text-muted)"><?= $e($rc['email']) ?></div>
+                <div class="wk-fine"><?= $e($rc['email']) ?></div>
             </div>
-            <div style="font-size:11px;color:var(--wk-text-muted)"><?= date('M j', strtotime($rc['created_at'])) ?></div>
+            <div class="wk-fine"><?= date('M j', strtotime($rc['created_at'])) ?></div>
         </div>
         <?php endforeach; ?>
         <?php endif; ?>
@@ -252,18 +252,18 @@ if (updateForm) {
 <div class="wk-card">
     <div class="wk-card-header"><h2>Recent Orders</h2><a href="<?= $url('admin/orders') ?>" class="wk-btn wk-btn-secondary wk-btn-sm">View All →</a></div>
     <?php if (empty($recentOrders)): ?>
-        <div class="wk-empty"><div class="wk-empty-icon">🛍️</div><p style="font-weight:800">No orders yet</p></div>
+        <div class="wk-empty"><div class="wk-empty-icon"><?= $icon('shopping-bag', 48) ?></div><p class="wk-heavy">No orders yet</p></div>
     <?php else: ?>
     <table class="wk-table"><thead><tr><th>Order</th><th>Customer</th><th>Total</th><th>Status</th><th>Date</th></tr></thead><tbody>
-    <?php foreach ($recentOrders as $order): $s=$statusMap[$order['status']]??['info','?']; ?>
+    <?php foreach ($recentOrders as $order): $s=$statusMap[$order['status']]??['info','clipboard-list']; ?>
     <tr style="cursor:pointer" onclick="window.location='<?= $url('admin/orders/'.$order['id']) ?>'">
         <td><span style="font-family:var(--font-mono);font-size:12px;font-weight:700;color:var(--wk-purple)"><?= $e($order['order_number']) ?></span></td>
         <td>
-            <div style="font-weight:700"><?= $e($customerName($order)) ?></div>
-            <?php if ($order['customer_email']): ?><div style="font-size:11px;color:var(--wk-text-muted)"><?= $e($order['customer_email']) ?></div><?php endif; ?>
+            <div class="wk-bold"><?= $e($customerName($order)) ?></div>
+            <?php if ($order['customer_email']): ?><div class="wk-fine"><?= $e($order['customer_email']) ?></div><?php endif; ?>
         </td>
-        <td style="font-family:var(--font-mono);font-weight:700"><?= $price($order['total']) ?></td>
-        <td><span class="wk-badge wk-badge-<?= $s[0] ?>"><?= $s[1] ?> <?= ucfirst($order['status']) ?></span></td>
+        <td class="wk-mono wk-bold"><?= $price($order['total']) ?></td>
+        <td><span class="wk-badge wk-badge-<?= $s[0] ?>"><?= $icon($s[1], 12) ?> <?= ucfirst($order['status']) ?></span></td>
         <td style="color:var(--wk-text-muted);font-size:13px"><?= date('M j, g:i A', strtotime($order['created_at'])) ?></td>
     </tr>
     <?php endforeach; ?>

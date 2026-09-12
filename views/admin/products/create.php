@@ -7,7 +7,7 @@ $o = fn($k, $d='') => htmlspecialchars($old[$k] ?? $d);
     <?= \Core\Session::csrfField() ?>
     <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px">
         <div>
-            <div class="wk-card" style="margin-bottom:20px">
+            <div class="wk-mb-20 wk-card">
                 <div class="wk-card-header"><h2>Product Details</h2></div>
                 <div class="wk-card-body">
                     <div class="wk-form-group"><label>Product Name</label><input type="text" name="name" class="wk-input" required placeholder="e.g. Classic Cotton T-Shirt" autofocus value="<?=$o('name')?>"></div>
@@ -53,24 +53,24 @@ $o = fn($k, $d='') => htmlspecialchars($old[$k] ?? $d);
                 </div>
             </div>
 
-            <div class="wk-card" style="margin-bottom:20px">
-                <div class="wk-card-header"><h2>📸 Product Images</h2></div>
+            <div class="wk-mb-20 wk-card">
+                <div class="wk-card-header"><h2><?= $icon('image') ?> Product Images</h2></div>
                 <div class="wk-card-body">
                     <div id="imageGallery" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px;margin-bottom:16px"></div>
                     <div id="dropZone" style="border:2px dashed var(--wk-border);border-radius:var(--radius);padding:32px;text-align:center;cursor:pointer;transition:all .2s;background:var(--wk-bg)" onclick="document.getElementById('fileInput').click()">
-                        <div style="font-size:32px;margin-bottom:8px;opacity:.4">📸</div>
+                        <div style="font-size:32px;margin-bottom:8px;opacity:.4"><?= $icon('image', 32) ?></div>
                         <div style="font-weight:800;font-size:14px;margin-bottom:4px">Drop images here or click to upload</div>
-                        <div style="font-size:12px;color:var(--wk-text-muted)">JPG, PNG, WebP, GIF · Max 5MB each · First image = primary</div>
+                        <div class="wk-note">JPG, PNG, WebP, GIF · Max 5MB each · First image = primary</div>
                         <input type="file" id="fileInput" multiple accept="image/*" style="display:none" onchange="handleFiles(this.files)">
                     </div>
-                    <div id="uploadProgress" style="margin-top:12px"></div>
+                    <div id="uploadProgress" class="wk-mt-12"></div>
                 </div>
             </div>
 
-            <div class="wk-card" style="margin-bottom:20px">
+            <div class="wk-mb-20 wk-card">
                 <div class="wk-card-header"><h2>Pricing & Inventory</h2></div>
                 <div class="wk-card-body">
-                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+                    <div class="wk-grid-3">
                         <div class="wk-form-group"><label>Price</label><input type="number" step="0.01" name="price" class="wk-input" required placeholder="0.00" value="<?=$o('price')?>"></div>
                         <div class="wk-form-group"><label>Sale Price</label><input type="number" step="0.01" name="sale_price" class="wk-input" placeholder="Optional" value="<?=$o('sale_price')?>"></div>
                         <div class="wk-form-group"><label>Stock Quantity</label><input type="number" name="stock_quantity" class="wk-input" value="<?=$o('stock_quantity','0')?>"></div>
@@ -80,9 +80,9 @@ $o = fn($k, $d='') => htmlspecialchars($old[$k] ?? $d);
             </div>
 
             <div class="wk-card">
-                <div class="wk-card-header"><h2>🚚 Shipping & Weight</h2></div>
+                <div class="wk-card-header"><h2><?= $icon('truck') ?> Shipping & Weight</h2></div>
                 <div class="wk-card-body">
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+                    <div class="wk-grid-2">
                         <div class="wk-form-group">
                             <label>Weight</label>
                             <input type="number" step="0.001" name="weight_value" class="wk-input" placeholder="0.000">
@@ -118,16 +118,16 @@ $o = fn($k, $d='') => htmlspecialchars($old[$k] ?? $d);
 
             <!-- Variants (greyed out — need to save first) -->
             <div class="wk-card" style="opacity:.6;pointer-events:none">
-                <div class="wk-card-header"><h2>🎨 Variants</h2></div>
+                <div class="wk-card-header"><h2><?= $icon('palette') ?> Variants</h2></div>
                 <div class="wk-card-body" style="text-align:center;padding:28px">
-                    <div style="font-size:28px;margin-bottom:8px;opacity:.4">🎨</div>
+                    <div style="font-size:28px;margin-bottom:8px;opacity:.4"><?= $icon('palette', 28) ?></div>
                     <p style="font-weight:800;margin-bottom:4px">Save product first to add variants</p>
                     <p style="font-size:13px;color:var(--wk-text-muted)">After saving, you can add variants like Color, Size — each with its own images, price, and stock.</p>
                 </div>
             </div>
         </div>
         <div>
-            <div class="wk-card" style="margin-bottom:20px">
+            <div class="wk-mb-20 wk-card">
                 <div class="wk-card-header"><h2>Organization</h2></div>
                 <div class="wk-card-body">
                     <div class="wk-form-group">
@@ -138,19 +138,19 @@ $o = fn($k, $d='') => htmlspecialchars($old[$k] ?? $d);
                                 <option value="<?= $cat['id'] ?>"><?= $cat['parent_name'] ? htmlspecialchars($cat['parent_name']).' → ' : '' ?><?= htmlspecialchars($cat['name']) ?></option>
                             <?php endforeach; ?>
                         </select>
-                        <div style="margin-top:8px">
-                            <button type="button" class="wk-btn wk-btn-secondary wk-btn-sm" style="width:100%;justify-content:center" onclick="document.getElementById('quickCatBox').style.display=document.getElementById('quickCatBox').style.display==='none'?'block':'none'">+ Quick Add Category</button>
+                        <div class="wk-mt-8">
+                            <button type="button" class="wk-btn-block wk-btn wk-btn-secondary wk-btn-sm" onclick="document.getElementById('quickCatBox').style.display=document.getElementById('quickCatBox').style.display==='none'?'block':'none'">+ Quick Add Category</button>
                             <div id="quickCatBox" style="display:none;margin-top:8px;padding:12px;background:var(--wk-bg);border-radius:8px">
                                 <input type="text" id="quickCatName" class="wk-input" placeholder="Category name" style="margin-bottom:8px">
-                                <button type="button" class="wk-btn wk-btn-primary wk-btn-sm" style="width:100%;justify-content:center" onclick="quickAddCategory()">Create & Select</button>
+                                <button type="button" class="wk-btn-block wk-btn wk-btn-primary wk-btn-sm" onclick="quickAddCategory()">Create & Select</button>
                             </div>
                         </div>
                     </div>
-                    <div class="wk-form-group"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" name="is_active" value="1" checked> Active</label></div>
-                    <div class="wk-form-group"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" name="is_featured" value="1"> Featured</label></div>
+                    <div class="wk-form-group"><label class="wk-check"><input type="checkbox" name="is_active" value="1" checked> Active</label></div>
+                    <div class="wk-form-group"><label class="wk-check"><input type="checkbox" name="is_featured" value="1"> Featured</label></div>
                 </div>
             </div>
-            <button type="submit" class="wk-btn wk-btn-primary" style="width:100%;justify-content:center">Save & Add Variants →</button>
+            <button type="submit" class="wk-btn-block wk-btn wk-btn-primary">Save & Add Variants →</button>
             <a href="<?= $url('admin/products') ?>" class="wk-btn wk-btn-secondary" style="width:100%;justify-content:center;margin-top:10px">Cancel</a>
 
             <?php
@@ -207,7 +207,7 @@ async function handleFiles(files) {
 function renderGallery() {
     gallery.innerHTML = uploadedImages.map((img, i) => `
         <div style="position:relative;border-radius:10px;overflow:hidden;border:2px solid ${i===0?'var(--wk-purple)':'var(--wk-border)'};aspect-ratio:1;background:var(--wk-bg)">
-            <img src="${img.url}" style="width:100%;height:100%;object-fit:cover">
+            <img src="${img.url}" class="wk-cover">
             ${i===0 ? '<div style="position:absolute;bottom:0;left:0;right:0;background:var(--wk-purple);color:#fff;font-size:10px;font-weight:800;text-align:center;padding:3px;text-transform:uppercase">★ Primary</div>' : ''}
             <div style="position:absolute;top:6px;right:6px;display:flex;gap:4px">
                 ${i!==0 ? '<button type="button" onclick="setPrimary('+i+')" style="background:var(--wk-purple);color:#fff;border:none;border-radius:5px;font-size:11px;padding:3px 8px;cursor:pointer;font-weight:700" title="Set as primary">★</button>' : ''}
