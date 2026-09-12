@@ -3,9 +3,8 @@
  * WHISKER — Custom Autoloader
  * Maps namespaces to directories. Zero dependencies.
  *
- * Namespace mapping:
+ * Namespace mapping (the same map composer.json declares as PSR-4):
  *   App\Controllers\Admin\*  → app/Controllers/Admin/*.php
- *   App\Models\*             → app/Models/*.php
  *   App\Middleware\*          → app/Middleware/*.php
  *   App\Services\*            → app/Services/*.php
  *   Core\*                    → core/*.php
