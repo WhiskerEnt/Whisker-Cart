@@ -1,16 +1,17 @@
 <?php $e=fn($v)=>\Core\View::e($v); $url=fn($p)=>\Core\View::url($p); $t=$ticket;
-$sm=['open'=>'🟢 Open','in_progress'=>'🔵 In Progress','waiting'=>'🟡 Waiting','resolved'=>'✅ Resolved','closed'=>'⚫ Closed'];
+$sm=['open'=>['dot','wk-status-open','Open'],'in_progress'=>['dot','wk-status-progress','In Progress'],'waiting'=>['dot','wk-status-waiting','Waiting'],'resolved'=>['circle-check','wk-status-resolved','Resolved'],'closed'=>['dot','wk-status-closed','Closed']];
 ?>
 <section class="wk-section"><div class="wk-container" style="max-width:800px">
     <a href="<?= $url('account/tickets') ?>" style="color:var(--wk-purple-ink);font-weight:700;font-size:13px;margin-bottom:16px;display:inline-block">← My Tickets</a>
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
         <span style="font-family:var(--font-mono);font-size:14px;color:var(--wk-purple-ink);font-weight:800"><?= $e($t['ticket_number']) ?></span>
-        <span style="font-size:13px;font-weight:700"><?= $sm[$t['status']]??$t['status'] ?></span>
+        <?php $s = $sm[$t['status']] ?? ['clipboard-list', '', ucfirst($t['status'])]; ?>
+        <span style="font-size:13px;font-weight:700"><?= $icon($s[0], 13, $s[1]) ?> <?= $e($s[2]) ?></span>
     </div>
     <h1 style="font-size:22px;font-weight:900;margin-bottom:24px"><?= $e($t['subject']) ?></h1>
 
     <!-- Messages -->
-    <div style="margin-bottom:24px">
+    <div class="wk-mb-24">
         <?php foreach ($replies as $r): $isAdmin = $r['sender_type']==='admin'; ?>
         <div style="display:flex;gap:12px;margin-bottom:16px;flex-direction:<?= $isAdmin?'row':'row-reverse' ?>">
             <div style="width:36px;height:36px;border-radius:50%;background:<?= $isAdmin?'linear-gradient(135deg,var(--wk-purple),var(--wk-pink))':'var(--wk-bg)' ?>;display:flex;align-items:center;justify-content:center;color:<?= $isAdmin?'#fff':'var(--wk-text)' ?>;font-weight:800;font-size:13px;flex-shrink:0;border:<?= $isAdmin?'none':'2px solid var(--wk-border)' ?>"><?= strtoupper(substr($r['sender_name'],0,1)) ?></div>

@@ -536,3 +536,43 @@ body {
     .wk-recommended-item > div:last-child { width: 100%; }
     .wk-recommended-item .wk-btn { width: 100%; }
 }
+
+/* ── Utilities ──────────────────────────────── */
+/* Single-purpose classes for what used to be written inline on element
+   after element. The spacing steps are the ones the views already use.
+   The text and spacing ones carry !important because they stand in for
+   inline styles, which won over every rule; without it a rule such as
+   .wk-form-group label would quietly take back a label's size. */
+.wk-muted { color: var(--wk-text-muted) !important; }
+.wk-subtle { font-weight: 500 !important; color: var(--wk-text-muted) !important; }
+.wk-fine { font-size: 11px !important; color: var(--wk-text-muted) !important; }
+.wk-hint { font-size: 11px !important; color: var(--wk-text-muted) !important; margin-top: 3px !important; }
+.wk-note { font-size: 12px !important; color: var(--wk-text-muted) !important; }
+.wk-label { font-size: 11px !important; font-weight: 800 !important; text-transform: uppercase; color: var(--wk-text-muted) !important; }
+.wk-bold { font-weight: 700 !important; }
+.wk-semibold { font-weight: 600 !important; }
+.wk-heavy { font-weight: 800 !important; }
+.wk-mono { font-family: var(--font-mono) !important; }
+.wk-text-red { color: var(--wk-red) !important; }
+.wk-text-green { color: var(--wk-green) !important; }
+.wk-m-0 { margin: 0 !important; }
+.wk-mb-6 { margin-bottom: 6px !important; }
+.wk-mb-12 { margin-bottom: 12px !important; }
+.wk-mb-14 { margin-bottom: 14px !important; }
+.wk-mb-20 { margin-bottom: 20px !important; }
+.wk-mt-8 { margin-top: 8px !important; }
+.wk-mt-12 { margin-top: 12px !important; }
+.wk-grow { flex: 1; }
+.wk-btn-block { width: 100%; justify-content: center; }
+.wk-btn-grow { flex: 1; justify-content: center; }
+.wk-btn-mini { background: none; border: 1px solid var(--wk-border); border-radius: 4px; padding: 5px 8px; cursor: pointer; font-size: 11px; }
+.wk-cover { width: 100%; height: 100%; object-fit: cover; }
+.wk-check { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.wk-row { display: flex; align-items: center; gap: 14px; }
+.wk-row-between { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+.wk-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.wk-grid-2-wide { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.wk-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+@media (max-width: 768px) {
+    .wk-grid-2, .wk-grid-2-wide, .wk-grid-3 { grid-template-columns: 1fr; }
+}

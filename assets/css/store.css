@@ -1552,3 +1552,42 @@ input.wk-field-invalid { border-color: #ef4444 !important; }
     color: var(--wk-text); line-height: 1.4;
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
+
+/* ── Utilities ──────────────────────────────── */
+/* Single-purpose classes for what used to be written inline on element
+   after element. The spacing steps are the ones the views already use.
+   The text and spacing ones carry !important because they stand in for
+   inline styles, which won over every rule; without it a rule such as
+   .wk-footer a would quietly take back a footer link's colour. */
+.wk-muted { color: var(--wk-muted) !important; }
+.wk-note { font-size: 12px !important; color: var(--wk-muted) !important; }
+.wk-bold { font-weight: 700 !important; }
+.wk-heavy { font-weight: 800 !important; }
+.wk-mono { font-family: var(--font-mono) !important; }
+.wk-link { color: var(--wk-purple-ink) !important; font-weight: 700 !important; }
+.wk-footer-muted { color: rgba(255,255,255,.5) !important; }
+.wk-label { display: block; font-size: 11px !important; font-weight: 800 !important; text-transform: uppercase; color: var(--wk-muted) !important; margin-bottom: 4px !important; }
+.wk-eyebrow { display: block; font-size: 12px !important; font-weight: 800 !important; text-transform: uppercase; letter-spacing: .5px; color: var(--wk-muted) !important; margin-bottom: 6px !important; }
+.wk-mb-4 { margin-bottom: 4px !important; }
+.wk-mb-12 { margin-bottom: 12px !important; }
+.wk-mb-14 { margin-bottom: 14px !important; }
+.wk-mb-16 { margin-bottom: 16px !important; }
+.wk-mb-20 { margin-bottom: 20px !important; }
+.wk-mb-24 { margin-bottom: 24px !important; }
+.wk-mt-8 { margin-top: 8px !important; }
+.wk-mt-14 { margin-top: 14px !important; }
+.wk-mt-20 { margin-top: 20px !important; }
+.wk-field-label { display: block; font-size: 11px !important; font-weight: 800 !important; text-transform: uppercase; letter-spacing: .5px; color: var(--wk-muted) !important; margin-bottom: 4px !important; }
+.wk-field-input { width: 100%; padding: 10px 14px; border: 2px solid var(--wk-border); border-radius: 8px; font-family: var(--font); font-size: 14px; font-weight: 600; outline: none; background: var(--wk-surface); color: var(--wk-text); transition: border-color .2s; }
+.wk-field-input-lg { width: 100%; padding: 12px 16px; border: 2px solid var(--wk-border); border-radius: 10px; font-family: var(--font); font-size: 14px; font-weight: 600; outline: none; background: var(--wk-surface); color: var(--wk-text); transition: border-color .2s; }
+.wk-block-link { display: block; text-align: center; text-decoration: none; }
+.wk-status-open { color: var(--wk-green); }
+.wk-status-progress { color: #3b82f6; }
+.wk-status-waiting { color: var(--wk-yellow); }
+.wk-status-resolved { color: var(--wk-green); }
+.wk-status-closed { color: var(--wk-muted); }
+#wkChatToggle .wk-chat-icon-close, #wkChatToggle.is-open .wk-chat-icon-open { display: none; }
+#wkChatToggle.is-open .wk-chat-icon-close { display: inline-block; }
+.wk-summary-line { display: flex; justify-content: space-between; padding: 4px 0; }
+.wk-page-intro { text-align: center; margin-bottom: 32px; }
+.wk-panel { background: var(--wk-surface); border: 2px solid var(--wk-border); border-radius: var(--radius); padding: 28px; margin-bottom: 20px; }

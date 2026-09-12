@@ -17,13 +17,13 @@ $count = array_sum(array_column($items, 'quantity'));
     <div class="wk-container" style="max-width:1000px">
 
         <h1 style="font-size:26px;font-weight:900;margin-bottom:4px">Your Cart</h1>
-        <p style="color:var(--wk-muted);font-size:14px;margin-bottom:24px">
+        <p class="wk-muted wk-mb-24">
             <?= $count ? $count . ' ' . ($count === 1 ? 'item' : 'items') : 'Nothing here yet' ?>
         </p>
 
         <?php if (!$items): ?>
             <div style="text-align:center;padding:56px 20px;background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:var(--radius)">
-                <div style="font-size:44px;opacity:.35;margin-bottom:10px">🛒</div>
+                <div style="font-size:44px;opacity:.35;margin-bottom:10px"><?= $icon('shopping-cart', 44) ?></div>
                 <p style="font-weight:800;margin-bottom:6px">Your cart is empty</p>
                 <p style="font-size:14px;color:var(--wk-muted);margin-bottom:20px">Once you add something it will show up here.</p>
                 <a href="<?= $url('shop') ?>" class="wk-checkout-btn" style="display:inline-block;width:auto;padding:14px 32px;text-decoration:none">Browse products</a>
@@ -57,7 +57,7 @@ $count = array_sum(array_column($items, 'quantity'));
                                 <?php if ($item['image']): ?>
                                     <?= \Core\View::productImage($item['image'], $item['name']) ?>
                                 <?php else: ?>
-                                    <span aria-hidden="true">📦</span>
+                                    <?= $icon('package', 20) ?>
                                 <?php endif; ?>
                             </a>
 

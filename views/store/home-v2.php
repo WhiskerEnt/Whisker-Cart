@@ -35,7 +35,7 @@ $gridProducts = $products;
             <!-- Content -->
             <div class="wk-container wk-hero-slide-content">
                 <div class="wk-hero-slide-text">
-                    <?php if ($hasSale): ?><span class="wk-hero-badge">🔥 Sale</span><?php endif; ?>
+                    <?php if ($hasSale): ?><span class="wk-hero-badge"><?= $icon('flame', 14) ?> Sale</span><?php endif; ?>
                     <?php if ($p['category_name'] ?? null): ?><div class="wk-hero-cat"><?= $e($p['category_name']) ?></div><?php endif; ?>
                     <h2 class="wk-hero-name"><?= $e($p['name']) ?></h2>
                     <?php if ($p['short_description']): ?><p class="wk-hero-desc"><?= $e($p['short_description']) ?></p><?php endif; ?>
@@ -46,7 +46,7 @@ $gridProducts = $products;
                     <div class="wk-hero-actions">
                         <a href="<?= $url('product/'.urlencode($p['slug'])) ?>" class="wk-hero-btn-primary" aria-label="View <?= $e($p['name']) ?>">View Product →</a>
                         <?php if ($p['stock_quantity'] > 0 && ($p['variant_count'] ?? 0) == 0): ?>
-                        <button class="wk-hero-btn-cart" data-add-to-cart="<?= $p['id'] ?>">🛒 Add to Cart</button>
+                        <button class="wk-hero-btn-cart" data-add-to-cart="<?= $p['id'] ?>"><?= $icon('shopping-cart') ?> Add to Cart</button>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -92,7 +92,7 @@ $gridProducts = $products;
                     <?php if ($cat['cover_image'] ?? null): ?>
                     <img src="<?= $url('storage/uploads/products/'.$cat['cover_image']) ?>" alt="<?= $e($cat['name']) ?>" style="width:100%;height:100%;object-fit:cover;transition:transform .3s" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
                     <?php else: ?>
-                    <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:40px;opacity:.15">📦</div>
+                    <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:40px;opacity:.15"><?= $icon('package', 40) ?></div>
                     <?php endif; ?>
                 </div>
                 <div style="padding:14px 16px">
@@ -112,7 +112,7 @@ $gridProducts = $products;
     <div class="wk-container">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
             <div>
-                <h2 class="wk-section-title" style="margin-bottom:0">🔥 On Sale</h2>
+                <h2 class="wk-section-title" style="margin-bottom:0"><?= $icon('flame', 20) ?> On Sale</h2>
                 <p class="wk-section-sub" style="margin-top:4px">Limited time offers</p>
             </div>
             <a href="<?= $url('shop?sort=price_low') ?>" aria-label="View all deals" style="font-size:14px;font-weight:700;color:var(--wk-purple-ink);text-decoration:none;padding:4px 0;display:inline-block">View All →</a>
@@ -127,7 +127,7 @@ $gridProducts = $products;
                     <?php if ($p['image']): ?>
                     <?= \Core\View::productImage($p['image'], $p['name'], ['style' => 'width:100%;height:100%;object-fit:cover']) ?>
                     <?php else: ?>
-                    <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:40px;opacity:.15">📦</div>
+                    <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:40px;opacity:.15"><?= $icon('package', 40) ?></div>
                     <?php endif; ?>
                     <span style="position:absolute;top:10px;left:10px;background:#dc2626;color:#fff;font-size:12px;font-weight:800;padding:4px 10px;border-radius:8px"><?= $discPct ?>% OFF</span>
                 </div>
@@ -157,8 +157,8 @@ $gridProducts = $products;
         </div>
         <?php if (empty($gridProducts)): ?>
             <div style="text-align:center;padding:60px 0;color:var(--wk-muted)">
-                <div style="font-size:48px;margin-bottom:12px;opacity:.3">📦</div>
-                <p style="font-weight:800;margin-bottom:4px">No products yet</p>
+                <div style="font-size:48px;margin-bottom:12px;opacity:.3"><?= $icon('package', 48) ?></div>
+                <p class="wk-heavy wk-mb-4">No products yet</p>
                 <p style="font-size:14px">Check back soon!</p>
             </div>
         <?php else: ?>
@@ -172,7 +172,7 @@ $gridProducts = $products;
                         <?php if ($p['image']): ?>
                             <?= \Core\View::productImage($p['image'], $p['name']) ?>
                         <?php else: ?>
-                            <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:48px;opacity:.15">📦</div>
+                            <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:48px;opacity:.15"><?= $icon('package', 48) ?></div>
                         <?php endif; ?>
                         <?php if ($p['stock_quantity'] <= 0): ?>
                             <span class="wk-product-badge" style="background:#dc2626">Sold Out</span>
@@ -193,9 +193,9 @@ $gridProducts = $products;
                     </div>
                     <?php if ($p['stock_quantity'] > 0): ?>
                         <?php if (($p['variant_count'] ?? 0) > 0): ?>
-                            <a href="<?= $url('product/'.urlencode($p['slug'])) ?>" class="wk-add-btn" style="text-decoration:none;text-align:center;display:block">🎨 View Options</a>
+                            <a href="<?= $url('product/'.urlencode($p['slug'])) ?>" class="wk-block-link wk-add-btn"><?= $icon('palette') ?> View Options</a>
                         <?php else: ?>
-                            <button class="wk-add-btn" data-add-to-cart="<?= $p['id'] ?>">🛒 Add to Cart</button>
+                            <button class="wk-add-btn" data-add-to-cart="<?= $p['id'] ?>"><?= $icon('shopping-cart') ?> Add to Cart</button>
                         <?php endif; ?>
                     <?php else: ?>
                         <button class="wk-add-btn" disabled style="opacity:.5;cursor:not-allowed">Sold Out</button>

@@ -1,6 +1,6 @@
 <?php $url=fn($p)=>\Core\View::url($p); $e=fn($v)=>\Core\View::e($v); ?>
 <section class="wk-section"><div class="wk-container" style="max-width:480px">
-    <div style="text-align:center;margin-bottom:32px">
+    <div class="wk-page-intro">
         <h1 style="font-size:26px;font-weight:900">Create Account</h1>
         <p style="color:var(--wk-muted);font-size:14px">Join us for faster checkout and order tracking</p>
     </div>
@@ -8,19 +8,19 @@
         <form method="POST" action="<?= $url('account/register') ?>" id="registerForm">
             <?= \Core\Session::csrfField() ?>
             <div class="wk-cols-2" style="gap:12px">
-                <div><label style="display:block;font-size:11px;font-weight:800;text-transform:uppercase;color:var(--wk-muted);margin-bottom:4px">First Name</label><input type="text" name="first_name" required placeholder="John" style="width:100%;padding:10px 14px;border:2px solid var(--wk-border);border-radius:8px;font-family:var(--font);font-size:14px;font-weight:600;outline:none"></div>
-                <div><label style="display:block;font-size:11px;font-weight:800;text-transform:uppercase;color:var(--wk-muted);margin-bottom:4px">Last Name</label><input type="text" name="last_name" required placeholder="Doe" style="width:100%;padding:10px 14px;border:2px solid var(--wk-border);border-radius:8px;font-family:var(--font);font-size:14px;font-weight:600;outline:none"></div>
+                <div><label class="wk-label">First Name</label><input type="text" name="first_name" required placeholder="John" style="width:100%;padding:10px 14px;border:2px solid var(--wk-border);border-radius:8px;font-family:var(--font);font-size:14px;font-weight:600;outline:none"></div>
+                <div><label class="wk-label">Last Name</label><input type="text" name="last_name" required placeholder="Doe" style="width:100%;padding:10px 14px;border:2px solid var(--wk-border);border-radius:8px;font-family:var(--font);font-size:14px;font-weight:600;outline:none"></div>
             </div>
-            <div style="margin-top:14px"><label style="display:block;font-size:11px;font-weight:800;text-transform:uppercase;color:var(--wk-muted);margin-bottom:4px">Email</label><input type="email" name="email" required placeholder="you@example.com" data-wk-validate="email" style="width:100%;padding:10px 14px;border:2px solid var(--wk-border);border-radius:8px;font-family:var(--font);font-size:14px;font-weight:600;outline:none"></div>
-            <div style="margin-top:14px">
-                <label style="display:block;font-size:11px;font-weight:800;text-transform:uppercase;color:var(--wk-muted);margin-bottom:4px">Phone <span style="font-weight:500;text-transform:none">(optional)</span></label>
+            <div class="wk-mt-14"><label class="wk-label">Email</label><input type="email" name="email" required placeholder="you@example.com" data-wk-validate="email" style="width:100%;padding:10px 14px;border:2px solid var(--wk-border);border-radius:8px;font-family:var(--font);font-size:14px;font-weight:600;outline:none"></div>
+            <div class="wk-mt-14">
+                <label class="wk-label">Phone <span style="font-weight:500;text-transform:none">(optional)</span></label>
                 <?php
-                $wkPhone = ['inputStyle' => 'width:100%;padding:10px 14px;border:2px solid var(--wk-border);border-radius:8px;font-family:var(--font);font-size:14px;font-weight:600;outline:none;background:var(--wk-surface);color:var(--wk-text)'];
+                $wkPhone = ['inputClass' => 'wk-field-input'];
                 require __DIR__ . '/../partials/phone-field.php';
                 ?>
             </div>
-            <div style="margin-top:14px">
-                <label style="display:block;font-size:11px;font-weight:800;text-transform:uppercase;color:var(--wk-muted);margin-bottom:4px">Password</label>
+            <div class="wk-mt-14">
+                <label class="wk-label">Password</label>
                 <input type="password" name="password" id="regPw" required minlength="8" placeholder="Min 8 chars, 1 number, 1 special" oninput="checkPw()" style="width:100%;padding:10px 14px;border:2px solid var(--wk-border);border-radius:8px;font-family:var(--font);font-size:14px;font-weight:600;outline:none">
                 <div id="pwMeter" style="display:flex;align-items:center;gap:8px;margin-top:8px">
                     <div style="flex:1;display:flex;gap:3px">
@@ -32,21 +32,21 @@
                     <span id="pwStrength" style="font-size:11px;font-weight:800;color:var(--wk-muted);min-width:52px;text-align:right"></span>
                 </div>
                 <div id="pwRules" style="display:flex;gap:12px;margin-top:6px;font-size:11px;font-weight:700">
-                    <span id="r-len" style="color:var(--wk-muted)">● 8+ chars</span>
-                    <span id="r-num" style="color:var(--wk-muted)">● 1 number</span>
-                    <span id="r-spc" style="color:var(--wk-muted)">● 1 special</span>
+                    <span id="r-len" class="wk-muted">● 8+ chars</span>
+                    <span id="r-num" class="wk-muted">● 1 number</span>
+                    <span id="r-spc" class="wk-muted">● 1 special</span>
                 </div>
                 <div id="pwHint" style="font-size:11px;font-weight:600;color:var(--wk-muted);margin-top:5px;min-height:15px"></div>
             </div>
-            <div style="margin-top:14px">
-                <label style="display:block;font-size:11px;font-weight:800;text-transform:uppercase;color:var(--wk-muted);margin-bottom:4px">Confirm Password</label>
+            <div class="wk-mt-14">
+                <label class="wk-label">Confirm Password</label>
                 <input type="password" name="password_confirm" id="regPw2" required oninput="checkPw()" placeholder="Type again" style="width:100%;padding:10px 14px;border:2px solid var(--wk-border);border-radius:8px;font-family:var(--font);font-size:14px;font-weight:600;outline:none">
                 <div id="pwMatch" style="font-size:11px;font-weight:700;margin-top:4px;min-height:16px"></div>
             </div>
             <button type="submit" id="regSubmit" disabled class="wk-checkout-btn" style="margin-top:20px;opacity:.5">Create Account</button>
         </form>
     </div>
-    <p style="text-align:center;margin-top:16px;font-size:14px;color:var(--wk-muted)">Already have an account? <a href="<?= $url('account/login') ?>" style="color:var(--wk-purple-ink);font-weight:700">Sign in</a></p>
+    <p style="text-align:center;margin-top:16px;font-size:14px;color:var(--wk-muted)">Already have an account? <a href="<?= $url('account/login') ?>" class="wk-link">Sign in</a></p>
 </div></section>
 
 <script>

@@ -24,7 +24,7 @@ $items = $items ?? [];
 <section class="wk-section" style="padding:56px 0">
     <div class="wk-container" style="max-width:560px">
 
-        <div style="text-align:center;margin-bottom:32px">
+        <div class="wk-page-intro">
             <?php if ($state === 'ok'): ?>
                 <svg class="wk-status wk-status-ok" viewBox="0 0 52 52" role="img" aria-label="Order confirmed">
                     <circle class="wk-status-ring" cx="26" cy="26" r="24"/>
@@ -70,7 +70,7 @@ $items = $items ?? [];
         <div style="background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:var(--radius);overflow:hidden">
             <div style="padding:16px 20px;border-bottom:1px solid var(--wk-border);display:flex;justify-content:space-between;align-items:center">
                 <span style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--wk-muted)">Order summary</span>
-                <span style="font-size:12px;color:var(--wk-muted)"><?= $e(date('j M Y', strtotime($order['created_at']))) ?></span>
+                <span class="wk-note"><?= $e(date('j M Y', strtotime($order['created_at']))) ?></span>
             </div>
 
             <div style="padding:8px 20px">
@@ -80,11 +80,11 @@ $items = $items ?? [];
                         <img src="<?= $e($url('storage/uploads/products/' . $it['image'])) ?>" alt=""
                              style="width:48px;height:48px;border-radius:var(--radius-sm);object-fit:cover;background:var(--wk-bg);flex-shrink:0">
                     <?php else: ?>
-                        <div style="width:48px;height:48px;border-radius:var(--radius-sm);background:var(--wk-bg);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">📦</div>
+                        <div style="width:48px;height:48px;border-radius:var(--radius-sm);background:var(--wk-bg);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0"><?= $icon('package', 18) ?></div>
                     <?php endif; ?>
                     <div style="flex:1;min-width:0">
                         <div style="font-weight:700;line-height:1.35"><?= $e($it['product_name']) ?></div>
-                        <div style="font-size:12px;color:var(--wk-muted)">
+                        <div class="wk-note">
                             <?php if (!empty($it['variant_label'])): ?><?= $e($it['variant_label']) ?> · <?php endif; ?>
                             Qty <?= (int)$it['quantity'] ?> × <?= $money($it['unit_price']) ?>
                         </div>
@@ -104,16 +104,16 @@ $items = $items ?? [];
                 foreach ($rows as [$label, $amount, $neg]):
                     if ((float)$amount <= 0 && $label !== 'Subtotal') continue; ?>
                     <div style="display:flex;justify-content:space-between;padding:4px 0;color:var(--wk-muted)">
-                        <span><?= $label ?></span><span style="font-family:var(--font-mono)"><?= $money($amount) ?></span>
+                        <span><?= $label ?></span><span class="wk-mono"><?= $money($amount) ?></span>
                     </div>
                 <?php endforeach; ?>
                 <?php if ((float)($order['discount_amount'] ?? 0) > 0): ?>
                     <div style="display:flex;justify-content:space-between;padding:4px 0;color:var(--wk-green)">
-                        <span>Discount</span><span style="font-family:var(--font-mono)">−<?= $money($order['discount_amount']) ?></span>
+                        <span>Discount</span><span class="wk-mono">−<?= $money($order['discount_amount']) ?></span>
                     </div>
                 <?php endif; ?>
                 <div style="display:flex;justify-content:space-between;padding:10px 0 0;margin-top:8px;border-top:1px solid var(--wk-border);font-weight:900;font-size:16px">
-                    <span>Total</span><span style="font-family:var(--font-mono)"><?= $money($order['total']) ?></span>
+                    <span>Total</span><span class="wk-mono"><?= $money($order['total']) ?></span>
                 </div>
             </div>
 
@@ -135,10 +135,10 @@ $items = $items ?? [];
                     <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">
                         <?= !empty($ship['pickup']) ? 'Collect from' : 'Delivering to' ?>
                     </div>
-                    <div style="color:var(--wk-muted)">
+                    <div class="wk-muted">
                         <?php if (!empty($ship['name'])): ?><strong style="color:var(--wk-text)"><?= $e($ship['name']) ?></strong><br><?php endif; ?>
                         <?php foreach ($addrLines as $line): ?><?= $e($line) ?><br><?php endforeach; ?>
-                        <?php if (!empty($ship['opening_hours'])): ?>🕐 <?= $e($ship['opening_hours']) ?><?php endif; ?>
+                        <?php if (!empty($ship['opening_hours'])): ?><?= $icon('clock', 14) ?> <?= $e($ship['opening_hours']) ?><?php endif; ?>
                     </div>
                 </div>
                 <?php endif; ?>
@@ -157,7 +157,7 @@ $items = $items ?? [];
         </div>
 
         <p style="text-align:center;font-size:13px;color:var(--wk-muted);margin-top:18px">
-            Track this order any time at <a href="<?= $url('track') ?>" style="color:var(--wk-purple-ink);font-weight:700">order tracking</a>.
+            Track this order any time at <a href="<?= $url('track') ?>" class="wk-link">order tracking</a>.
         </p>
         <?php endif; ?>
 
