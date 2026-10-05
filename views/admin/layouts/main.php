@@ -140,6 +140,10 @@ $currentPath = (new \Core\Request())->path();
                     <span class="wk-nav-icon"><?= $icon('settings', 18) ?></span>
                     <span class="wk-nav-text">Settings</span>
                 </a>
+                <a href="<?= \Core\View::url('admin/accounts') ?>" class="wk-nav-item <?= str_starts_with($currentPath, '/admin/accounts') ? 'active' : '' ?>">
+                    <span class="wk-nav-icon"><?= $icon('user-plus', 18) ?></span>
+                    <span class="wk-nav-text">Signup &amp; Sign-in</span>
+                </a>
                 <a href="<?= \Core\View::url('admin/email-templates') ?>" class="wk-nav-item <?= str_starts_with($currentPath, '/admin/email-templates') ? 'active' : '' ?>">
                     <span class="wk-nav-icon"><?= $icon('mail', 18) ?></span>
                     <span class="wk-nav-text">Email Templates</span>

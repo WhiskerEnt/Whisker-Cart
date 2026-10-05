@@ -1581,6 +1581,10 @@ input.wk-field-invalid { border-color: #ef4444 !important; }
 .wk-field-input { width: 100%; padding: 10px 14px; border: 2px solid var(--wk-border); border-radius: 8px; font-family: var(--font); font-size: 14px; font-weight: 600; outline: none; background: var(--wk-surface); color: var(--wk-text); transition: border-color .2s; }
 .wk-field-input-lg { width: 100%; padding: 12px 16px; border: 2px solid var(--wk-border); border-radius: 10px; font-family: var(--font); font-size: 14px; font-weight: 600; outline: none; background: var(--wk-surface); color: var(--wk-text); transition: border-color .2s; }
 .wk-block-link { display: block; text-align: center; text-decoration: none; }
+.wk-field-textarea { resize: vertical; }
+.wk-subtle { font-weight: 500 !important; text-transform: none; letter-spacing: 0; }
+.wk-check { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.wk-field-select { cursor: pointer; }
 .wk-status-open { color: var(--wk-green); }
 .wk-status-progress { color: #3b82f6; }
 .wk-status-waiting { color: var(--wk-yellow); }

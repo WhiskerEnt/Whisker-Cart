@@ -5,7 +5,8 @@ All notable changes to Whisker are recorded here. Versions follow
 
 ## v1.4.2 (unreleased)
 
-No database changes. Update from the admin dashboard as usual.
+Database migrations run automatically when you next open the admin dashboard.
+No manual SQL is needed. Existing shops keep the signup form they had.
 
 ### Payments
 
@@ -31,6 +32,25 @@ No database changes. Update from the admin dashboard as usual.
 
 ### Accounts
 
+- **Shops choose what the signup form asks for.** A new screen, Signup &
+  Sign-in, sets first name, last name, phone and username each to not
+  asked, optional or required. Email and password are always required.
+  Switching a field off hides it from the signup and profile forms and
+  keeps whatever customers already gave.
+- **Shops can add their own fields**: short or long text, a number, a
+  dropdown, a tick box or a date, each required or optional, on the signup
+  form or on the profile only. Customers can change their answers on their
+  profile, and the shopkeeper sees them on the customer's page. Answers
+  are removed when a customer's data is erased.
+- **Customers can sign in with a username**, when the shop turns it on.
+  Usernames are unique regardless of letter case and cannot contain @, so
+  one is never mistaken for an email address.
+- **A rejected signup keeps what was typed**, except the password, so a
+  single mistake no longer means filling the form in again.
+- **Mistakes no longer use up the signup allowance.** Three accounts per
+  connection per hour was counted on every submission, so three typos
+  locked a real customer out for an hour. It now counts accounts created,
+  with a separate, generous limit on submissions.
 - **A registered customer is no longer told to set a password they already
   have.** Whether an account has a password was recorded twice: in the
   password itself, and in a separate row that only the set-password and

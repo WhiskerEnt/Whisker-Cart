@@ -537,6 +537,20 @@ body {
     .wk-recommended-item .wk-btn { width: 100%; }
 }
 
+/* ── Signup & sign-in ────────────────────── */
+.wk-acct-actions { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+.wk-acct-card { max-width: 900px; }
+.wk-acct-narrow { max-width: 420px; }
+.wk-acct-state-col { width: 220px; }
+.wk-acct-flush { padding: 0; }
+.wk-acct-foot { border-top: 1px solid var(--wk-border); }
+.wk-acct-list { display: grid; gap: 12px; }
+.wk-acct-field { border: 2px solid var(--wk-border); border-radius: 10px; padding: 14px 16px; }
+.wk-acct-field.is-off { opacity: .65; }
+.wk-acct-field-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.wk-acct-edit { cursor: pointer; color: var(--wk-purple); font-weight: 700; }
+.wk-acct-checks { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 18px; }
+
 /* ── Utilities ──────────────────────────────── */
 /* Single-purpose classes for what used to be written inline on element
    after element. The spacing steps are the ones the views already use.

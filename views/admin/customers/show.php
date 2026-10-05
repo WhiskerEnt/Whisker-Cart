@@ -4,7 +4,14 @@
     <div class="wk-card-header"><h2><?= $e($c['first_name'].' '.$c['last_name']) ?></h2></div>
     <div class="wk-card-body">
         <p><strong>Email:</strong> <?= $e($c['email']) ?></p>
+        <?php if (!empty($c['username'])): ?><p><strong>Username:</strong> <?= $e($c['username']) ?></p><?php endif; ?>
         <p><strong>Phone:</strong> <?= $e($c['phone']??'—') ?></p>
+        <?php foreach ($customFields ?? [] as $wkField):
+            $wkAnswer = (string)($customValues[$wkField['field_key']] ?? '');
+            if ($wkAnswer === '') continue;
+            if ($wkField['type'] === 'checkbox') $wkAnswer = 'Yes'; ?>
+        <p><strong><?= $e($wkField['label']) ?>:</strong> <?= nl2br($e($wkAnswer)) ?></p>
+        <?php endforeach; ?>
         <p><strong>Orders:</strong> <?= $c['total_orders'] ?></p>
         <p><strong>Total Spent:</strong> <?= \Core\View::price($c['total_spent']) ?></p>
         <p><strong>Joined:</strong> <?= date('M j, Y', strtotime($c['created_at'])) ?></p>

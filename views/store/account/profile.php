@@ -25,18 +25,39 @@ $countries = \App\Services\CurrencyService::countries();
         <h2 style="font-size:17px;font-weight:900;margin-bottom:20px">Personal Information</h2>
         <form method="POST" action="<?= $url('account/profile') ?>">
             <?= \Core\Session::csrfField() ?>
+            <?php $F = \App\Services\AccountFieldService::class; ?>
+            <?php $opt = fn($key) => $F::isRequired($key) ? '' : ' <span class="wk-subtle">(optional)</span>'; ?>
+            <?php if ($F::isShown('first_name') || $F::isShown('last_name')): ?>
             <div class="wk-cols-2" style="gap:14px">
-                <div><label class="wk-field-label">First Name</label><input type="text" name="first_name" value="<?= $e($c['first_name']) ?>" required class="wk-field-input"></div>
-                <div><label class="wk-field-label">Last Name</label><input type="text" name="last_name" value="<?= $e($c['last_name']) ?>" required class="wk-field-input"></div>
+                <?php if ($F::isShown('first_name')): ?>
+                <div><label class="wk-field-label">First Name<?= $opt('first_name') ?></label><input type="text" name="first_name" value="<?= $e($c['first_name']) ?>"<?= $F::isRequired('first_name') ? ' required' : '' ?> class="wk-field-input"></div>
+                <?php endif; ?>
+                <?php if ($F::isShown('last_name')): ?>
+                <div><label class="wk-field-label">Last Name<?= $opt('last_name') ?></label><input type="text" name="last_name" value="<?= $e($c['last_name']) ?>"<?= $F::isRequired('last_name') ? ' required' : '' ?> class="wk-field-input"></div>
+                <?php endif; ?>
             </div>
-            <div class="wk-mt-14"><label class="wk-field-label">Email <span style="font-weight:500;text-transform:none">(cannot be changed)</span></label><input type="email" value="<?= $e($c['email']) ?>" disabled class="wk-field-input" style="background:var(--wk-bg);opacity:.7"></div>
+            <?php endif; ?>
+            <div class="wk-mt-14"><label class="wk-field-label">Email <span class="wk-subtle">(cannot be changed)</span></label><input type="email" value="<?= $e($c['email']) ?>" disabled class="wk-field-input" style="opacity:.6"></div>
+            <?php if ($F::isShown('username')): ?>
             <div class="wk-mt-14">
-                <label class="wk-field-label">Phone</label>
+                <label class="wk-field-label">Username<?= $opt('username') ?></label>
+                <input type="text" name="username" value="<?= $e((string)($c['username'] ?? '')) ?>"<?= $F::isRequired('username') ? ' required' : '' ?> autocomplete="username" maxlength="40" class="wk-field-input">
+                <?php if ($F::usernameLogin()): ?><div class="wk-note wk-mt-8">You can sign in with this instead of your email address.</div><?php endif; ?>
+            </div>
+            <?php endif; ?>
+            <?php if ($F::isShown('phone')): ?>
+            <div class="wk-mt-14">
+                <label class="wk-field-label">Phone<?= $opt('phone') ?></label>
                 <?php
-                $wkPhone = ['value' => $c['phone'] ?? '', 'inputClass' => 'wk-field-input'];
+                $wkPhone = ['value' => $c['phone'] ?? '', 'inputClass' => 'wk-field-input', 'required' => $F::isRequired('phone')];
                 require __DIR__ . '/../partials/phone-field.php';
                 ?>
             </div>
+            <?php endif; ?>
+            <?php foreach ($F::custom() as $wkField): ?>
+                <?php $wkFieldValue = (string)($customValues[$wkField['field_key']] ?? ''); ?>
+                <div class="wk-mt-14"><?php require __DIR__ . '/../partials/custom-field.php'; ?></div>
+            <?php endforeach; ?>
             <button type="submit" class="wk-mt-20 wk-checkout-btn">Save Changes</button>
         </form>
     </div>

@@ -141,6 +141,13 @@ $router->group(['prefix' => '/admin', 'middleware' => ['auth', 'csrf']], functio
     $r->get('/customers/{id}',          [CustomerController::class, 'show']);
     $r->post('/customers/{id}/pseudonymize', [CustomerController::class, 'pseudonymize']);
 
+    // Signup & sign-in
+    $r->get('/accounts',                      [\App\Controllers\Admin\AccountSettingsController::class, 'index']);
+    $r->post('/accounts/settings',            [\App\Controllers\Admin\AccountSettingsController::class, 'updateSettings']);
+    $r->post('/accounts/fields',              [\App\Controllers\Admin\AccountSettingsController::class, 'storeField']);
+    $r->post('/accounts/fields/{id}',         [\App\Controllers\Admin\AccountSettingsController::class, 'updateField']);
+    $r->post('/accounts/fields/{id}/delete',  [\App\Controllers\Admin\AccountSettingsController::class, 'deleteField']);
+
     // Categories
     $r->get('/categories',               [CategoryController::class, 'index']);
     $r->get('/categories/create',        [CategoryController::class, 'create']);

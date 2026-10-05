@@ -1,4 +1,14 @@
-<?php $url=fn($p)=>\Core\View::url($p); $e=fn($v)=>\Core\View::e($v); ?>
+<?php
+$url = fn($p) => \Core\View::url($p);
+$e   = fn($v) => \Core\View::e($v);
+$F   = \App\Services\AccountFieldService::class;
+// What was typed before a rejected submission, so nothing has to be retyped.
+$old = $_SESSION['wk_register_old'] ?? [];
+unset($_SESSION['wk_register_old']);
+$was = fn($name) => $e((string)($old[$name] ?? ''));
+$req = fn($key) => $F::isRequired($key) ? ' required' : '';
+$opt = fn($key) => $F::isRequired($key) ? '' : ' <span class="wk-subtle">(optional)</span>';
+?>
 <section class="wk-section"><div class="wk-container" style="max-width:480px">
     <div class="wk-page-intro">
         <h1 style="font-size:26px;font-weight:900">Create Account</h1>
@@ -7,18 +17,43 @@
     <div style="background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:var(--radius);padding:32px">
         <form method="POST" action="<?= $url('account/register') ?>" id="registerForm">
             <?= \Core\Session::csrfField() ?>
+            <?php if ($F::isShown('first_name') || $F::isShown('last_name')): ?>
             <div class="wk-cols-2" style="gap:12px">
-                <div><label class="wk-label">First Name</label><input type="text" name="first_name" required placeholder="John" style="width:100%;padding:10px 14px;border:2px solid var(--wk-border);border-radius:8px;font-family:var(--font);font-size:14px;font-weight:600;outline:none"></div>
-                <div><label class="wk-label">Last Name</label><input type="text" name="last_name" required placeholder="Doe" style="width:100%;padding:10px 14px;border:2px solid var(--wk-border);border-radius:8px;font-family:var(--font);font-size:14px;font-weight:600;outline:none"></div>
+                <?php if ($F::isShown('first_name')): ?>
+                <div><label class="wk-label">First Name<?= $opt('first_name') ?></label><input type="text" name="first_name"<?= $req('first_name') ?> value="<?= $was('first_name') ?>" placeholder="John" class="wk-field-input"></div>
+                <?php endif; ?>
+                <?php if ($F::isShown('last_name')): ?>
+                <div><label class="wk-label">Last Name<?= $opt('last_name') ?></label><input type="text" name="last_name"<?= $req('last_name') ?> value="<?= $was('last_name') ?>" placeholder="Doe" class="wk-field-input"></div>
+                <?php endif; ?>
             </div>
-            <div class="wk-mt-14"><label class="wk-label">Email</label><input type="email" name="email" required placeholder="you@example.com" data-wk-validate="email" style="width:100%;padding:10px 14px;border:2px solid var(--wk-border);border-radius:8px;font-family:var(--font);font-size:14px;font-weight:600;outline:none"></div>
+            <?php endif; ?>
+
+            <div class="wk-mt-14"><label class="wk-label">Email</label><input type="email" name="email" required value="<?= $was('email') ?>" placeholder="you@example.com" data-wk-validate="email" class="wk-field-input"></div>
+
+            <?php if ($F::isShown('username')): ?>
             <div class="wk-mt-14">
-                <label class="wk-label">Phone <span style="font-weight:500;text-transform:none">(optional)</span></label>
+                <label class="wk-label">Username<?= $opt('username') ?></label>
+                <input type="text" name="username"<?= $req('username') ?> value="<?= $was('username') ?>" placeholder="johndoe" autocomplete="username" maxlength="40" class="wk-field-input">
+                <?php if ($F::usernameLogin()): ?>
+                <div class="wk-note wk-mt-8">You can sign in with this instead of your email address.</div>
+                <?php endif; ?>
+            </div>
+            <?php endif; ?>
+
+            <?php if ($F::isShown('phone')): ?>
+            <div class="wk-mt-14">
+                <label class="wk-label">Phone<?= $opt('phone') ?></label>
                 <?php
-                $wkPhone = ['inputClass' => 'wk-field-input'];
+                $wkPhone = ['inputClass' => 'wk-field-input', 'required' => $F::isRequired('phone'), 'value' => (string)($old['phone'] ?? '')];
                 require __DIR__ . '/../partials/phone-field.php';
                 ?>
             </div>
+            <?php endif; ?>
+
+            <?php foreach ($F::custom(true) as $wkField): ?>
+                <?php $wkFieldValue = (string)($old[$F::inputName($wkField['field_key'])] ?? ''); ?>
+                <div class="wk-mt-14"><?php require __DIR__ . '/../partials/custom-field.php'; ?></div>
+            <?php endforeach; ?>
             <div class="wk-mt-14">
                 <label class="wk-label">Password</label>
                 <input type="password" name="password" id="regPw" required minlength="8" placeholder="Min 8 chars, 1 number, 1 special" oninput="checkPw()" style="width:100%;padding:10px 14px;border:2px solid var(--wk-border);border-radius:8px;font-family:var(--font);font-size:14px;font-weight:600;outline:none">

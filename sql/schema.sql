@@ -155,6 +155,7 @@ CREATE TABLE IF NOT EXISTS wk_variant_combos (
 CREATE TABLE IF NOT EXISTS wk_customers (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     email VARCHAR(255) NOT NULL UNIQUE,
+    username VARCHAR(50) DEFAULT NULL,
     password_hash VARCHAR(255) NOT NULL,
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
@@ -164,7 +165,39 @@ CREATE TABLE IF NOT EXISTS wk_customers (
     total_orders INT DEFAULT 0,
     total_spent DECIMAL(12,2) DEFAULT 0.00,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_customer_username (username)
+) ENGINE=InnoDB;
+
+-- Fields a shop adds to its own signup form. Definitions here, answers in
+-- wk_customer_field_values, so a shop's own questions never change a table
+-- every other shop shares.
+CREATE TABLE IF NOT EXISTS wk_customer_fields (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    field_key VARCHAR(40) NOT NULL,
+    label VARCHAR(80) NOT NULL,
+    type ENUM('text','textarea','number','select','checkbox','date') NOT NULL DEFAULT 'text',
+    -- One choice per line, for select only.
+    options TEXT DEFAULT NULL,
+    placeholder VARCHAR(120) DEFAULT NULL,
+    help_text VARCHAR(255) DEFAULT NULL,
+    is_required TINYINT(1) NOT NULL DEFAULT 0,
+    show_on_register TINYINT(1) NOT NULL DEFAULT 1,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    sort_order INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_customer_field_key (field_key),
+    INDEX idx_active (is_active, sort_order)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS wk_customer_field_values (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    customer_id INT UNSIGNED NOT NULL,
+    field_id INT UNSIGNED NOT NULL,
+    value TEXT DEFAULT NULL,
+    UNIQUE KEY uniq_customer_field (customer_id, field_id),
+    FOREIGN KEY (customer_id) REFERENCES wk_customers(id) ON DELETE CASCADE,
+    FOREIGN KEY (field_id) REFERENCES wk_customer_fields(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS wk_customer_addresses (
@@ -473,6 +506,11 @@ INSERT INTO wk_settings (setting_group, setting_key, setting_value) VALUES
 ('general', 'timezone', 'Asia/Kolkata'),
 ('general', 'license_type', 'free'),
 ('general', 'whisker_version', '1.0.0'),
+('accounts', 'field_first_name', 'required'),
+('accounts', 'field_last_name', 'required'),
+('accounts', 'field_phone', 'optional'),
+('accounts', 'field_username', 'off'),
+('accounts', 'login_with_username', '0'),
 ('checkout', 'guest_checkout', '1'),
 ('checkout', 'tax_rate', '18'),
 ('checkout', 'shipping_flat_rate', '50.00'),
