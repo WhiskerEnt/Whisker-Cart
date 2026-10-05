@@ -29,6 +29,18 @@ No database changes. Update from the admin dashboard as usual.
   tax, shipping and refunds now rounds to the cent, so a total is always
   the sum of the parts as printed.
 
+### Accounts
+
+- **A registered customer is no longer told to set a password they already
+  have.** Whether an account has a password was recorded twice: in the
+  password itself, and in a separate row that only the set-password and
+  reset flows ever wrote. Registration wrote the first and not the second,
+  so every account made through the registration form was shown a
+  "Set Your Password" notice saying it had been created during checkout,
+  and the form it offered could never succeed, because it carried no
+  current password for the server to check. There is now one answer,
+  read from the account.
+
 ### Installing with Composer
 
 - **`composer create-project whiskerent/whisker-cart`** installs the same

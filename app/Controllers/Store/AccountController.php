@@ -166,26 +166,36 @@ class AccountController
         $customer = Database::fetch("SELECT * FROM wk_customers WHERE id=?", [Session::customerId()]);
         $recentOrders = Database::fetchAll("SELECT * FROM wk_orders WHERE customer_id=? ORDER BY created_at DESC LIMIT 5", [Session::customerId()]);
 
-        // The DB-backed customer_flags entry is the single source of truth
-        // for whether this customer has set a password.
-        $hasSetPassword = (bool)Database::fetchValue(
-            "SELECT setting_value FROM wk_settings WHERE setting_group='customer_flags' AND setting_key=?",
-            ['password_set_' . Session::customerId()]
-        );
-
         View::render('store/account/dashboard', [
             'pageTitle' => 'My Account', 'customer' => $customer,
-            'recentOrders' => $recentOrders, 'needsPassword' => !$hasSetPassword,
+            'recentOrders' => $recentOrders, 'needsPassword' => !self::hasPassword($customer),
         ], 'store/layouts/main');
     }
 
     // ── Profile ──────────────────────────────────
 
+    /**
+     * Whether this customer can sign in with a password.
+     *
+     * Checkout creates an account for a guest with the sentinel '*' in
+     * password_hash, which password_verify always rejects. That sentinel is
+     * the whole answer, so the question is asked of the customer row rather
+     * than of anything kept alongside it.
+     */
+    private static function hasPassword(?array $customer): bool
+    {
+        $hash = (string)($customer['password_hash'] ?? '');
+        return $hash !== '' && $hash !== '*';
+    }
+
     public function profile(Request $request, array $params = []): void
     {
         if (!Session::customerId()) { Response::redirect(View::url('account/login')); return; }
         $customer = Database::fetch("SELECT * FROM wk_customers WHERE id=?", [Session::customerId()]);
-        View::render('store/account/profile', ['pageTitle' => 'My Profile', 'customer' => $customer], 'store/layouts/main');
+        View::render('store/account/profile', [
+            'pageTitle' => 'My Profile', 'customer' => $customer,
+            'hasPassword' => self::hasPassword($customer),
+        ], 'store/layouts/main');
     }
 
     public function updateProfile(Request $request, array $params = []): void
@@ -221,18 +231,20 @@ class AccountController
         }
 
         // Changing a password requires the current password, not just a valid
-        // session. Exception: guest-checkout accounts hold the sentinel '*'
-        // password_hash — they have no password to prove yet, so they may set
-        // one directly.
+        // session. An account with no password yet has nothing to prove, so it
+        // may set one directly.
         $custId = Session::customerId();
         $current = Database::fetch(
             "SELECT password_hash FROM wk_customers WHERE id=?",
             [$custId]
         );
-        $isGuestShell = $current
-            && ($current['password_hash'] === '*' || $current['password_hash'] === '');
+        if (!$current) {
+            Session::flash('error', 'Session expired.');
+            Response::redirect(View::url('account/profile'));
+            return;
+        }
 
-        if (!$isGuestShell) {
+        if (self::hasPassword($current)) {
             $currentPass = (string)$request->input('current_password');
             if ($currentPass === '' || !password_verify($currentPass, $current['password_hash'])) {
                 // Rate-limit current-password attempts.
@@ -252,13 +264,6 @@ class AccountController
         Database::update('wk_customers', [
             'password_hash' => password_hash($newPass, PASSWORD_BCRYPT, ['cost' => 12]),
         ], 'id=?', [$custId]);
-
-        // Mark password as set
-        Database::query(
-            "INSERT INTO wk_settings (setting_group, setting_key, setting_value) VALUES ('customer_flags', ?, '1')
-             ON DUPLICATE KEY UPDATE setting_value='1'",
-            ['password_set_' . $custId]
-        );
 
         Session::flash('success', 'Password updated!');
         Response::redirect(View::url('account/profile'));
@@ -648,16 +653,6 @@ class AccountController
         // Update password
         Database::update('wk_customers', ['password_hash' => password_hash($newPass, PASSWORD_BCRYPT, ['cost' => 12])], 'id=?', [$id]);
 
-        // Mark password as set: after a completed reset the customer knows
-        // their password, so the dashboard's "Set Your Password" CTA hides.
-        try {
-            Database::query(
-                "INSERT INTO wk_settings (setting_group, setting_key, setting_value) VALUES ('customer_flags', ?, '1')
-                 ON DUPLICATE KEY UPDATE setting_value='1'",
-                ['password_set_' . $id]
-            );
-        } catch (\Exception $e) {}
-
         // Delete tokens from both tables
         try { Database::query("DELETE FROM wk_password_resets WHERE user_type='customer' AND user_id=?", [$id]); } catch (\Exception $e) {}
         try { Database::query("DELETE FROM wk_settings WHERE setting_group='reset_tokens' AND setting_key=?", ['token_' . $id]); } catch (\Exception $e) {}
@@ -665,7 +660,6 @@ class AccountController
         // Cleanup expired tokens from new table
         try { Database::query("DELETE FROM wk_password_resets WHERE expires_at < NOW()"); } catch (\Exception $e) {}
 
-        Database::query("INSERT INTO wk_settings (setting_group, setting_key, setting_value) VALUES ('customer_flags', ?, '1') ON DUPLICATE KEY UPDATE setting_value='1'", ['password_set_' . $id]);
 
         Session::flash('success', 'Password reset! You can now sign in.');
         Response::redirect(View::url('account/login'));

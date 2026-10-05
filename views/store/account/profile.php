@@ -1,6 +1,5 @@
 <?php $url=fn($p)=>\Core\View::url($p); $e=fn($v)=>\Core\View::e($v); $c=$customer;
 $countries = \App\Services\CurrencyService::countries();
-$hasSetPassword = (bool)\Core\Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='customer_flags' AND setting_key=?", ['password_set_'.$c['id']]);
 ?>
 <section class="wk-section"><div class="wk-container" style="max-width:700px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
@@ -8,7 +7,7 @@ $hasSetPassword = (bool)\Core\Database::fetchValue("SELECT setting_value FROM wk
         <a href="<?= $url('account') ?>" style="font-size:13px;font-weight:700;color:var(--wk-purple-ink)">← Back to Account</a>
     </div>
 
-    <?php if (!$hasSetPassword): ?>
+    <?php if (!$hasPassword): ?>
     <div style="background:#fef3c7;border:2px solid #fbbf24;border-radius:var(--radius);padding:20px;margin-bottom:24px">
         <div style="font-weight:800;font-size:15px;margin-bottom:4px"><?= $icon('triangle-alert') ?> Set Your Password</div>
         <p style="font-size:13px;color:#92400e;margin-bottom:16px">Your account was created during checkout. Set a password so you can sign in next time.</p>
@@ -42,7 +41,7 @@ $hasSetPassword = (bool)\Core\Database::fetchValue("SELECT setting_value FROM wk
         </form>
     </div>
 
-    <?php if ($hasSetPassword): ?>
+    <?php if ($hasPassword): ?>
     <!-- Change Password -->
     <div style="background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:var(--radius);padding:28px">
         <h2 style="font-size:17px;font-weight:900;margin-bottom:20px">Change Password</h2>
