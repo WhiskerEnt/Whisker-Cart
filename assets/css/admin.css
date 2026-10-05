@@ -550,6 +550,7 @@ body {
 .wk-acct-field-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
 .wk-acct-edit { cursor: pointer; color: var(--wk-purple); font-weight: 700; }
 .wk-acct-checks { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 18px; }
+.wk-acct-card .wk-subtle { text-transform: none; letter-spacing: 0; }
 
 /* ── Utilities ──────────────────────────────── */
 /* Single-purpose classes for what used to be written inline on element
