@@ -328,17 +328,17 @@
     <!-- TAB: Social -->
     <div class="settings-tab" id="tab-social" style="display:none">
         <div class="wk-card" style="max-width:820px">
-            <div class="wk-card-header"><h2><?= $icon('message-circle') ?> Floating Contact Bar</h2></div>
+            <div class="wk-card-header"><h2><?= $icon('message-circle') ?> Contact Button</h2></div>
             <div class="wk-card-body">
                 <p style="font-size:12px;color:var(--wk-text-muted);margin-bottom:18px;line-height:1.6">
-                    A column of contact and social buttons pinned to the side of your storefront that stays put as
-                    customers scroll. Fill in only the ones you use — the bar appears once at least one is set,
-                    and each button links straight to that app.
+                    A contact button in a bottom corner of your storefront that stays put as customers scroll.
+                    Fill in only the channels you use. It appears once at least one is set, and each one links
+                    straight to that app.
                 </p>
 
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;margin-bottom:20px">
                     <div class="wk-m-0 wk-form-group">
-                        <label>Contact bar</label>
+                        <label>Contact button</label>
                         <select name="social_social_enabled" class="wk-select">
                             <option value="0" <?= ($s['social']['social_enabled'] ?? '0') !== '1' ? 'selected' : '' ?>>Off</option>
                             <option value="1" <?= ($s['social']['social_enabled'] ?? '0') === '1' ? 'selected' : '' ?>>On — show it on the storefront</option>
