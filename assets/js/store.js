@@ -19,6 +19,7 @@ const WhiskerStore = {
         this.bindAddToCart();
         this.loadCart();
         this.initCarousel();
+        this.bindAdminNotes();
     },
 
     hideLoader() {
@@ -349,6 +350,20 @@ const WhiskerStore = {
         wrap?.addEventListener('touchend', () => setTimeout(start, 3000), { passive: true });
 
         start();
+    },
+
+    // ── Notes only the shopkeeper sees ───────
+    // Hidden for this browser once closed, so it does not come back on every
+    // page view while the shopkeeper browses their own shop.
+    bindAdminNotes() {
+        document.querySelectorAll('[data-wk-admin-note]').forEach((note) => {
+            const key = 'wk-note-' + note.dataset.wkAdminNote;
+            try { if (localStorage.getItem(key) === 'hidden') { note.hidden = true; return; } } catch (e) {}
+            note.querySelector('[data-wk-admin-note-close]')?.addEventListener('click', () => {
+                note.hidden = true;
+                try { localStorage.setItem(key, 'hidden'); } catch (e) {}
+            });
+        });
     },
 
     // ── Confetti ─────────────────────────────

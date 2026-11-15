@@ -65,7 +65,7 @@ class InterfaceIconsTest extends TestCase
      */
     public function testInlineStylesOnlyGoDown(): void
     {
-        $ceilings = ['views/store' => 580, 'views/admin' => 770, 'views/install' => 35];
+        $ceilings = ['views/store' => 550, 'views/admin' => 767, 'views/install' => 35];
         foreach ($ceilings as $dir => $ceiling) {
             $count = 0;
             foreach ($this->files($dir) as $rel) {

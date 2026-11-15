@@ -20,6 +20,7 @@ define('WK_VERSION', (string) require WK_ROOT . '/app/version.php');
 
 use App\Services\MigrationService;
 use App\Services\AccountFieldService;
+use App\Services\ShowcaseService;
 use Core\Database;
 
 $failures = 0;
@@ -146,6 +147,78 @@ Database::query("DELETE FROM wk_customers WHERE email IN ('ci-a@example.com','ci
 $orphans = (int) Database::fetchValue('SELECT COUNT(*) FROM wk_customer_field_values WHERE customer_id = ?', [$a]);
 check('accounts: deleting a customer deletes their answers', $orphans === 0);
 Database::delete('wk_customer_fields', 'id = ?', [$company]);
+
+// ── 3c. The homepage slider is never empty ───────────────────────────
+// Builds a small catalogue and walks the fill order: chosen, best-sellers,
+// recently added, on sale, a daily pick; photos first at every step; the
+// automatic steps never offer something out of stock.
+Database::query('SET FOREIGN_KEY_CHECKS = 0');
+foreach (['wk_order_items', 'wk_orders', 'wk_product_images', 'wk_products'] as $t) Database::query("DELETE FROM {$t}");
+Database::query('SET FOREIGN_KEY_CHECKS = 1');
+
+$mk = function (string $slug, array $extra = []) {
+    return Database::insert('wk_products', $extra + [
+        'sku' => 'CI-' . $slug, 'name' => ucfirst($slug), 'slug' => $slug, 'price' => 100, 'stock_quantity' => 5,
+        'is_active' => 1, 'is_featured' => 0, 'created_at' => date('Y-m-d H:i:s', strtotime('-200 days')),
+    ]);
+};
+$photo = fn(int $id) => Database::insert('wk_product_images', ['product_id' => $id, 'image_path' => "p{$id}.jpg", 'is_primary' => 1]);
+$sell = function (int $id, int $qty, string $status = 'paid') {
+    $o = Database::insert('wk_orders', ['order_number' => substr('CI' . $id . $status . mt_rand(), 0, 30), 'status' => $status, 'total' => 100]);
+    Database::insert('wk_order_items', ['order_id' => $o, 'product_id' => $id, 'product_name' => 'x', 'quantity' => $qty, 'unit_price' => 100, 'total_price' => 100 * $qty]);
+};
+
+ShowcaseService::reset();
+check('showcase: a shop with no products has an empty slider', ShowcaseService::pick()['products'] === []);
+
+$old1 = $mk('old-one');  $photo($old1);
+$old2 = $mk('old-two');  $photo($old2);
+ShowcaseService::reset();
+$pick = ShowcaseService::pick();
+check('showcase: a shop with products but no choices still gets a slider', count($pick['products']) === 2, json_encode(array_column($pick['products'], 'slug')));
+check('showcase: and says it chose them itself', $pick['chosen'] === 0 && ShowcaseService::autoCount($pick) === 2);
+
+$best  = $mk('best');  $photo($best);  $sell($best, 9);
+$second = $mk('second'); $photo($second); $sell($second, 3);
+$refunded = $mk('refunded'); $photo($refunded); $sell($refunded, 50, 'refunded');
+$recentNoPhoto = $mk('recent-no-photo', ['created_at' => date('Y-m-d H:i:s', strtotime('-2 days'))]);
+$recent = $mk('recent', ['created_at' => date('Y-m-d H:i:s', strtotime('-10 days'))]); $photo($recent);
+$sale = $mk('sale', ['sale_price' => 60]); $photo($sale);
+$sold = $mk('sold-out', ['stock_quantity' => 0, 'created_at' => date('Y-m-d H:i:s', strtotime('-1 days'))]); $photo($sold);
+
+ShowcaseService::reset();
+$pick = ShowcaseService::pick();
+$slugs = array_column($pick['products'], 'slug');
+$sources = array_column($pick['products'], 'showcase_source');
+check('showcase: fills six places', count($slugs) === ShowcaseService::SLOTS, json_encode($slugs));
+check('showcase: best-sellers lead, most sold first', array_slice($slugs, 0, 2) === ['best', 'second'], json_encode($slugs));
+check('showcase: a refunded order is not a sale', !in_array('refunded', array_slice($slugs, 0, 2), true));
+check('showcase: then recently added, photos first', array_slice($slugs, 2, 2) === ['recent', 'recent-no-photo'], json_encode($slugs));
+check('showcase: then on sale', ($slugs[4] ?? null) === 'sale', json_encode($slugs));
+check('showcase: then the daily pick', ($sources[5] ?? null) === 'daily', json_encode($sources));
+check('showcase: never offers something out of stock on its own', !in_array('sold-out', $slugs, true));
+
+ShowcaseService::reset();
+$again = array_column(ShowcaseService::pick()['products'], 'slug');
+check('showcase: the daily pick holds still within a day', $again === $slugs);
+
+Database::update('wk_products', ['is_featured' => 1], 'id IN (?, ?)', [$sold, $old2]);
+ShowcaseService::reset();
+$pick = ShowcaseService::pick();
+$slugs = array_column($pick['products'], 'slug');
+check('showcase: chosen products come first, even when sold out', array_slice($slugs, 0, 2) === ['old-two', 'sold-out'] || array_slice($slugs, 0, 2) === ['sold-out', 'old-two'], json_encode($slugs));
+check('showcase: then the rest is filled', count($slugs) === ShowcaseService::SLOTS && $pick['chosen'] === 2 && ShowcaseService::autoCount($pick) === 4);
+check('showcase: the summary says what happened', str_contains(ShowcaseService::describe($pick), 'the 2 products you chose, then'), ShowcaseService::describe($pick));
+
+for ($i = 0; $i < 7; $i++) { $id = $mk("chosen-{$i}", ['is_featured' => 1]); $photo($id); }
+ShowcaseService::reset();
+$pick = ShowcaseService::pick();
+check('showcase: a shop that chose plenty gets only its choices', ShowcaseService::autoCount($pick) === 0 && $pick['chosen'] === 9, json_encode(['chosen' => $pick['chosen'], 'auto' => $pick['auto']]));
+
+Database::query('SET FOREIGN_KEY_CHECKS = 0');
+foreach (['wk_order_items', 'wk_orders', 'wk_product_images', 'wk_products'] as $t) Database::query("DELETE FROM {$t}");
+Database::query('SET FOREIGN_KEY_CHECKS = 1');
+ShowcaseService::reset();
 
 // ── 4. Idempotency: a full re-run over the completed schema ──────────
 // This is the upgraded-store path: everything already exists, every

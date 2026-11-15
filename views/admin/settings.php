@@ -132,6 +132,28 @@
                         </div>
                     </label>
                 </div>
+                <?php $wkShowcase = \App\Services\ShowcaseService::pick(); ?>
+                <div class="wk-showcase-summary wk-mt-12">
+                    <div class="wk-heavy"><?= $icon('sparkles', 14) ?> Homepage slider</div>
+                    <p class="wk-note wk-m-0"><?= htmlspecialchars(\App\Services\ShowcaseService::describe($wkShowcase)) ?>
+                    To choose, tick <strong>Show in homepage slider</strong> on a product.
+                    <a href="<?= $url('admin/products') ?>" class="wk-bold">Go to products</a></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="wk-card wk-mt-12">
+            <div class="wk-card-header"><h2><?= $icon('image') ?> Product Pictures</h2></div>
+            <div class="wk-card-body">
+                <?php $currentFit = $v('general','image_fit') ?: 'contain'; ?>
+                <div class="wk-form-group wk-m-0">
+                    <label for="general_image_fit">How product pictures sit in their frame</label>
+                    <select id="general_image_fit" name="general_image_fit" class="wk-select">
+                        <option value="contain" <?= $currentFit !== 'cover' ? 'selected' : '' ?>>Show the whole picture</option>
+                        <option value="cover" <?= $currentFit === 'cover' ? 'selected' : '' ?>>Fill the frame, cropping the edges</option>
+                    </select>
+                    <div class="wk-hint">Showing the whole picture never cuts off the top, bottom or sides of a photo; tall or wide photos get a plain border instead. Filling the frame looks fuller but crops anything that is not the same shape as the frame.</div>
+                </div>
             </div>
         </div>
     </div>

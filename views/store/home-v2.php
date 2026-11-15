@@ -11,9 +11,13 @@ $price = $showPrice;
 $showPriceNormal = $showPrice;
 $priceNormal = $showPrice;
 
-$carouselProducts = array_values(array_filter($products, fn($p) => $p['is_featured']));
+// Never empty: the shopkeeper's chosen products, topped up from what the
+// shop already has. See ShowcaseService.
+$carouselProducts = $showcase['products'] ?? [];
 $gridProducts = $products;
 ?>
+
+<?php require __DIR__ . '/partials/showcase-note.php'; ?>
 
 <!-- ═══ HERO CAROUSEL ═══ -->
 <?php if (count($carouselProducts) > 0): ?>
@@ -90,7 +94,7 @@ $gridProducts = $products;
             <a href="<?= $url('category/'.urlencode($cat['slug'])) ?>" style="display:block;text-decoration:none;background:var(--wk-card);border:2px solid var(--wk-border);border-radius:16px;overflow:hidden;transition:all .2s">
                 <div style="height:140px;overflow:hidden;background:var(--wk-bg)">
                     <?php if ($cat['cover_image'] ?? null): ?>
-                    <img src="<?= $url('storage/uploads/products/'.$cat['cover_image']) ?>" alt="<?= $e($cat['name']) ?>" style="width:100%;height:100%;object-fit:cover;transition:transform .3s" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                    <img src="<?= $url('storage/uploads/products/'.$cat['cover_image']) ?>" alt="<?= $e($cat['name']) ?>" class="wk-fit wk-cat-tile-img">
                     <?php else: ?>
                     <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:40px;opacity:.15"><?= $icon('package', 40) ?></div>
                     <?php endif; ?>
@@ -117,30 +121,7 @@ $gridProducts = $products;
             </div>
             <a href="<?= $url('shop?sort=price_low') ?>" aria-label="View all deals" style="font-size:14px;font-weight:700;color:var(--wk-purple-ink);text-decoration:none;padding:4px 0;display:inline-block">View All →</a>
         </div>
-        <div style="display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:12px;-webkit-overflow-scrolling:touch">
-            <?php foreach ($saleProducts as $p):
-                $prc = $p['sale_price'];
-                $discPct = (int)$p['discount_pct'];
-            ?>
-            <div style="flex:0 0 220px;scroll-snap-align:start;background:var(--wk-card);border:2px solid var(--wk-border);border-radius:16px;overflow:hidden;transition:all .2s">
-                <div onclick="window.location='<?= $url('product/'.urlencode($p['slug'])) ?>'" style="height:180px;overflow:hidden;cursor:pointer;position:relative;background:var(--wk-bg)">
-                    <?php if ($p['image']): ?>
-                    <?= \Core\View::productImage($p['image'], $p['name'], ['style' => 'width:100%;height:100%;object-fit:cover']) ?>
-                    <?php else: ?>
-                    <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:40px;opacity:.15"><?= $icon('package', 40) ?></div>
-                    <?php endif; ?>
-                    <span style="position:absolute;top:10px;left:10px;background:#dc2626;color:#fff;font-size:12px;font-weight:800;padding:4px 10px;border-radius:8px"><?= $discPct ?>% OFF</span>
-                </div>
-                <div onclick="window.location='<?= $url('product/'.urlencode($p['slug'])) ?>'" style="padding:14px 16px;cursor:pointer">
-                    <div style="font-weight:800;font-size:14px;color:var(--wk-text);margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><?= $e($p['name']) ?></div>
-                    <div class="wk-product-price">
-                        <span class="current"><?= $priceNormal($prc) ?></span>
-                        <span class="original"><?= $priceNormal($p['price']) ?></span>
-                    </div>
-                </div>
-            </div>
-            <?php endforeach; ?>
-        </div>
+        <?php $wkRowProducts = $saleProducts; require __DIR__ . '/partials/product-row.php'; ?>
     </div>
 </section>
 <?php endif; ?>

@@ -65,9 +65,9 @@ foreach ($variants['combos'] ?? [] as $combo) {
 
             <!-- Images -->
             <div>
-                <div id="mainImage" style="background:var(--wk-bg);border-radius:var(--radius);overflow:hidden;aspect-ratio:1;display:flex;align-items:center;justify-content:center;margin-bottom:12px;border:2px solid var(--wk-border)">
+                <div id="mainImage" style="background:var(--wk-surface);border-radius:var(--radius);overflow:hidden;aspect-ratio:1;display:flex;align-items:center;justify-content:center;margin-bottom:12px;border:2px solid var(--wk-border)">
                     <?php if (!empty($images)): ?>
-                        <?= \Core\View::productImage($images[0]['image_path'], $p['name'], ['eager' => true, 'no_webp' => true, 'id' => 'mainImg', 'style' => 'width:100%;height:100%;object-fit:cover']) ?>
+                        <?= \Core\View::productImage($images[0]['image_path'], $p['name'], ['eager' => true, 'no_webp' => true, 'id' => 'mainImg', 'class' => 'wk-fit']) ?>
                     <?php else: ?>
                         <span style="font-size:80px;opacity:.15"><?= $icon('package', 72) ?></span>
                     <?php endif; ?>
@@ -77,7 +77,7 @@ foreach ($variants['combos'] ?? [] as $combo) {
                     <div onclick="setMainImage('<?= $url('storage/uploads/products/'.$img['image_path']) ?>',this)"
                          class="wk-thumb"
                          style="width:64px;height:64px;border-radius:8px;overflow:hidden;cursor:pointer;border:2px solid <?= $i===0?'var(--wk-purple)':'var(--wk-border)' ?>;transition:border-color .2s">
-                        <img src="<?= $url('storage/uploads/products/'.$img['image_path']) ?>" style="width:100%;height:100%;object-fit:cover" alt="">
+                        <img src="<?= $url('storage/uploads/products/'.$img['image_path']) ?>" class="wk-fit" alt="">
                     </div>
                     <?php endforeach; ?>
                 </div>
@@ -333,7 +333,7 @@ function findMatchingCombo() {
             const gallery = document.getElementById('thumbGallery');
             gallery.innerHTML = match.images.map((src, i) =>
                 `<div onclick="setMainImage('${src}',this)" class="wk-thumb" style="width:64px;height:64px;border-radius:8px;overflow:hidden;cursor:pointer;border:2px solid ${i===0?'var(--wk-purple)':'var(--wk-border)'};transition:border-color .2s">
-                    <img src="${src}" style="width:100%;height:100%;object-fit:cover" alt="">
+                    <img src="${src}" class="wk-fit" alt="">
                 </div>`
             ).join('');
         }

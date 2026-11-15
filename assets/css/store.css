@@ -285,11 +285,11 @@ picture { display: contents; }
 }
 
 .wk-product-img {
-    aspect-ratio: 4/3; background: var(--wk-bg);
+    aspect-ratio: 4/3; background: var(--wk-surface);
     overflow: hidden; position: relative;
     flex-shrink: 0; /* keep the 4/3 image from squishing in the flex column */
 }
-.wk-product-img img { width: 100%; height: 100%; object-fit: cover; transition: transform .5s; }
+.wk-product-img img { width: 100%; height: 100%; object-fit: contain; transition: transform .5s; }
 .wk-product-card:hover .wk-product-img img { transform: scale(1.08); }
 
 .wk-product-badge {
@@ -373,7 +373,7 @@ picture { display: contents; }
     width: 60px; height: 60px; border-radius: var(--radius-sm);
     background: var(--wk-bg); overflow: hidden; flex-shrink: 0;
 }
-.wk-cart-item-img img { width: 100%; height: 100%; object-fit: cover; }
+.wk-cart-item-img img { width: 100%; height: 100%; object-fit: contain; }
 .wk-cart-item-info { flex: 1; }
 .wk-cart-item-name { font-weight: 800; font-size: 14px; margin-bottom: 2px; }
 .wk-cart-item-price { font-family: var(--font-mono); font-size: 14px; font-weight: 700; }
@@ -734,7 +734,7 @@ picture { display: contents; }
 .wk-search-row:last-of-type { border-bottom: none; }
 .wk-search-row:hover, .wk-search-row.active { background: var(--wk-purple-soft); }
 .wk-search-thumb {
-    width: 42px; height: 42px; border-radius: var(--radius-sm); object-fit: cover;
+    width: 42px; height: 42px; border-radius: var(--radius-sm); object-fit: contain;
     background: var(--wk-bg); flex-shrink: 0;
 }
 .wk-search-info { flex: 1; min-width: 0; }
@@ -1422,7 +1422,7 @@ input.wk-field-invalid { border-color: #ef4444 !important; }
     width: 96px; height: 96px; border-radius: 10px; overflow: hidden; background: var(--wk-bg);
     display: flex; align-items: center; justify-content: center; font-size: 26px; flex-shrink: 0;
 }
-.wk-cart-line-img img { width: 100%; height: 100%; object-fit: cover; }
+.wk-cart-line-img img { width: 100%; height: 100%; object-fit: contain; }
 .wk-cart-line-info { grid-area: info; min-width: 0; }
 .wk-cart-line-name { font-weight: 800; font-size: 15px; color: var(--wk-text); text-decoration: none; display: block; }
 .wk-cart-line-name:hover { color: var(--wk-purple-ink); }
@@ -1546,12 +1546,72 @@ input.wk-field-invalid { border-color: #ef4444 !important; }
     display: flex; align-items: center; justify-content: center;
     aspect-ratio: 1; background: var(--wk-bg); overflow: hidden;
 }
-.wk-recent-img img { width: 100%; height: 100%; object-fit: cover; }
+.wk-recent-img img { width: 100%; height: 100%; object-fit: contain; }
 .wk-recent-name {
     display: block; padding: 10px 12px; font-size: 13px; font-weight: 700;
     color: var(--wk-text); line-height: 1.4;
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
+
+/* ── Product pictures ───────────────────────── */
+/* A product picture is shown whole, centred in its frame, so a tall or wide
+   photo is never cut off at the top and bottom or the sides. A shop can
+   choose to fill the frame instead (Settings, Appearance), which crops the
+   edges; that adds wk-img-fill to the body. The blurred slide background is
+   decoration and always fills. */
+.wk-fit { display: block; width: 100%; height: 100%; object-fit: contain; }
+.wk-thumb-48 { width: 48px; height: 48px; flex-shrink: 0; border-radius: var(--radius-sm); background: var(--wk-surface); }
+.wk-cat-tile-img { transition: transform .3s; }
+a:hover .wk-cat-tile-img { transform: scale(1.05); }
+@media (prefers-reduced-motion: reduce) { .wk-cat-tile-img, a:hover .wk-cat-tile-img { transition: none; transform: none; } }
+.wk-img-fill .wk-fit,
+.wk-img-fill .wk-product-img img,
+.wk-img-fill .wk-row-card-img img,
+.wk-img-fill .wk-cart-item-img img,
+.wk-img-fill .wk-cart-line-img img,
+.wk-img-fill .wk-recent-img img,
+.wk-img-fill .wk-search-thumb { object-fit: cover; }
+
+/* ── Product rows ───────────────────────────── */
+.wk-pb-0 { padding-bottom: 0 !important; }
+.wk-row-scroll {
+    display: flex; gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory;
+    padding-bottom: 12px; -webkit-overflow-scrolling: touch;
+}
+.wk-row-card {
+    flex: 0 0 220px; scroll-snap-align: start; display: flex; flex-direction: column;
+    background: var(--wk-surface); border: 2px solid var(--wk-border); border-radius: 16px;
+    overflow: hidden; color: inherit; text-decoration: none; transition: border-color .2s, transform .2s;
+}
+.wk-row-card:hover { border-color: var(--wk-purple); transform: translateY(-2px); }
+.wk-row-card:focus-visible { outline: 3px solid var(--wk-purple); outline-offset: 2px; }
+.wk-row-card-img { position: relative; display: block; height: 180px; background: var(--wk-surface); overflow: hidden; }
+.wk-row-card-img img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.wk-row-card-empty { display: flex; height: 100%; align-items: center; justify-content: center; opacity: .15; }
+.wk-row-badge {
+    position: absolute; top: 10px; left: 10px; background: #dc2626; color: #fff;
+    font-size: 12px; font-weight: 800; padding: 4px 10px; border-radius: 8px;
+}
+.wk-row-badge-out { left: auto; right: 10px; background: #4b5563; }
+.wk-row-card-body { display: block; padding: 14px 16px; }
+.wk-row-card-name {
+    display: block; font-weight: 800; font-size: 14px; color: var(--wk-text); margin-bottom: 6px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+@media (prefers-reduced-motion: reduce) { .wk-row-card, .wk-row-card:hover { transition: none; transform: none; } }
+
+/* ── A note only the signed-in shopkeeper sees ─ */
+.wk-admin-note { background: #1e1b2e; color: #fff; font-size: 13px; }
+.wk-admin-note-inner { display: flex; align-items: center; gap: 12px; padding-top: 10px; padding-bottom: 10px; }
+.wk-admin-note-tag {
+    flex-shrink: 0; background: #fbbf24; color: #1e1b2e; font-size: 11px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: .5px; padding: 3px 8px; border-radius: 6px;
+}
+.wk-admin-note-text { flex: 1; line-height: 1.5; }
+.wk-admin-note a { color: #ddd6fe; font-weight: 700; text-decoration: underline; }
+.wk-admin-note-close { display: flex; padding: 6px; background: none; border: 0; color: #fff; opacity: .75; cursor: pointer; }
+.wk-admin-note-close:hover, .wk-admin-note-close:focus-visible { opacity: 1; }
+@media (max-width: 600px) { .wk-admin-note-inner { flex-wrap: wrap; } }
 
 /* ── Utilities ──────────────────────────────── */
 /* Single-purpose classes for what used to be written inline on element

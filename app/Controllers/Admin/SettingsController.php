@@ -25,7 +25,7 @@ class SettingsController
         // views/admin/settings.php must be listed here to be saved.
         $fields = [
             'general' => [
-                'site_name','site_tagline','base_url','logo_url','favicon_url','loader_url','store_theme','homepage_style',
+                'site_name','site_tagline','base_url','logo_url','favicon_url','loader_url','store_theme','homepage_style','image_fit',
                 'hero_title','hero_subtitle','hero_cta',
                 'chatbot_name','chatbot_enabled','contact_email','currency','currency_symbol','multi_currency','timezone',
                 'store_phone','store_address','store_tax_id','store_logo','store_country','store_state',

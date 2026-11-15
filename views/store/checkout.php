@@ -211,7 +211,7 @@ $defAddr = !empty($addrs) ? $addrs[0] : [];
                     <div style="display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--wk-border);font-size:14px">
                         <div style="width:52px;height:52px;border-radius:8px;overflow:hidden;background:var(--wk-bg);flex-shrink:0;border:1px solid var(--wk-border)">
                             <?php if (!empty($item['image'])): ?>
-                                <img src="<?= $url('storage/uploads/products/'.$item['image']) ?>" style="width:100%;height:100%;object-fit:cover">
+                                <img src="<?= $url('storage/uploads/products/'.$item['image']) ?>" class="wk-fit">
                             <?php else: ?>
                                 <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:20px;opacity:.3"><?= $icon('package', 20) ?></div>
                             <?php endif; ?>

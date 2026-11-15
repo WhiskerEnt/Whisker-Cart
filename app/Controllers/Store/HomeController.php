@@ -83,6 +83,7 @@ class HomeController
             'heroTitle'    => $heroTitle,
             'heroSubtitle' => $heroSubtitle,
             'heroCta'      => $heroCta,
+            'showcase'     => \App\Services\ShowcaseService::pick(),
             'isHomepage'   => true,
         ], 'store/layouts/main');
     }

@@ -130,6 +130,10 @@ $o = fn($k, $d='') => htmlspecialchars($old[$k] ?? $d);
             <div class="wk-mb-20 wk-card">
                 <div class="wk-card-header"><h2>Organization</h2></div>
                 <div class="wk-card-body">
+                    <div class="wk-form-group wk-showcase-pick">
+                        <label class="wk-check"><input type="checkbox" name="is_featured" value="1"> <?= $icon('sparkles', 14) ?> Show in homepage slider</label>
+                        <div class="wk-hint">Ticked products lead the slider at the top of your homepage. With none ticked, it fills itself from your best-sellers and newest products.</div>
+                    </div>
                     <div class="wk-form-group">
                         <label>Category</label>
                         <select name="category_id" class="wk-select" id="categorySelect">
@@ -147,7 +151,6 @@ $o = fn($k, $d='') => htmlspecialchars($old[$k] ?? $d);
                         </div>
                     </div>
                     <div class="wk-form-group"><label class="wk-check"><input type="checkbox" name="is_active" value="1" checked> Active</label></div>
-                    <div class="wk-form-group"><label class="wk-check"><input type="checkbox" name="is_featured" value="1"> Featured</label></div>
                 </div>
             </div>
             <button type="submit" class="wk-btn-block wk-btn wk-btn-primary">Save & Add Variants →</button>

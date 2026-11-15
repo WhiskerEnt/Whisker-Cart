@@ -552,6 +552,10 @@ body {
 .wk-acct-checks { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 18px; }
 .wk-acct-card .wk-subtle { text-transform: none; letter-spacing: 0; }
 
+/* ── Homepage slider summary ──────────────── */
+.wk-showcase-summary { padding: 12px 14px; border-radius: 10px; background: var(--wk-bg); border: 1px solid var(--wk-border); line-height: 1.6; }
+.wk-showcase-summary a { color: var(--wk-purple); }
+
 /* ── Utilities ──────────────────────────────── */
 /* Single-purpose classes for what used to be written inline on element
    after element. The spacing steps are the ones the views already use.

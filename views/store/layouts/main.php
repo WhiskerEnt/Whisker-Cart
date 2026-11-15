@@ -83,7 +83,7 @@ $currentSymbol = $currentCurrency === $baseCurrency
     <link rel="stylesheet" href="<?= \Core\View::asset('css/store.css') ?>">
 </head>
 <?php $storeTheme = \Core\Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='store_theme'") ?: 'purple'; ?>
-<body data-theme="<?= htmlspecialchars($storeTheme) ?>">
+<body data-theme="<?= htmlspecialchars($storeTheme) ?>"<?= \Core\Database::setting('general', 'image_fit') === 'cover' ? ' class="wk-img-fill"' : '' ?>>
 
 <a class="wk-skip-link" href="#wk-main">Skip to content</a>
 

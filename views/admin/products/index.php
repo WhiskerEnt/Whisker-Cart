@@ -5,6 +5,15 @@
     <a href="<?= $url('admin/products/create') ?>" class="wk-btn wk-btn-primary">+ Add Product</a>
 </div>
 
+<?php if (!empty($products)): $wkShowcase = \App\Services\ShowcaseService::pick(); ?>
+<div class="wk-showcase-summary wk-mb-20">
+    <?= $icon('sparkles', 14) ?> <?= $e(\App\Services\ShowcaseService::describe($wkShowcase)) ?>
+    <?php if (\App\Services\ShowcaseService::autoCount($wkShowcase) > 0): ?>
+        To choose your own, open a product and tick <strong>Show in homepage slider</strong>.
+    <?php endif; ?>
+</div>
+<?php endif; ?>
+
 <?php if (empty($products)): ?>
     <div class="wk-card"><div class="wk-empty"><div class="wk-empty-icon"><?= $icon('package', 48) ?></div><p style="font-weight:800;margin-bottom:4px">No products yet</p><p><a href="<?= $url('admin/products/create') ?>">Add your first product</a></p></div></div>
 <?php else: ?>

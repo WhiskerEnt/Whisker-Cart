@@ -9,7 +9,8 @@ $baseSymbol = \App\Services\CurrencyService::baseSymbol();
 $showPrice = fn($amount) => \App\Services\CurrencyService::displayPrice((float) $amount);
 $price = $showPrice;
 
-$carouselProducts = array_filter($products, fn($p) => $p['is_featured']);
+// Never empty: see ShowcaseService.
+$carouselProducts = $showcase['products'] ?? [];
 $gridProducts = $products;
 ?>
 
@@ -22,61 +23,15 @@ $gridProducts = $products;
     </div>
 </section>
 
-<!-- Featured Carousel -->
+<?php require __DIR__ . '/partials/showcase-note.php'; ?>
+
+<!-- Featured -->
 <?php if (count($carouselProducts) > 0): ?>
-<section class="wk-section" style="padding-bottom:0">
+<section class="wk-section wk-pb-0">
     <div class="wk-container">
         <h2 class="wk-section-title"><?= $icon('sparkles', 20) ?> Featured</h2>
         <p class="wk-section-sub">Our top picks for you</p>
-
-        <div class="wk-carousel">
-            <div class="wk-carousel-track">
-                <?php foreach ($carouselProducts as $p):
-                    $prc = $p['sale_price'] ?: $p['price'];
-                    $hasSale = $p['sale_price'] && $p['sale_price'] < $p['price'];
-                ?>
-                <div class="wk-carousel-slide">
-                    <div class="wk-carousel-slide-inner">
-                        <div class="wk-carousel-img" onclick="window.location='<?= $url('product/'.urlencode($p['slug'])) ?>'">
-                            <?php if ($p['image']): ?>
-                                <?= \Core\View::productImage($p['image'], $p['name']) ?>
-                            <?php else: ?>
-                                <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:64px;opacity:.15;background:var(--wk-bg)"><?= $icon('package', 56) ?></div>
-                            <?php endif; ?>
-                            <?php if ($hasSale): ?>
-                                <span class="wk-product-badge">Sale</span>
-                            <?php endif; ?>
-                        </div>
-                        <div class="wk-carousel-info" onclick="window.location='<?= $url('product/'.urlencode($p['slug'])) ?>'" style="cursor:pointer">
-                            <?php if ($p['category_name'] ?? null): ?>
-                                <div class="wk-product-cat"><?= $e($p['category_name']) ?></div>
-                            <?php endif; ?>
-                            <h3 class="wk-carousel-name"><?= $e($p['name']) ?></h3>
-                            <?php if ($p['short_description']): ?>
-                                <p class="wk-carousel-desc"><?= $e($p['short_description']) ?></p>
-                            <?php endif; ?>
-                            <div class="wk-mb-16 wk-product-price">
-                                <span class="current" style="font-size:24px"><?= $price($prc) ?></span>
-                                <?php if ($hasSale): ?><span class="original"><?= $price($p['price']) ?></span><?php endif; ?>
-                            </div>
-                        </div>
-                        <?php if ($p['stock_quantity'] > 0): ?>
-                            <?php if (($p['variant_count'] ?? 0) > 0): ?>
-                                <a href="<?= $url('product/'.urlencode($p['slug'])) ?>" class="wk-block-link wk-carousel-add-btn"><?= $icon('palette') ?> View Options →</a>
-                            <?php else: ?>
-                                <button class="wk-carousel-add-btn" data-add-to-cart="<?= $p['id'] ?>"><?= $icon('shopping-cart') ?> Quick Add to Cart</button>
-                            <?php endif; ?>
-                        <?php else: ?>
-                            <button class="wk-carousel-add-btn" disabled style="opacity:.5;cursor:not-allowed;background:#6b7280">Sold Out</button>
-                        <?php endif; ?>
-                    </div>
-                </div>
-                <?php endforeach; ?>
-            </div>
-            <button class="wk-carousel-prev">‹</button>
-            <button class="wk-carousel-next">›</button>
-            <div class="wk-carousel-dots"></div>
-        </div>
+        <?php $wkRowProducts = $carouselProducts; require __DIR__ . '/partials/product-row.php'; ?>
     </div>
 </section>
 <?php endif; ?>

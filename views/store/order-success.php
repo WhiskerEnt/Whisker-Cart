@@ -78,7 +78,7 @@ $items = $items ?? [];
                 <div style="display:flex;align-items:center;gap:12px;padding:10px 0;font-size:14px">
                     <?php if (!empty($it['image'])): ?>
                         <img src="<?= $e($url('storage/uploads/products/' . $it['image'])) ?>" alt=""
-                             style="width:48px;height:48px;border-radius:var(--radius-sm);object-fit:cover;background:var(--wk-bg);flex-shrink:0">
+                             class="wk-fit wk-thumb-48">
                     <?php else: ?>
                         <div style="width:48px;height:48px;border-radius:var(--radius-sm);background:var(--wk-bg);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0"><?= $icon('package', 18) ?></div>
                     <?php endif; ?>

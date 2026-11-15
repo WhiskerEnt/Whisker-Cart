@@ -188,11 +188,14 @@ $shipCharge = \Core\Database::fetchValue("SELECT setting_value FROM wk_settings 
             <div class="wk-mb-20 wk-card">
                 <div class="wk-card-header"><h2>Organization</h2></div>
                 <div class="wk-card-body">
+                    <div class="wk-form-group wk-showcase-pick">
+                        <label class="wk-check"><input type="checkbox" name="is_featured" value="1" <?= $p['is_featured']?'checked':'' ?>> <?= $icon('sparkles', 14) ?> Show in homepage slider</label>
+                        <div class="wk-hint">Ticked products lead the slider at the top of your homepage. With none ticked, it fills itself from your best-sellers and newest products.</div>
+                    </div>
                     <div class="wk-form-group"><label>Category</label><select name="category_id" class="wk-select" id="categorySelect"><option value="">No category</option><?php foreach ($categories as $cat): ?><option value="<?= $cat['id'] ?>" <?= $cat['id']==$p['category_id']?'selected':'' ?>><?= $cat['parent_name']?htmlspecialchars($cat['parent_name']).' → ':'' ?><?= htmlspecialchars($cat['name']) ?></option><?php endforeach; ?></select>
                         <div class="wk-mt-8"><button type="button" class="wk-btn-block wk-btn wk-btn-secondary wk-btn-sm" onclick="document.getElementById('qcBox').style.display=document.getElementById('qcBox').style.display==='none'?'block':'none'">+ Quick Add Category</button><div id="qcBox" style="display:none;margin-top:8px;padding:10px;background:var(--wk-bg);border-radius:8px"><input type="text" id="qcName" class="wk-mb-6 wk-input" placeholder="Category name"><button type="button" class="wk-btn-block wk-btn wk-btn-primary wk-btn-sm" onclick="quickAddCategory()">Create</button></div></div>
                     </div>
                     <div class="wk-form-group"><label class="wk-check"><input type="checkbox" name="is_active" value="1" <?= $p['is_active']?'checked':'' ?>> Active</label></div>
-                    <div class="wk-form-group"><label class="wk-check"><input type="checkbox" name="is_featured" value="1" <?= $p['is_featured']?'checked':'' ?>> Featured</label></div>
                 </div>
             </div>
             <button type="submit" class="wk-btn-block wk-btn wk-btn-primary">Update Product</button>

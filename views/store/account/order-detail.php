@@ -34,7 +34,7 @@ $countries = \App\Services\CurrencyService::countries();
             <a href="<?= $i['slug'] ? $url('product/'.$i['slug']) : '#' ?>" style="flex-shrink:0">
                 <div style="width:56px;height:56px;border-radius:8px;overflow:hidden;background:var(--wk-bg);display:flex;align-items:center;justify-content:center">
                     <?php if (!empty($i['image'])): ?>
-                        <img src="<?= $url('storage/uploads/products/'.$i['image']) ?>" style="width:100%;height:100%;object-fit:cover" alt="">
+                        <img src="<?= $url('storage/uploads/products/'.$i['image']) ?>" class="wk-fit" alt="">
                     <?php else: ?>
                         <span style="font-size:20px;opacity:.3"><?= $icon('package', 20) ?></span>
                     <?php endif; ?>

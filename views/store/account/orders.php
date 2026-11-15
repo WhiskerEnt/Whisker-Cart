@@ -41,7 +41,7 @@
                 <?php foreach ($orderItems as $oi): ?>
                 <div style="width:44px;height:44px;border-radius:8px;overflow:hidden;background:var(--wk-bg);flex-shrink:0;display:flex;align-items:center;justify-content:center;border:1px solid var(--wk-border)">
                     <?php if (!empty($oi['image'])): ?>
-                        <img src="<?= $url('storage/uploads/products/'.$oi['image']) ?>" style="width:100%;height:100%;object-fit:cover" alt="">
+                        <img src="<?= $url('storage/uploads/products/'.$oi['image']) ?>" class="wk-fit" alt="">
                     <?php else: ?>
                         <span style="font-size:16px;opacity:.3"><?= $icon('package', 16) ?></span>
                     <?php endif; ?>
