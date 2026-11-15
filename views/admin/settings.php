@@ -347,21 +347,21 @@
                     <div class="wk-m-0 wk-form-group">
                         <label>How it shows</label>
                         <select name="social_social_display" class="wk-select">
-                            <option value="always" <?= ($s['social']['social_display'] ?? 'always') !== 'collapsed' ? 'selected' : '' ?>>Always show every button</option>
-                            <option value="collapsed" <?= ($s['social']['social_display'] ?? 'always') === 'collapsed' ? 'selected' : '' ?>>Collapse behind one button</option>
+                            <option value="always" <?= ($s['social']['social_display'] ?? 'always') !== 'collapsed' ? 'selected' : '' ?>>A row of buttons, always in view</option>
+                            <option value="collapsed" <?= ($s['social']['social_display'] ?? 'always') === 'collapsed' ? 'selected' : '' ?>>One "Contact us" button that opens a menu</option>
                         </select>
                         <div class="wk-hint">
-                            Collapsed takes up less of the page — worth it if you use more than three or four.
+                            The row suits up to five channels. With more, the menu is used, so the row never gets too wide for a phone.
                         </div>
                     </div>
                     <div class="wk-m-0 wk-form-group">
                         <label>Side of the screen</label>
                         <select name="social_social_position" class="wk-select">
-                            <option value="left" <?= ($s['social']['social_position'] ?? 'left') !== 'right' ? 'selected' : '' ?>>Left</option>
-                            <option value="right" <?= ($s['social']['social_position'] ?? 'left') === 'right' ? 'selected' : '' ?>>Right</option>
+                            <option value="left" <?= ($s['social']['social_position'] ?? 'left') !== 'right' ? 'selected' : '' ?>>Bottom left</option>
+                            <option value="right" <?= ($s['social']['social_position'] ?? 'left') === 'right' ? 'selected' : '' ?>>Bottom right, above the chat button</option>
                         </select>
                         <div class="wk-hint">
-                            The chat bubble sits bottom-right, so the left keeps them apart.
+                            The chat bubble sits bottom right, so the left keeps them apart. On the right, it waits above the chat bubble.
                         </div>
                     </div>
                 </div>

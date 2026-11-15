@@ -26,6 +26,21 @@ No manual SQL is needed. Existing shops keep the signup form they had.
   and showed one product at a time across the whole page; it is now a row
   of product cards, the same as the Modern homepage's sale row.
 
+### The contact button
+
+- **Redesigned, and moved to a bottom corner.** The column of round icons
+  sat halfway down the side of the screen, on top of the homepage slider's
+  arrow, and every page gave up 72 pixels of width to keep clear of it. It
+  is now a sheet of frosted glass in the bottom corner that stays put as
+  the page scrolls. Shops that show every channel get a small bar of tiles,
+  each naming itself on hover; shops that collapse it get a "Contact us"
+  button opening a card with a row per channel. On a phone it is always the
+  one button, so it never covers the page, and the button folds down to its
+  icon while the shopper scrolls down.
+- It steps out of the way of the cookie banner, the cart and the chat
+  window, and on the right-hand side it waits above the chat button. The
+  glass takes the shop's own colours, so it suits every theme.
+
 ### Product pictures
 
 - **Photos of 10 to 15 MB upload.** Many hosts accept 2 MB per upload, and

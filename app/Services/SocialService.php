@@ -37,6 +37,9 @@ class SocialService
         'linkedin'  => ['LinkedIn',  '#0A66C2', 'url'],
     ];
 
+    /** More channels than this make a dock too wide for a phone, so they get the menu. */
+    public const DOCK_MAX = 5;
+
     /** @return string[] setting keys the admin form may write */
     public static function settingKeys(): array
     {

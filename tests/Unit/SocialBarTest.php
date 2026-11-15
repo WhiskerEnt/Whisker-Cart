@@ -82,69 +82,96 @@ class SocialBarTest extends TestCase
         $this->assertSame('', SocialService::icon('nonsense'), 'an unknown channel must render nothing');
     }
 
-    /**
-     * The bar floats over the page, so the wrapper must not take pointer
-     * events — otherwise the gaps between icons swallow clicks on the content
-     * behind it.
-     */
-    public function testTheBarDoesNotObstructThePageBehindIt(): void
+    private function css(): string
     {
-        $css = (string) file_get_contents(WK_ROOT . '/assets/css/store.css');
+        return (string) file_get_contents(WK_ROOT . '/assets/css/store.css');
+    }
 
-        $this->assertSame(1, preg_match('/\.wk-social \{([^}]*)\}/', $css, $wrapper), 'no .wk-social rule');
-        $this->assertMatchesRegularExpression(
-            '/pointer-events:\s*none/',
-            $wrapper[1],
-            'the wrapper spans the viewport, so it must let clicks through'
-        );
-
-        $this->assertSame(1, preg_match('/\.wk-social-link \{([^}]*)\}/', $css, $link), 'no .wk-social-link rule');
-        $this->assertMatchesRegularExpression(
-            '/pointer-events:\s*auto/',
-            $link[1],
-            'the links themselves must still be clickable'
-        );
+    private function rule(string $selector): string
+    {
+        $this->assertSame(1, preg_match('/(?:^|\n)' . preg_quote($selector, '/') . ' \{([^}]*)\}/', $this->css(), $m), "no {$selector} rule");
+        return $m[1];
     }
 
     /**
-     * Setting one overflow axis to anything but visible makes the other axis
-     * compute to auto, which clipped each icon's shadow at a hard rectangular
-     * edge and cropped the icons themselves.
+     * The button floats over the page, so the wrapper must not take clicks;
+     * otherwise the space around the button swallows taps on the page.
      */
-    public function testTheColumnDoesNotClipItsIcons(): void
+    public function testTheButtonDoesNotObstructThePageBehindIt(): void
     {
-        $css = (string) file_get_contents(WK_ROOT . '/assets/css/store.css');
-        $this->assertSame(1, preg_match('/\.wk-social-inner \{([^}]*)\}/', $css, $m), 'no .wk-social-inner rule');
-
-        $this->assertSame(
-            0,
-            preg_match('/overflow(-x|-y)?:\s*(auto|scroll|hidden|clip)/', $m[1]),
-            'the column must not set overflow: one axis makes the other compute to auto, '
-            . 'and the icons and their shadows get clipped'
-        );
+        $this->assertMatchesRegularExpression('/pointer-events:\s*none/', $this->rule('.wk-contact'));
+        $this->assertMatchesRegularExpression('/pointer-events:\s*auto/', $this->rule('.wk-contact > *'), 'what is inside must still be clickable');
     }
 
-    /** The bar paints nothing of its own; the icons carry all the colour. */
-    public function testTheBarHasNoBackgroundPanel(): void
+    /** It lives in a bottom corner, clear of the slider arrows and the page's text. */
+    public function testItSitsInABottomCornerAndReservesNoColumn(): void
     {
-        $css = (string) file_get_contents(WK_ROOT . '/assets/css/store.css');
-        foreach (['.wk-social', '.wk-social-inner'] as $sel) {
-            $this->assertSame(1, preg_match('/' . preg_quote($sel, '/') . ' \{([^}]*)\}/', $css, $m), "no {$sel} rule");
-            $this->assertSame(
-                0,
-                preg_match('/(?:^|;)\s*background/', $m[1]),
-                "{$sel} must not paint a background — the bar is meant to float over the page"
-            );
-        }
+        $wrapper = $this->rule('.wk-contact');
+        $this->assertMatchesRegularExpression('/position:\s*fixed/', $wrapper);
+        $this->assertMatchesRegularExpression('/bottom:\s*calc\(20px \+ env\(safe-area-inset-bottom\)\)/', $wrapper, 'clear of a phone\'s home bar');
+        $this->assertDoesNotMatchRegularExpression('/top:\s*50%/', $wrapper, 'not pinned to the middle of the screen');
+        $this->assertStringNotContainsString('wk-has-social', $this->css(), 'the page no longer gives up a strip of its width');
     }
 
-    /** It sits below the chat bubble rather than over it. */
-    public function testItDoesNotOutrankTheChatBubble(): void
+    /** It sits below the chat bubble rather than over it, and above it when on the same side. */
+    public function testItDoesNotOutrankOrCoverTheChatBubble(): void
     {
-        $css = (string) file_get_contents(WK_ROOT . '/assets/css/store.css');
-        preg_match('/\.wk-social \{[^}]*z-index:\s*(\d+)/', $css, $m);
-        $this->assertNotEmpty($m, 'the bar needs an explicit z-index');
+        preg_match('/z-index:\s*(\d+)/', $this->rule('.wk-contact'), $m);
+        $this->assertNotEmpty($m, 'the button needs an explicit z-index');
         $this->assertLessThan(9999, (int) $m[1], 'the chat bubble sits at 9999 and must stay on top');
+        $this->assertStringContainsString('body:has(#wkChatToggle) .wk-contact-right { bottom:', $this->css());
+    }
+
+    /** Anything that takes over the screen gets the screen to itself. */
+    public function testItStepsAsideForTheCookieBannerCartAndChat(): void
+    {
+        $css = $this->css();
+        foreach (['.wk-cookie.is-open', '.wk-cart-drawer.open'] as $overlay) {
+            $this->assertStringContainsString('body:has(' . $overlay . ') .wk-contact', $css, "not hidden for {$overlay}");
+        }
+        // The chat window's inline style always mentions flex (flex-direction),
+        // so its open state is marked on the body rather than read from the style.
+        $this->assertStringContainsString('body.wk-chat-open .wk-contact', $css);
+        $this->assertStringNotContainsString('[style*="flex"]', $css);
+        $this->assertStringContainsString("document.body.classList.toggle('wk-chat-open', chatOpen);", (string) file_get_contents(WK_ROOT . '/views/store/layouts/main.php'));
+    }
+
+    /** Every channel has its colour as a class, so the markup carries no inline styles. */
+    public function testEveryChannelHasItsColour(): void
+    {
+        foreach (array_keys(SocialService::channels()) as $key) {
+            $this->assertMatchesRegularExpression('/\.wk-brand-' . preg_quote($key, '/') . '\s*\{\s*--wk-brand:/', $this->css(), "{$key} has no colour");
+        }
+        $this->assertStringNotContainsString('style="', (string) file_get_contents(WK_ROOT . '/views/store/partials/social-bar.php'));
+    }
+
+    /** A long list would make the row too wide for a phone, so it becomes the menu. */
+    public function testManyChannelsUseTheMenu(): void
+    {
+        $partial = (string) file_get_contents(WK_ROOT . '/views/store/partials/social-bar.php');
+        $this->assertStringContainsString("(SocialService::collapsed() || count(\$links) > SocialService::DOCK_MAX) ? 'menu' : 'dock'", $partial);
+        $this->assertSame(5, SocialService::DOCK_MAX);
+        $this->assertStringContainsString('wk-contact-style-<?= $style ?>', $partial, 'the style is not named like the dock itself');
+        $this->assertSame(1, substr_count($partial, 'id="wkContactButton"'), 'the menu is always in the markup, once');
+    }
+
+    /** The menu button says whether it is open, and Escape hands focus back to it. */
+    public function testTheMenuIsUsableFromTheKeyboard(): void
+    {
+        $partial = (string) file_get_contents(WK_ROOT . '/views/store/partials/social-bar.php');
+        $this->assertStringContainsString('aria-expanded="false" aria-controls="wkContactMenu"', $partial);
+        $this->assertStringContainsString("if (e.key === 'Escape'", $partial);
+        $this->assertStringContainsString('button.focus();', $partial);
+        $this->assertStringContainsString('aria-label="<?= $e($l[\'label\']) ?>"', $partial, 'a dock tile is only an icon, so it needs a name');
+    }
+
+    /** Glass where the browser can blur, a plain surface where it cannot. */
+    public function testTheGlassHasAFallback(): void
+    {
+        $css = $this->css();
+        $this->assertStringContainsString('backdrop-filter: saturate(180%) blur(20px);', $css);
+        $this->assertStringContainsString('@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)))', $css);
+        $this->assertMatchesRegularExpression('/--wk-glass: color-mix\(in srgb, var\(--wk-surface\)/', $css, 'the glass follows the shop\'s theme');
     }
 
     /** Every field the Social tab posts must be saved. */

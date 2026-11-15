@@ -1,105 +1,109 @@
 <?php
 /**
- * Floating contact bar.
+ * The contact button, floating in a bottom corner of the screen.
  *
- * Pinned to the side of the viewport and stays put while the page scrolls.
- * The wrapper does not take pointer events — only the links do — so the gaps
- * between icons never swallow a click meant for the page behind it.
+ * Two styles, chosen in the admin:
+ *   dock  every channel as a tile in one glass bar, always in view
+ *   menu  one "Contact us" button that opens the channels in a card
+ * A phone always gets the menu: a bar of tiles is too wide for its screen and
+ * would sit over the page. So does a shop with more than five channels, for
+ * the same reason on any screen. The menu is in the markup either way.
  *
- * Two modes, chosen in the admin: every channel on show, or a single button
- * that opens them. Collapsed suits a shop with a long list, or a busy layout
- * where a column of circles is one thing too many.
+ * It stays in its corner as the page scrolls, folds down to its icon while
+ * the shopper scrolls down, and steps out of the way of the cookie banner,
+ * the cart and the chat window (see the rules in store.css).
  */
 use App\Services\SocialService;
 
 $links = SocialService::links();
 if (!$links) return;
 
-$e = fn($v) => \Core\View::e((string) $v);
-$position  = SocialService::position();
-$collapsed = SocialService::collapsed();
+$e     = fn($v) => \Core\View::e((string) $v);
+$side  = SocialService::position();
+$style = (SocialService::collapsed() || count($links) > SocialService::DOCK_MAX) ? 'menu' : 'dock';
+$open  = fn($url) => str_starts_with($url, 'http') ? ' target="_blank" rel="noopener noreferrer"' : '';
 ?>
-<div class="wk-social wk-social-<?= $e($position) ?><?= $collapsed ? ' wk-social-collapsible' : '' ?>"
-     id="wkSocialBar" data-side="<?= $e($position) ?>" data-collapsed="<?= $collapsed ? '1' : '0' ?>">
-
-    <button type="button" class="wk-social-toggle" id="wkSocialToggle"
-                aria-expanded="false" aria-controls="wkSocialLinks" aria-label="Contact us">
-        <svg class="wk-social-toggle-open" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M12 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4m0 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4m0 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4"/>
-        </svg>
-        <svg class="wk-social-toggle-close" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-        </svg>
-    </button>
-
-    <nav class="wk-social-inner" id="wkSocialLinks" aria-label="Contact us" <?= $collapsed ? 'hidden' : '' ?>>
-        <?php foreach ($links as $i => $l): ?>
-            <a class="wk-social-link"
-               href="<?= \Core\View::safeUrl($l['url']) ?>"
-               style="--wk-social-brand: <?= $e($l['color']) ?>; --wk-social-i: <?= (int) $i ?>"
-               <?= str_starts_with($l['url'], 'http') ? 'target="_blank" rel="noopener noreferrer"' : '' ?>>
+<div class="wk-contact wk-contact-<?= $e($side) ?> wk-contact-style-<?= $style ?>" id="wkContact">
+<?php if ($style === 'dock'): ?>
+    <nav class="wk-contact-dock" aria-label="Contact us">
+        <?php foreach ($links as $l): ?>
+            <a class="wk-contact-tile wk-brand-<?= $e($l['key']) ?>" href="<?= \Core\View::safeUrl($l['url']) ?>"
+               aria-label="<?= $e($l['label']) ?>"<?= $open($l['url']) ?>>
                 <?= SocialService::icon($l['key']) ?>
-                <span class="wk-social-label"><?= $e($l['label']) ?></span>
+                <span class="wk-contact-tip" aria-hidden="true"><?= $e($l['label']) ?></span>
             </a>
         <?php endforeach; ?>
     </nav>
+<?php endif; ?>
+    <div class="wk-contact-card" id="wkContactMenu" hidden>
+        <div class="wk-contact-card-title">Contact us</div>
+        <nav aria-label="Contact us">
+            <?php foreach ($links as $l): ?>
+                <a class="wk-contact-row" href="<?= \Core\View::safeUrl($l['url']) ?>"<?= $open($l['url']) ?>>
+                    <span class="wk-contact-tile wk-brand-<?= $e($l['key']) ?>"><?= SocialService::icon($l['key']) ?></span>
+                    <span class="wk-contact-row-label"><?= $e($l['label']) ?></span>
+                    <?= $icon('chevron-right', 16, 'wk-contact-row-go') ?>
+                </a>
+            <?php endforeach; ?>
+        </nav>
+    </div>
+    <button type="button" class="wk-contact-button" id="wkContactButton" aria-expanded="false" aria-controls="wkContactMenu">
+        <span class="wk-contact-button-icon">
+            <?= $icon('message-circle', 20, 'wk-contact-i-open') ?>
+            <?= $icon('x', 20, 'wk-contact-i-close') ?>
+        </span>
+        <span class="wk-contact-button-label">Contact us</span>
+    </button>
 </div>
 <script>
 (function () {
-    var bar = document.getElementById('wkSocialBar');
-    if (!bar) return;
+    var box = document.getElementById('wkContact');
+    if (!box) return;
 
-    // Tell the page a bar is present so the content keeps clear of it. Done
-    // from here rather than in the layout so the class only appears when the
-    // bar actually rendered — an enabled bar with no links renders nothing.
-    document.body.classList.add('wk-has-social-' + bar.dataset.side);
-    if (bar.dataset.collapsed === '1') document.body.classList.add('wk-has-social-collapsed');
+    // Folded down to its icon while the shopper scrolls down the page, back
+    // to full size as soon as they scroll up: in view, but not in the way.
+    // The position is only remembered once it has moved a few pixels, so a
+    // slow scroll still counts as a direction.
+    var lastY = window.scrollY;
+    window.addEventListener('scroll', function () {
+        var y = window.scrollY;
+        if (y <= 160) box.classList.remove('is-compact');
+        else if (y > lastY + 4) box.classList.add('is-compact');
+        else if (y < lastY - 4) box.classList.remove('is-compact');
+        if (Math.abs(y - lastY) > 4 || y <= 160) lastY = y;
+    }, { passive: true });
 
-    var toggle = document.getElementById('wkSocialToggle');
-    var panel  = document.getElementById('wkSocialLinks');
+    var button = document.getElementById('wkContactButton');
+    var menu = document.getElementById('wkContactMenu');
+    if (!button || !menu) return;
 
-    if (toggle && panel) {
-        var setOpen = function (state) {
-            toggle.setAttribute('aria-expanded', state ? 'true' : 'false');
-            bar.classList.toggle('is-open', state);
-            if (state) {
-                panel.hidden = false;
-            } else {
-                // Let the icons travel back before they leave the layout.
-                setTimeout(function () {
-                    if (!bar.classList.contains('is-open')) panel.hidden = true;
-                }, 240);
+    var setOpen = function (state, fromKeyboard) {
+        button.setAttribute('aria-expanded', state ? 'true' : 'false');
+        if (state) {
+            menu.hidden = false;
+            requestAnimationFrame(function () { box.classList.add('is-open'); });
+            if (fromKeyboard) {
+                var first = menu.querySelector('a');
+                if (first) first.focus();
             }
-        };
+        } else {
+            box.classList.remove('is-open');
+            // Let the card finish closing before it leaves the page.
+            setTimeout(function () { if (!box.classList.contains('is-open')) menu.hidden = true; }, 220);
+        }
+    };
 
-        toggle.addEventListener('click', function () {
-            setOpen(toggle.getAttribute('aria-expanded') !== 'true');
-        });
-
-        // Opening it should not mean living with it.
-        document.addEventListener('click', function (e) {
-            if (!bar.contains(e.target)) setOpen(false);
-        });
-        document.addEventListener('keydown', function (e) {
-            if (e.key === 'Escape') setOpen(false);
-        });
-    }
-
-    // Step aside for anything that takes over the screen — the cart drawer,
-    // the chat panel — rather than floating on top of it.
-    var overlays = ['.wk-cart-drawer.open', '.wk-cart-overlay.open', '#wkChatBox[style*="display: flex"]'];
-    function sync() {
-        var covered = overlays.some(function (sel) {
-            try { return !!document.querySelector(sel); } catch (e) { return false; }
-        });
-        bar.classList.toggle('is-hidden', covered);
-    }
-
-    if (window.MutationObserver) {
-        new MutationObserver(sync).observe(document.body, {
-            subtree: true, attributes: true, attributeFilter: ['class', 'style']
-        });
-    }
-    sync();
+    button.addEventListener('click', function (e) {
+        setOpen(button.getAttribute('aria-expanded') !== 'true', e.detail === 0);
+    });
+    document.addEventListener('click', function (e) {
+        if (!box.contains(e.target) && button.getAttribute('aria-expanded') === 'true') setOpen(false);
+    });
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && button.getAttribute('aria-expanded') === 'true') {
+            setOpen(false);
+            button.focus();
+        }
+    });
 })();
 </script>

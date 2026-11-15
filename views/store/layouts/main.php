@@ -367,6 +367,7 @@ function toggleChat() {
     const w = document.getElementById('wkChatWindow');
     const b = document.getElementById('wkChatToggle');
     w.style.display = chatOpen ? 'flex' : 'none';
+    document.body.classList.toggle('wk-chat-open', chatOpen);
     b.classList.toggle('is-open', chatOpen);
     if (chatOpen && document.getElementById('wkChatMessages').children.length === 0) sendChat('hello');
 }
