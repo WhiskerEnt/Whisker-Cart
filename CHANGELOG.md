@@ -3,7 +3,7 @@
 All notable changes to Whisker are recorded here. Versions follow
 [semantic versioning](https://semver.org/).
 
-## v1.4.2 (unreleased)
+## v1.4.2 (15 November 2026)
 
 Database migrations run automatically when you next open the admin dashboard.
 No manual SQL is needed. Existing shops keep the signup form they had.
