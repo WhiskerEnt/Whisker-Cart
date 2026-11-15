@@ -12,7 +12,16 @@
  *  - migrations actually execute (pre-1.3.2 they were recorded but skipped)
  *  - migrations are idempotent over an already-complete schema (benign
  *    duplicate tolerance), which is exactly what upgraded stores hit
+ *
+ * It empties the order and product tables of whatever database
+ * config/database.php names, so it runs from the command line only, never
+ * over the web.
  */
+
+if (PHP_SAPI !== 'cli') {
+    http_response_code(404);
+    exit;
+}
 
 define('WK_ROOT', dirname(__DIR__, 2));
 require WK_ROOT . '/core/autoload.php';
