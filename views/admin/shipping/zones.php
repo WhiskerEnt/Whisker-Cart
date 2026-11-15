@@ -47,7 +47,7 @@ $rateFields = function (array $z, string $prefix) use ($methods, $e) {
 $picker = function (array $selected, string $uid) use ($allCountries, $e, $CS) {
     ob_start(); ?>
     <div class="wk-form-group">
-        <label>Countries in this zone <span id="cnt-<?= $e($uid) ?>" style="font-weight:500;color:var(--wk-text-muted)"></span></label>
+        <label>Countries in this zone <span id="cnt-<?= $e($uid) ?>" class="wk-subtle"></span></label>
         <div class="wk-ship-picker-bar">
             <input type="search" class="wk-input" placeholder="Search countries..." data-zone-search autocomplete="off" style="flex:1;min-width:170px">
             <button type="button" class="wk-btn wk-btn-secondary wk-btn-sm" data-zone-pick="eu">EU</button>
@@ -68,8 +68,8 @@ $picker = function (array $selected, string $uid) use ($allCountries, $e, $CS) {
 ?>
 
 <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap">
-    <a href="<?= $url('admin/shipping/settings') ?>" class="wk-btn wk-btn-secondary">📦 Shipping Rates</a>
-    <a href="<?= $url('admin/shipping') ?>" class="wk-btn wk-btn-secondary">🚚 Manage Carriers</a>
+    <a href="<?= $url('admin/shipping/settings') ?>" class="wk-btn wk-btn-secondary"><?= $icon('package') ?> Shipping Rates</a>
+    <a href="<?= $url('admin/shipping') ?>" class="wk-btn wk-btn-secondary"><?= $icon('truck') ?> Manage Carriers</a>
 </div>
 
 <div class="wk-card" style="max-width:900px;margin-bottom:20px">
@@ -120,15 +120,15 @@ $picker = function (array $selected, string $uid) use ($allCountries, $e, $CS) {
                 <form method="POST" action="<?= $url('admin/shipping/zones/update/' . $z['id']) ?>" style="margin-top:14px" class="wk-zone-form">
                     <?= \Core\Session::csrfField() ?>
                     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px">
-                        <div class="wk-form-group" style="margin:0">
+                        <div class="wk-m-0 wk-form-group">
                             <label>Zone name</label>
                             <input type="text" name="name" class="wk-input" maxlength="80" required value="<?= $e($z['name']) ?>">
                         </div>
-                        <div class="wk-form-group" style="margin:0">
+                        <div class="wk-m-0 wk-form-group">
                             <label>Order</label>
                             <input type="number" name="sort_order" class="wk-input" value="<?= (int) $z['sort_order'] ?>">
                         </div>
-                        <div class="wk-form-group" style="margin:0">
+                        <div class="wk-m-0 wk-form-group">
                             <label>Status</label>
                             <select name="is_active" class="wk-select">
                                 <option value="1" <?= $z['is_active'] ? 'selected' : '' ?>>Active</option>
@@ -153,16 +153,16 @@ $picker = function (array $selected, string $uid) use ($allCountries, $e, $CS) {
 <?php endif; ?>
 
 <div class="wk-card" style="max-width:900px">
-    <div class="wk-card-header"><h2>➕ New Zone</h2></div>
+    <div class="wk-card-header"><h2><?= $icon('plus') ?> New Zone</h2></div>
     <div class="wk-card-body">
         <form method="POST" action="<?= $url('admin/shipping/zones/store') ?>" class="wk-zone-form">
             <?= \Core\Session::csrfField() ?>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px">
-                <div class="wk-form-group" style="margin:0">
+                <div class="wk-m-0 wk-form-group">
                     <label>Zone name</label>
                     <input type="text" name="name" class="wk-input" maxlength="80" required placeholder="Europe">
                 </div>
-                <div class="wk-form-group" style="margin:0">
+                <div class="wk-m-0 wk-form-group">
                     <label>Order</label>
                     <input type="number" name="sort_order" class="wk-input" value="<?= count($zones) ?>">
                 </div>

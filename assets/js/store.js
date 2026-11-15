@@ -2,6 +2,13 @@
  * WHISKER Store — Frontend JS
  * Cart drawer, AJAX cart, carousel, confetti
  */
+// Icons drawn from the <template id="wk-icon-…"> elements the layout carries,
+// so markup built here matches what the server renders.
+function wkIcon(name) {
+    const tpl = document.getElementById('wk-icon-' + name);
+    return tpl ? tpl.innerHTML : '';
+}
+
 const WhiskerStore = {
     _base: null,
     _csrf: null,
@@ -12,6 +19,7 @@ const WhiskerStore = {
         this.bindAddToCart();
         this.loadCart();
         this.initCarousel();
+        this.bindAdminNotes();
     },
 
     hideLoader() {
@@ -181,11 +189,11 @@ const WhiskerStore = {
         const c = document.querySelector('.wk-cart-items');
         if (!c) return;
         if (!items?.length) {
-            c.innerHTML = '<div class="wk-cart-empty"><div class="wk-cart-empty-icon">🛒</div><p style="font-weight:800;margin-bottom:4px">Cart is empty</p><p style="font-size:13px">Add products to get started</p></div>';
+            c.innerHTML = '<div class="wk-cart-empty"><div class="wk-cart-empty-icon">' + wkIcon('cart-empty') + '</div><p style="font-weight:800;margin-bottom:4px">Cart is empty</p><p style="font-size:13px">Add products to get started</p></div>';
             return;
         }
         c.innerHTML = items.map(i => {
-            const img = i.image ? `<img src="${this.base('storage/uploads/products/' + i.image)}" alt="">` : '<div style="width:100%;height:100%;background:var(--wk-bg);display:flex;align-items:center;justify-content:center;font-size:20px">📦</div>';
+            const img = i.image ? `<img src="${this.base('storage/uploads/products/' + i.image)}" alt="">` : '<div style="width:100%;height:100%;background:var(--wk-bg);display:flex;align-items:center;justify-content:center;font-size:20px">' + wkIcon('package') + '</div>';
             const variantLabel = i.variant_label ? `<div style="font-size:11px;color:var(--wk-muted);font-weight:700;margin-top:2px">${this.esc(i.variant_label)}</div>` : '';
             return `<div class="wk-cart-item" data-item="${i.id}">
                 <div class="wk-cart-item-img">${img}</div>
@@ -342,6 +350,20 @@ const WhiskerStore = {
         wrap?.addEventListener('touchend', () => setTimeout(start, 3000), { passive: true });
 
         start();
+    },
+
+    // ── Notes only the shopkeeper sees ───────
+    // Hidden for this browser once closed, so it does not come back on every
+    // page view while the shopkeeper browses their own shop.
+    bindAdminNotes() {
+        document.querySelectorAll('[data-wk-admin-note]').forEach((note) => {
+            const key = 'wk-note-' + note.dataset.wkAdminNote;
+            try { if (localStorage.getItem(key) === 'hidden') { note.hidden = true; return; } } catch (e) {}
+            note.querySelector('[data-wk-admin-note-close]')?.addEventListener('click', () => {
+                note.hidden = true;
+                try { localStorage.setItem(key, 'hidden'); } catch (e) {}
+            });
+        });
     },
 
     // ── Confetti ─────────────────────────────

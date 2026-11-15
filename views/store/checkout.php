@@ -18,8 +18,6 @@ $showPrice = function($amount) use ($price, $displayCurrency, $baseCurrency, $is
     return $base . ' <span style="font-size:12px;color:var(--wk-muted);font-weight:500">≈ ' . $formatted . '</span>';
 };
 
-$is = 'width:100%;padding:10px 14px;border:2px solid var(--wk-border);border-radius:8px;font-family:var(--font);font-size:14px;font-weight:600;outline:none;transition:border-color .2s;';
-$ls = 'display:block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--wk-muted);margin-bottom:4px';
 
 $cust = $customer ?? null;
 $addrs = $savedAddresses ?? [];
@@ -32,9 +30,9 @@ $defAddr = !empty($addrs) ? $addrs[0] : [];
 
         <?php if (empty($cart['items'])): ?>
             <div style="text-align:center;padding:60px;color:var(--wk-muted)">
-                <div style="font-size:48px;margin-bottom:12px;opacity:.4">🛒</div>
+                <div style="font-size:48px;margin-bottom:12px;opacity:.4"><?= $icon('shopping-cart', 48) ?></div>
                 <p style="font-weight:800;margin-bottom:8px">Your cart is empty</p>
-                <a href="<?= $url('') ?>" style="color:var(--wk-purple-ink);font-weight:700">Continue shopping →</a>
+                <a href="<?= $url('') ?>" class="wk-link">Continue shopping →</a>
             </div>
         <?php else: ?>
 
@@ -48,18 +46,18 @@ $defAddr = !empty($addrs) ? $addrs[0] : [];
 
             <div>
                 <!-- Contact -->
-                <div style="background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:var(--radius);padding:28px;margin-bottom:20px">
+                <div class="wk-panel">
                     <h2 style="font-size:17px;font-weight:900;margin-bottom:20px">Contact Information</h2>
                     <div class="wk-cols-2" style="gap:14px">
-                        <div><label style="<?= $ls ?>">First Name</label><input type="text" name="first_name" required value="<?= $e($cust['first_name']??'') ?>" placeholder="John" style="<?= $is ?>"></div>
-                        <div><label style="<?= $ls ?>">Last Name</label><input type="text" name="last_name" required value="<?= $e($cust['last_name']??'') ?>" placeholder="Doe" style="<?= $is ?>"></div>
+                        <div><label class="wk-field-label">First Name</label><input type="text" name="first_name" required value="<?= $e($cust['first_name']??'') ?>" placeholder="John" class="wk-field-input"></div>
+                        <div><label class="wk-field-label">Last Name</label><input type="text" name="last_name" required value="<?= $e($cust['last_name']??'') ?>" placeholder="Doe" class="wk-field-input"></div>
                     </div>
                     <div class="wk-cols-2" style="gap:14px;margin-top:14px">
-                        <div><label style="<?= $ls ?>">Email</label><input type="email" name="email" required value="<?= $e($cust['email']??'') ?>" placeholder="john@example.com" data-wk-validate="email" style="<?= $is ?>"></div>
+                        <div><label class="wk-field-label">Email</label><input type="email" name="email" required value="<?= $e($cust['email']??'') ?>" placeholder="john@example.com" data-wk-validate="email" class="wk-field-input"></div>
                         <div>
-                            <label style="<?= $ls ?>">Phone</label>
+                            <label class="wk-field-label">Phone</label>
                             <?php
-                            $wkPhone = ['value' => $cust['phone'] ?? '', 'inputStyle' => $is];
+                            $wkPhone = ['value' => $cust['phone'] ?? '', 'inputClass' => 'wk-field-input'];
                             require __DIR__ . '/partials/phone-field.php';
                             ?>
                         </div>
@@ -68,19 +66,19 @@ $defAddr = !empty($addrs) ? $addrs[0] : [];
 
                 <?php if (!empty($pickupEnabled)): ?>
                 <!-- Delivery Method -->
-                <div style="background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:var(--radius);padding:28px;margin-bottom:20px">
+                <div class="wk-panel">
                     <h2 style="font-size:17px;font-weight:900;margin-bottom:16px">Delivery Method</h2>
                     <label style="display:flex;align-items:center;gap:12px;padding:14px;border:2px solid var(--wk-purple);border-radius:8px;cursor:pointer;margin-bottom:10px;background:rgba(139,92,246,.03)" id="wkDelivShipLabel">
                         <input type="radio" name="delivery_method" value="shipping" checked onchange="wkDeliveryToggle()" style="accent-color:var(--wk-purple-ink)">
-                        <div><div style="font-weight:800;font-size:14px">🏠 Home Delivery</div><div style="font-size:12px;color:var(--wk-muted)">Delivered to your address</div></div>
+                        <div><div style="font-weight:800;font-size:14px"><?= $icon('house') ?> Home Delivery</div><div class="wk-note">Delivered to your address</div></div>
                     </label>
                     <label style="display:flex;align-items:center;gap:12px;padding:14px;border:2px solid var(--wk-border);border-radius:8px;cursor:pointer" id="wkDelivPickupLabel">
                         <input type="radio" name="delivery_method" value="pickup" onchange="wkDeliveryToggle()" style="accent-color:var(--wk-purple-ink)">
-                        <div><div style="font-weight:800;font-size:14px">📦 Pickup Point / Locker</div><div style="font-size:12px;color:var(--wk-muted)">Collect from a nearby pickup location</div></div>
+                        <div><div style="font-weight:800;font-size:14px"><?= $icon('package') ?> Pickup Point / Locker</div><div class="wk-note">Collect from a nearby pickup location</div></div>
                     </label>
                     <div id="wkPickupBox" style="display:none;margin-top:16px">
-                        <label style="<?= $ls ?>">Pickup Location</label>
-                        <select name="pickup_location_id" id="pickup_location" onchange="wkPickupHoursHint();wkRecalcTotals()" style="<?= $is ?> cursor:pointer">
+                        <label class="wk-field-label">Pickup Location</label>
+                        <select name="pickup_location_id" id="pickup_location" onchange="wkPickupHoursHint();wkRecalcTotals()" class="wk-field-input" style="cursor:pointer">
                             <?php foreach ($pickupLocations as $loc): ?>
                             <option value="<?= (int)$loc['id'] ?>" data-hours="<?= $e($loc['opening_hours'] ?? '') ?>">
                                 <?= $e($loc['name']) ?><?= $loc['carrier'] ? ' · ' . $e($loc['carrier']) : '' ?> — <?= $e($loc['address_line1']) ?>, <?= $e($loc['city']) ?> <?= $e($loc['zip']) ?> (<?= $e($loc['country']) ?>)
@@ -93,13 +91,13 @@ $defAddr = !empty($addrs) ? $addrs[0] : [];
                 <?php endif; ?>
 
                 <!-- Shipping Address -->
-                <div style="background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:var(--radius);padding:28px;margin-bottom:20px" id="wkShipCard">
+                <div class="wk-panel" id="wkShipCard">
                     <h2 style="font-size:17px;font-weight:900;margin-bottom:20px">Shipping Address</h2>
 
                     <?php if (!empty($addrs)): ?>
-                    <div style="margin-bottom:16px">
-                        <label style="<?= $ls ?>">Use Saved Address</label>
-                        <select id="savedAddrShip" onchange="fillAddress('ship')" style="<?= $is ?> cursor:pointer">
+                    <div class="wk-mb-16">
+                        <label class="wk-field-label">Use Saved Address</label>
+                        <select id="savedAddrShip" onchange="fillAddress('ship')" class="wk-field-input" style="cursor:pointer">
                             <option value="">Enter new address</option>
                             <?php foreach ($addrs as $addr): ?>
                             <option value="<?= $addr['id'] ?>"
@@ -117,14 +115,14 @@ $defAddr = !empty($addrs) ? $addrs[0] : [];
                     </div>
                     <?php endif; ?>
 
-                    <div><label style="<?= $ls ?>">Address</label><input type="text" name="address1" id="ship_addr" required value="<?= $e($defAddr['address_line1']??'') ?>" placeholder="123 Main Street" style="<?= $is ?>"></div>
-                    <div style="margin-top:14px"><label style="<?= $ls ?>">Apartment, suite, etc. <span style="font-weight:500;text-transform:none;color:var(--wk-muted)">(optional)</span></label><input type="text" name="address2" id="ship_addr2" value="<?= $e($defAddr['address_line2']??'') ?>" placeholder="Flat 4B" style="<?= $is ?>"></div>
+                    <div><label class="wk-field-label">Address</label><input type="text" name="address1" id="ship_addr" required value="<?= $e($defAddr['address_line1']??'') ?>" placeholder="123 Main Street" class="wk-field-input"></div>
+                    <div class="wk-mt-14"><label class="wk-field-label">Apartment, suite, etc. <span style="font-weight:500;text-transform:none;color:var(--wk-muted)">(optional)</span></label><input type="text" name="address2" id="ship_addr2" value="<?= $e($defAddr['address_line2']??'') ?>" placeholder="Flat 4B" class="wk-field-input"></div>
                     <div class="wk-cols-2" style="gap:14px;margin-top:14px">
-                        <div><label style="<?= $ls ?>">City</label><input type="text" name="city" id="ship_city" required value="<?= $e($defAddr['city']??'') ?>" style="<?= $is ?>"></div>
-                        <div><label style="<?= $ls ?>">State</label><input type="text" name="state" id="ship_state" required value="<?= $e($defAddr['state']??'') ?>" style="<?= $is ?>"></div>
+                        <div><label class="wk-field-label">City</label><input type="text" name="city" id="ship_city" required value="<?= $e($defAddr['city']??'') ?>" class="wk-field-input"></div>
+                        <div><label class="wk-field-label">State</label><input type="text" name="state" id="ship_state" required value="<?= $e($defAddr['state']??'') ?>" class="wk-field-input"></div>
                     </div>
                     <div class="wk-cols-2" style="gap:14px;margin-top:14px">
-                        <div><label style="<?= $ls ?>">Country</label><select name="country" id="ship_country" style="<?= $is ?> cursor:pointer">
+                        <div><label class="wk-field-label">Country</label><select name="country" id="ship_country" class="wk-field-input" style="cursor:pointer">
                             <?php
                             // Only what the store will post to. A single option is
                             // still a select so the posted field stays the same.
@@ -133,21 +131,21 @@ $defAddr = !empty($addrs) ? $addrs[0] : [];
                             if (!isset($shipTo[$shipDef])) $shipDef = \App\Services\CountryService::defaultShippingCountry();
                             foreach ($shipTo as $code => $name): ?><option value="<?= $e($code) ?>" <?= $code === $shipDef ? 'selected' : '' ?>><?= $e($name) ?></option><?php endforeach; ?>
                         </select></div>
-                        <div><label style="<?= $ls ?>">ZIP / Postal Code</label><input type="text" name="zip" id="ship_zip" required value="<?= $e($defAddr['postal_code']??'') ?>" style="<?= $is ?>"></div>
+                        <div><label class="wk-field-label">ZIP / Postal Code</label><input type="text" name="zip" id="ship_zip" required value="<?= $e($defAddr['postal_code']??'') ?>" class="wk-field-input"></div>
                     </div>
                 </div>
 
                 <!-- Billing Address -->
-                <div style="background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:var(--radius);padding:28px;margin-bottom:20px">
+                <div class="wk-panel">
                     <h2 style="font-size:17px;font-weight:900;margin-bottom:12px">Billing Address</h2>
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;font-size:14px;margin-bottom:16px" id="wkSameRow">
                         <input type="checkbox" id="sameAsShipping" checked onchange="toggleBilling()"> <span id="wkSameLabel">Same as shipping address</span>
                     </label>
                     <div id="billingFields" style="display:none">
                         <?php if (!empty($addrs)): ?>
-                        <div style="margin-bottom:16px">
-                            <label style="<?= $ls ?>">Use Saved Address</label>
-                            <select id="savedAddrBill" onchange="fillAddress('bill')" style="<?= $is ?> cursor:pointer">
+                        <div class="wk-mb-16">
+                            <label class="wk-field-label">Use Saved Address</label>
+                            <select id="savedAddrBill" onchange="fillAddress('bill')" class="wk-field-input" style="cursor:pointer">
                                 <option value="">Enter new address</option>
                                 <?php foreach ($addrs as $addr): ?>
                                 <option value="<?= $addr['id'] ?>"
@@ -162,20 +160,20 @@ $defAddr = !empty($addrs) ? $addrs[0] : [];
                             </select>
                         </div>
                         <?php endif; ?>
-                        <div><label style="<?= $ls ?>">Address</label><input type="text" name="billing_address1" id="bill_addr" placeholder="123 Main Street" style="<?= $is ?>"></div>
-                        <div style="margin-top:14px"><label style="<?= $ls ?>">Apartment, suite, etc. <span style="font-weight:500;text-transform:none;color:var(--wk-muted)">(optional)</span></label><input type="text" name="billing_address2" id="bill_addr2" placeholder="Flat 4B" style="<?= $is ?>"></div>
+                        <div><label class="wk-field-label">Address</label><input type="text" name="billing_address1" id="bill_addr" placeholder="123 Main Street" class="wk-field-input"></div>
+                        <div class="wk-mt-14"><label class="wk-field-label">Apartment, suite, etc. <span style="font-weight:500;text-transform:none;color:var(--wk-muted)">(optional)</span></label><input type="text" name="billing_address2" id="bill_addr2" placeholder="Flat 4B" class="wk-field-input"></div>
                         <div class="wk-cols-2" style="gap:14px;margin-top:14px">
-                            <div><label style="<?= $ls ?>">City</label><input type="text" name="billing_city" id="bill_city" style="<?= $is ?>"></div>
-                            <div><label style="<?= $ls ?>">State</label><input type="text" name="billing_state" id="bill_state" style="<?= $is ?>"></div>
+                            <div><label class="wk-field-label">City</label><input type="text" name="billing_city" id="bill_city" class="wk-field-input"></div>
+                            <div><label class="wk-field-label">State</label><input type="text" name="billing_state" id="bill_state" class="wk-field-input"></div>
                         </div>
                         <div class="wk-cols-2" style="gap:14px;margin-top:14px">
-                            <div><label style="<?= $ls ?>">Country</label><select name="billing_country" id="bill_country" style="<?= $is ?> cursor:pointer">
+                            <div><label class="wk-field-label">Country</label><select name="billing_country" id="bill_country" class="wk-field-input" style="cursor:pointer">
                                 <?php
                                 // Billing is not restricted: you can pay from a
                                 // country the store does not post to.
                                 foreach (\App\Services\CountryService::all() as $code => $name): ?><option value="<?= $e($code) ?>" <?= $code === \App\Services\CountryService::storeCountry() ? 'selected' : '' ?>><?= $e($name) ?></option><?php endforeach; ?>
                             </select></div>
-                            <div><label style="<?= $ls ?>">ZIP</label><input type="text" name="billing_zip" id="bill_zip" style="<?= $is ?>"></div>
+                            <div><label class="wk-field-label">ZIP</label><input type="text" name="billing_zip" id="bill_zip" class="wk-field-input"></div>
                         </div>
                     </div>
                 </div>
@@ -187,7 +185,7 @@ $defAddr = !empty($addrs) ? $addrs[0] : [];
                     <?php foreach ($gateways as $i => $gw): ?>
                     <label style="display:flex;align-items:center;gap:12px;padding:14px;border:2px solid var(--wk-border);border-radius:8px;cursor:pointer;margin-bottom:10px;transition:all .2s" onclick="this.parentElement.querySelectorAll('label').forEach(l=>{l.style.borderColor='var(--wk-border)';l.style.background='transparent'});this.style.borderColor='var(--wk-purple)';this.style.background='rgba(139,92,246,.03)'">
                         <input type="radio" name="payment_gateway" value="<?= $gw['gateway_code'] ?>" <?= $i===0?'checked':'' ?> style="accent-color:var(--wk-purple-ink)">
-                        <div><div style="font-weight:800;font-size:14px"><?= $e($gw['display_name']) ?></div><div style="font-size:12px;color:var(--wk-muted)"><?= $e($gw['description']) ?></div></div>
+                        <div><div style="font-weight:800;font-size:14px"><?= $e($gw['display_name']) ?></div><div class="wk-note"><?= $e($gw['description']) ?></div></div>
                     </label>
                     <?php endforeach; ?>
                 </div>
@@ -195,12 +193,12 @@ $defAddr = !empty($addrs) ? $addrs[0] : [];
             </div>
 
                 <!-- Anything the courier needs to know -->
-                <div style="background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:var(--radius);padding:28px;margin-bottom:20px">
+                <div class="wk-panel">
                     <h2 style="font-size:17px;font-weight:900;margin-bottom:6px">Delivery notes <span style="font-weight:500;font-size:13px;color:var(--wk-muted);text-transform:none">(optional)</span></h2>
                     <p style="font-size:13px;color:var(--wk-muted);margin:0 0 14px">Gate code, a safe place to leave it, when you are usually in.</p>
                     <textarea name="customer_note" rows="3" maxlength="500"
                               placeholder="Leave with the neighbour at number 14"
-                              style="<?= $is ?>resize:vertical;line-height:1.5"></textarea>
+                              class="wk-field-input" style="resize:vertical;line-height:1.5"></textarea>
                 </div>
             </div>
 
@@ -213,38 +211,38 @@ $defAddr = !empty($addrs) ? $addrs[0] : [];
                     <div style="display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--wk-border);font-size:14px">
                         <div style="width:52px;height:52px;border-radius:8px;overflow:hidden;background:var(--wk-bg);flex-shrink:0;border:1px solid var(--wk-border)">
                             <?php if (!empty($item['image'])): ?>
-                                <img src="<?= $url('storage/uploads/products/'.$item['image']) ?>" style="width:100%;height:100%;object-fit:cover">
+                                <img src="<?= $url('storage/uploads/products/'.$item['image']) ?>" class="wk-fit">
                             <?php else: ?>
-                                <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:20px;opacity:.3">📦</div>
+                                <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:20px;opacity:.3"><?= $icon('package', 20) ?></div>
                             <?php endif; ?>
                         </div>
                         <div style="flex:1">
-                            <div style="font-weight:700"><?= $e($item['name']) ?></div>
+                            <div class="wk-bold"><?= $e($item['name']) ?></div>
                             <?php if (!empty($item['variant_label'])): ?>
                                 <div style="font-size:12px;color:var(--wk-purple-ink);font-weight:700"><?= $e($item['variant_label']) ?></div>
                             <?php endif; ?>
-                            <div style="font-size:12px;color:var(--wk-muted)">Qty: <?= $item['quantity'] ?></div>
+                            <div class="wk-note">Qty: <?= $item['quantity'] ?></div>
                         </div>
-                        <div style="font-family:var(--font-mono);font-weight:700;text-align:right;white-space:nowrap"><?= $showPrice($item['unit_price'] * $item['quantity']) ?></div>
+                        <div style="font-family:var(--font-mono);font-weight:700;text-align:right;white-space:nowrap"><?= $showPrice($item['line_total']) ?></div>
                     </div>
                     <?php endforeach; ?>
 
                     <div style="margin-top:16px;font-size:14px" id="wk-summary">
                         <div style="display:flex;justify-content:space-between;padding:6px 0">
-                            <span style="color:var(--wk-muted)">Subtotal</span>
-                            <span style="font-weight:700" id="wk-sum-subtotal"><?= $showPrice($totals['subtotal']) ?></span>
+                            <span class="wk-muted">Subtotal</span>
+                            <span class="wk-bold" id="wk-sum-subtotal"><?= $showPrice($totals['subtotal']) ?></span>
                         </div>
                         <div style="display:flex;justify-content:space-between;padding:6px 0" id="wk-sum-discount-row" <?= $totals['discount'] > 0 ? '' : 'hidden' ?>>
-                            <span style="color:var(--wk-muted)">Discount<?= !empty($totals['discount_code']) ? ' <span style="color:var(--wk-purple-ink);font-weight:700">(' . $e($totals['discount_code']) . ')</span>' : '' ?></span>
+                            <span class="wk-muted">Discount<?= !empty($totals['discount_code']) ? ' <span class="wk-link">(' . $e($totals['discount_code']) . ')</span>' : '' ?></span>
                             <span style="font-weight:700;color:#16a34a" id="wk-sum-discount">− <?= $showPrice($totals['discount']) ?></span>
                         </div>
                         <div style="display:flex;justify-content:space-between;padding:6px 0">
-                            <span style="color:var(--wk-muted)" id="wk-sum-tax-label"><?= $totals['tax_known'] ? $e($totals['tax_label'] ?: 'Tax') : 'Tax' ?></span>
-                            <span style="font-weight:700" id="wk-sum-tax"><?= $totals['tax_known'] ? $showPrice($totals['tax']) : '<span style="color:var(--wk-muted);font-weight:500;font-size:13px">Calculated at next step</span>' ?></span>
+                            <span class="wk-muted" id="wk-sum-tax-label"><?= $totals['tax_known'] ? $e($totals['tax_label'] ?: 'Tax') : 'Tax' ?></span>
+                            <span class="wk-bold" id="wk-sum-tax"><?= $totals['tax_known'] ? $showPrice($totals['tax']) : '<span style="color:var(--wk-muted);font-weight:500;font-size:13px">Calculated at next step</span>' ?></span>
                         </div>
                         <div style="display:flex;justify-content:space-between;padding:6px 0">
-                            <span style="color:var(--wk-muted)" id="wk-sum-shipping-label">Shipping</span>
-                            <span style="font-weight:700" id="wk-sum-shipping"><?= $showPrice($totals['shipping']) ?></span>
+                            <span class="wk-muted" id="wk-sum-shipping-label">Shipping</span>
+                            <span class="wk-bold" id="wk-sum-shipping"><?= $showPrice($totals['shipping']) ?></span>
                         </div>
                         <div style="display:flex;justify-content:space-between;padding:12px 0 0;margin-top:8px;border-top:2px solid var(--wk-border);font-size:20px">
                             <span style="font-weight:900">Total</span>
@@ -274,7 +272,7 @@ $defAddr = !empty($addrs) ? $addrs[0] : [];
                     </label>
                     <?php endif; ?>
 
-                    <button type="submit" class="wk-checkout-btn" style="margin-top:20px" id="wk-pay-btn">Pay <?= $price($totals['total']) ?> →</button>
+                    <button type="submit" class="wk-mt-20 wk-checkout-btn" id="wk-pay-btn">Pay <?= $price($totals['total']) ?> →</button>
                     <p id="wkPayNote" class="wk-pay-note" role="status" aria-live="polite"></p>
                 </div>
             </div>
@@ -358,7 +356,11 @@ function wkPickupHoursHint() {
     if (!sel || !hint) return;
     const opt = sel.options[sel.selectedIndex];
     const hours = opt ? (opt.dataset.hours || '') : '';
-    hint.textContent = hours ? '🕐 ' + hours : '';
+    hint.textContent = '';
+    if (hours) {
+        hint.appendChild(document.getElementById('wk-icon-clock').content.cloneNode(true));
+        hint.append(' ' + hours);
+    }
 }
 
 // ── Server-authoritative totals recompute ──────────────────────────

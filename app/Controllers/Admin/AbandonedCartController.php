@@ -2,6 +2,7 @@
 namespace App\Controllers\Admin;
 
 use Core\{Request, View, Database, Response, Session};
+use App\Services\Money;
 
 class AbandonedCartController
 {
@@ -101,7 +102,8 @@ class AbandonedCartController
              WHERE ci.cart_id=?", [$cartId]
         );
 
-        $total = array_reduce($items, fn($s, $i) => $s + ($i['unit_price'] * $i['quantity']), 0);
+        $items = Money::withLineTotals($items);
+        $total = Money::subtotal($items);
 
         View::render('admin/abandoned-carts/show', [
             'pageTitle' => 'Abandoned Cart #' . $cartId,

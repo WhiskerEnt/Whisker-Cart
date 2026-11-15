@@ -53,7 +53,7 @@ class RefundService
     public static function refundableAmount(array $order): float
     {
         if (!self::isRefundable($order)) return 0.0;
-        return max(0.0, round((float) $order['total'] - self::refundedTotal((int) $order['id']), 2));
+        return max(0.0, Money::subtract((float) $order['total'], self::refundedTotal((int) $order['id'])));
     }
 
     /** True while an unconfirmed attempt is outstanding. */
@@ -246,7 +246,7 @@ class RefundService
         $orderId = (int) $order['id'];
         $refunded = self::refundedTotal($orderId);
         $total    = (float) $order['total'];
-        $full     = $refunded >= round($total, 2) - 0.001;
+        $full     = Money::atLeast($refunded, $total);
 
         Database::update('wk_orders', [
             'payment_status' => $full ? 'refunded' : 'partially_refunded',

@@ -2,12 +2,14 @@
 require_once __DIR__ . '/../../core/PaymentGatewayInterface.php';
 require_once __DIR__ . '/../../core/BaseGateway.php';
 
+use App\Services\CurrencyService;
+
 class RazorpayGateway extends \Core\BaseGateway
 {
     public function createOrder(array $order): array
     {
-        $currency = $order['currency'] ?? 'INR';
-        $amount = (int)($order['total'] * 100);
+        $currency = strtoupper(($order['currency'] ?? '') ?: CurrencyService::baseCurrency());
+        $amount = CurrencyService::toMinorUnits((float)$order['total'], $currency);
         $resp = $this->api('/orders', ['amount'=>$amount, 'currency'=>$currency, 'receipt'=>$order['order_number']]);
         $this->logTransaction($order['id'], ['gateway_order_id'=>$resp['id']??null, 'amount'=>$order['total'], 'currency'=>$currency, 'status'=>'initiated', 'response'=>$resp]);
         // currency must travel to the browser: the Razorpay checkout options
@@ -45,8 +47,8 @@ class RazorpayGateway extends \Core\BaseGateway
 
     public function refund(string $paymentId, float $amount, array $options = []): array
     {
-        $currency = $options['currency'] ?? 'INR';
-        $payload = ['amount' => \App\Services\CurrencyService::toMinorUnits($amount, $currency)];
+        $currency = ($options['currency'] ?? '') ?: CurrencyService::baseCurrency();
+        $payload = ['amount' => CurrencyService::toMinorUnits($amount, $currency)];
 
         // Our own reference travels with the refund so the two sides can be
         // matched up in the Razorpay dashboard later.
@@ -119,7 +121,9 @@ class RazorpayGateway extends \Core\BaseGateway
             $payment = $payload['payload']['payment']['entity'] ?? [];
             $paymentId = $payment['id'] ?? null;
             $orderId = $payment['order_id'] ?? null;
-            $paidAmount = isset($payment['amount']) ? (float)$payment['amount'] / 100 : null; // Convert paise to rupees
+            $paidAmount = isset($payment['amount'])
+                ? CurrencyService::fromMinorUnits((int)$payment['amount'], (string)(($payment['currency'] ?? '') ?: CurrencyService::baseCurrency()))
+                : null;
 
             if ($paymentId && $orderId) {
                 $txn = \Core\Database::fetch("SELECT order_id FROM wk_payment_transactions WHERE gateway_order_id=?", [$orderId]);
@@ -134,7 +138,7 @@ class RazorpayGateway extends \Core\BaseGateway
     private int $lastHttp = 0;
     private string $lastTransportError = '';
 
-    private function api(string $ep, array $data, array $headers = []): array
+    protected function api(string $ep, array $data, array $headers = []): array
     {
         $ch = curl_init('https://api.razorpay.com/v1' . $ep);
         curl_setopt_array($ch, [

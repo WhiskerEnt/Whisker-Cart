@@ -69,9 +69,9 @@ $buildUrl = function($overrides = []) use ($url, $currentParams, $isSearch) {
     <div class="wk-container">
         <?php if (empty($products)): ?>
             <div style="text-align:center;padding:60px 0;color:var(--wk-muted)">
-                <div style="font-size:48px;margin-bottom:12px;opacity:.3">📦</div>
-                <p style="font-weight:800;margin-bottom:4px">No products found</p>
-                <p style="font-size:14px">Try a different category or <a href="<?= $url('shop') ?>" style="color:var(--wk-purple-ink);font-weight:700">browse all products</a></p>
+                <div style="font-size:48px;margin-bottom:12px;opacity:.3"><?= $icon('package', 48) ?></div>
+                <p class="wk-heavy wk-mb-4">No products found</p>
+                <p style="font-size:14px">Try a different category or <a href="<?= $url('shop') ?>" class="wk-link">browse all products</a></p>
             </div>
         <?php else: ?>
             <div class="wk-product-grid">
@@ -84,7 +84,7 @@ $buildUrl = function($overrides = []) use ($url, $currentParams, $isSearch) {
                         <?php if ($p['image']): ?>
                             <?= \Core\View::productImage($p['image'], $p['name']) ?>
                         <?php else: ?>
-                            <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:48px;opacity:.15">📦</div>
+                            <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:48px;opacity:.15"><?= $icon('package', 48) ?></div>
                         <?php endif; ?>
                         <?php if ($p['stock_quantity'] <= 0): ?>
                             <span class="wk-product-badge" style="background:#dc2626">Sold Out</span>
@@ -107,9 +107,9 @@ $buildUrl = function($overrides = []) use ($url, $currentParams, $isSearch) {
                     </div>
                     <?php if ($p['stock_quantity'] > 0): ?>
                         <?php if (($p['variant_count'] ?? 0) > 0): ?>
-                            <a href="<?= $url('product/'.urlencode($p['slug'])) ?>" class="wk-add-btn" style="text-decoration:none;text-align:center;display:block">🎨 View Options</a>
+                            <a href="<?= $url('product/'.urlencode($p['slug'])) ?>" class="wk-block-link wk-add-btn"><?= $icon('palette') ?> View Options</a>
                         <?php else: ?>
-                            <button class="wk-add-btn" data-add-to-cart="<?= $p['id'] ?>">🛒 Add to Cart</button>
+                            <button class="wk-add-btn" data-add-to-cart="<?= $p['id'] ?>"><?= $icon('shopping-cart') ?> Add to Cart</button>
                         <?php endif; ?>
                     <?php else: ?>
                         <button class="wk-add-btn" disabled style="opacity:.5;cursor:not-allowed">Sold Out</button>

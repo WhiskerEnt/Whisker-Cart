@@ -21,7 +21,7 @@ $ship  = $order ? (json_decode($order['shipping_address'] ?? '{}', true) ?: []) 
     <div class="wk-container" style="max-width:640px">
 
         <h1 style="font-size:26px;font-weight:900;margin-bottom:6px">Track your order</h1>
-        <p style="color:var(--wk-muted);font-size:14px;margin-bottom:24px">
+        <p class="wk-muted wk-mb-24">
             Enter your order number and the email address you used at checkout.
         </p>
 
@@ -34,14 +34,14 @@ $ship  = $order ? (json_decode($order['shipping_address'] ?? '{}', true) ?: []) 
         <form method="POST" action="<?= $url('track') ?>"
               style="background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:var(--radius);padding:24px;margin-bottom:28px">
             <?= \Core\Session::csrfField() ?>
-            <div class="wk-form-group" style="margin-bottom:14px">
-                <label style="display:block;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--wk-muted);margin-bottom:6px">Order number</label>
+            <div class="wk-mb-14 wk-form-group">
+                <label class="wk-eyebrow">Order number</label>
                 <input type="text" name="order_number" required value="<?= $e($trackNumber ?? '') ?>"
                        placeholder="WK-260818-A1B2C3"
                        style="width:100%;padding:11px 14px;border:2px solid var(--wk-border);border-radius:var(--radius-sm);font-family:var(--font-mono);font-size:14px;background:var(--wk-bg);color:var(--wk-text)">
             </div>
             <div class="wk-form-group" style="margin-bottom:18px">
-                <label style="display:block;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--wk-muted);margin-bottom:6px">Email address</label>
+                <label class="wk-eyebrow">Email address</label>
                 <input type="email" name="email" required value="<?= $e($trackEmail ?? '') ?>" data-wk-validate="email"
                        placeholder="you@example.com"
                        style="width:100%;padding:11px 14px;border:2px solid var(--wk-border);border-radius:var(--radius-sm);font-family:var(--font);font-size:14px;background:var(--wk-bg);color:var(--wk-text)">
@@ -88,7 +88,7 @@ $ship  = $order ? (json_decode($order['shipping_address'] ?? '{}', true) ?: []) 
                             <?php if (!empty($it['variant_label'])): ?>
                                 <span style="color:var(--wk-muted);font-size:12px">· <?= $e($it['variant_label']) ?></span>
                             <?php endif; ?>
-                            <span style="color:var(--wk-muted)">× <?= (int)$it['quantity'] ?></span>
+                            <span class="wk-muted">× <?= (int)$it['quantity'] ?></span>
                         </div>
                         <div style="font-family:var(--font-mono);font-weight:700;white-space:nowrap"><?= $money($it['total_price']) ?></div>
                     </div>
@@ -97,7 +97,7 @@ $ship  = $order ? (json_decode($order['shipping_address'] ?? '{}', true) ?: []) 
 
                 <div style="padding:18px 24px;display:flex;justify-content:space-between;font-size:15px;font-weight:900">
                     <span>Total</span>
-                    <span style="font-family:var(--font-mono)"><?= $money($order['total']) ?></span>
+                    <span class="wk-mono"><?= $money($order['total']) ?></span>
                 </div>
 
                 <?php if (!empty($ship['line1'])): ?>
@@ -113,7 +113,7 @@ $ship  = $order ? (json_decode($order['shipping_address'] ?? '{}', true) ?: []) 
             </div>
 
             <p style="text-align:center;font-size:13px;color:var(--wk-muted);margin-top:20px">
-                Questions about this order? <a href="<?= $url('contact') ?>" style="color:var(--wk-purple-ink);font-weight:700">Contact us</a>
+                Questions about this order? <a href="<?= $url('contact') ?>" class="wk-link">Contact us</a>
             </p>
         <?php endif; ?>
     </div>

@@ -228,8 +228,7 @@ class VariantService
     {
         $img = Database::fetch("SELECT * FROM wk_product_images WHERE id=?", [$imageId]);
         if ($img) {
-            $path = WK_ROOT . '/storage/uploads/products/' . $img['image_path'];
-            if (file_exists($path)) @unlink($path);
+            ImageService::deleteFiles($img['image_path']);
             Database::delete('wk_product_images', 'id=?', [$imageId]);
         }
     }
@@ -257,7 +256,7 @@ class VariantService
         if ($data['primary']) {
             foreach ($data['primary']['options'] as $opt) {
                 $images = array_map(
-                    fn($img) => View::url('storage/uploads/products/' . $img['image_path']),
+                    fn($img) => View::url('storage/uploads/products/' . ImageService::bestName($img['image_path'])),
                     $opt['images'] ?? []
                 );
                 $primaryOptions[] = [

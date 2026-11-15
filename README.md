@@ -1,4 +1,4 @@
-![Version](https://img.shields.io/badge/version-1.4.1-8b5cf6?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-1.4.2-8b5cf6?style=for-the-badge)
 ![License](https://img.shields.io/badge/license-Whisker%20Free-f59e0b?style=for-the-badge)
 ![PHP](https://img.shields.io/badge/PHP-8.0+-777BB4?style=for-the-badge&logo=php&logoColor=white)
 ![MySQL](https://img.shields.io/badge/MySQL-5.7+-4479A1?style=for-the-badge&logo=mysql&logoColor=white)
@@ -10,7 +10,7 @@ Beautiful storefront. Powerful admin panel. Built-in AI chatbot. Zero monthly fe
 
 🌐 **[Live Demo](https://whisker.lohit.me)** · 📖 **[Documentation](https://github.com/WhiskerEnt/Whisker-Cart/wiki)** · 📧 **[mail@lohit.me](mailto:mail@lohit.me)**
 
-> **v1.4.1, released 10 September 2026.** The cart gets a page of its own, carts follow a signed-in customer between devices, and pressing Pay twice can no longer place two orders. Uploaded images are resized and served as WebP, compression is on by default, and every page collapses properly on a phone. Customers can download their own invoice and reorder a past order. The admin lists the pages a shop is expected to have and what each is for. See [CHANGELOG.md](CHANGELOG.md) for the full list.
+> **v1.4.2, released 15 November 2026.** The homepage slider fills itself from the shop's best-sellers, newest and sale products instead of sitting empty. Shops choose what the signup form asks for, add fields of their own, and can let customers sign in with a username. Photos of 10 to 15 MB upload, stay sharp and are shown whole. The contact button moves to a bottom corner. Gateways are asked for the exact total, money is worked out in whole cents, and Whisker can be installed with Composer. See [CHANGELOG.md](CHANGELOG.md) for the full list.
 
 ---
 
@@ -200,7 +200,22 @@ Whisker refuses to process a webhook when its secret is missing, rather than tru
    - **Step 6:** Done! 🎉
 5. Log into your admin panel at `https://yourdomain.com/admin`
 
-No command line. No Composer. No SSH. Works on any cPanel hosting.
+No command line, Composer or SSH needed. Works on any cPanel hosting.
+
+### With Composer
+
+If you would rather work from a terminal:
+
+```bash
+composer create-project whiskerent/whisker-cart shop --no-dev
+```
+
+Then point your web server at the `shop` directory and open `/install/`.
+
+Whisker has no dependencies of its own. Composer is a way to get the files,
+and later a way to add libraries a custom plugin needs with `composer require`.
+Anything in `vendor/` is loaded automatically. Updates work exactly as they do
+for a zip install and never touch `vendor/` or your `composer.json`.
 
 ---
 
@@ -276,5 +291,5 @@ Whisker Free Edition is released under the Whisker Free License v1.0. Free to us
 
 ---
 
-**🐱 Whisker v1.4.1** · Built by Lohit T
+**🐱 Whisker v1.4.2** · Built by Lohit T
 📧 [mail@lohit.me](mailto:mail@lohit.me)

@@ -3,6 +3,156 @@
 All notable changes to Whisker are recorded here. Versions follow
 [semantic versioning](https://semver.org/).
 
+## v1.4.2 (15 November 2026)
+
+Database migrations run automatically when you next open the admin dashboard.
+No manual SQL is needed. Existing shops keep the signup form they had.
+
+### The homepage
+
+- **The homepage slider is never empty.** It used to show only products
+  ticked Featured, a box that was off by default and said nothing about the
+  homepage, so a shop that just added products got a plain banner with its
+  name on it. The slider now fills its places from what the shop already
+  has: products you chose, then best-sellers, then products added in the
+  last 60 days, then products on sale, then a pick that changes once a day.
+  Products with a photo come first, and nothing out of stock is picked
+  automatically. Choose six or more yourself and only your choices appear.
+- **"Featured" is now "Show in homepage slider"**, explains what it does,
+  and comes first on the product form. The product list and the homepage
+  settings say where the slider's products are coming from, and when you
+  are signed in, the storefront shows the same in a note shoppers never see.
+- **The Classic homepage's featured row works.** Its carousel had no styles
+  and showed one product at a time across the whole page; it is now a row
+  of product cards, the same as the Modern homepage's sale row.
+
+### The contact button
+
+- **Redesigned, and moved to a bottom corner.** The column of round icons
+  sat halfway down the side of the screen, on top of the homepage slider's
+  arrow, and every page gave up 72 pixels of width to keep clear of it. It
+  is now a sheet of frosted glass in the bottom corner that stays put as
+  the page scrolls. Shops that show every channel get a small bar of tiles,
+  each naming itself on hover; shops that collapse it get a "Contact us"
+  button opening a card with a row per channel. On a phone it is always the
+  one button, so it never covers the page, and the button folds down to its
+  icon while the shopper scrolls down.
+- It steps out of the way of the cookie banner, the cart and the chat
+  window, and on the right-hand side it waits above the chat button. The
+  glass takes the shop's own colours, so it suits every theme.
+
+### Product pictures
+
+- **Photos of 10 to 15 MB upload.** Many hosts accept 2 MB per upload, and
+  Whisker's own limit was 5 MB; on the product edit page a larger file was
+  skipped without a word. Large photos are now made ready in your browser
+  before they are sent: brought down to 2400 pixels on the longest side and
+  saved as WebP at a quality the eye cannot tell from the original. A 16 MB
+  photo arrives as about 1 MB. When a picture still cannot be accepted, the
+  page says why and what the server's limit is.
+- **Sharper pictures.** Pictures are kept at up to 2400 pixels instead of
+  1600, so zooming in on a product shows detail, and saved at a higher
+  quality. Logos and other PNG graphics are converted to lossless WebP,
+  which keeps every pixel. Product cards and thumbnails are served a smaller
+  copy, so pages are no heavier for it.
+- **Phone photos are the right way up.** A phone saves a portrait photo
+  sideways and records the turn separately; that record was being discarded
+  without the turn being applied.
+- **Large photos no longer run the server out of memory.** Opening a
+  6000 by 4000 pixel photo takes over 100 MB; Whisker now asks for the
+  memory it needs, where the host allows, instead of quietly storing the
+  photo unconverted.
+- **Pictures are shown whole.** Product cards and the product page cropped
+  every photo to fill a fixed frame, cutting off the top and bottom of tall
+  photos and the sides of wide ones. The whole picture now shows, on a plain
+  border. Shops that prefer full frames can switch back under Settings,
+  Appearance.
+- Deleting a picture now deletes its WebP copies as well.
+
+### Payments
+
+- **Gateways are asked for the exact total.** Stripe and Razorpay converted
+  the total to minor units by multiplying by 100 and truncating, which sent
+  about one in twenty totals a cent short (0.29 became 28 cents). Currencies
+  with no minor unit, such as yen, were charged a hundred times over, and the
+  paid amount was read back the same way so the mismatch check could not see
+  it. Both now use the same conversion the refund path already used.
+- **The fallback currency is the shop's own.** Where a gateway had no order
+  currency to go on it assumed USD or INR; it now uses the currency set in
+  Settings.
+
+### Money
+
+- **Arithmetic is done in whole cents.** Prices come out of the database as
+  decimals that binary floating point cannot hold exactly. A basket of 0.10
+  and 0.70 came to 0.7999999999999999 and missed a 0.80 free-delivery
+  threshold, and a weight-based delivery charge went into the total
+  unrounded. Every sum, percentage and comparison in the cart, checkout,
+  tax, shipping and refunds now rounds to the cent, so a total is always
+  the sum of the parts as printed.
+
+### Accounts
+
+- **Shops choose what the signup form asks for.** A new screen, Signup &
+  Sign-in, sets first name, last name, phone and username each to not
+  asked, optional or required. Email and password are always required.
+  Switching a field off hides it from the signup and profile forms and
+  keeps whatever customers already gave.
+- **Shops can add their own fields**: short or long text, a number, a
+  dropdown, a tick box or a date, each required or optional, on the signup
+  form or on the profile only. Customers can change their answers on their
+  profile, and the shopkeeper sees them on the customer's page. Answers
+  are removed when a customer's data is erased.
+- **Customers can sign in with a username**, when the shop turns it on.
+  Usernames are unique regardless of letter case and cannot contain @, so
+  one is never mistaken for an email address.
+- **A rejected signup keeps what was typed**, except the password, so a
+  single mistake no longer means filling the form in again.
+- **Mistakes no longer use up the signup allowance.** Three accounts per
+  connection per hour was counted on every submission, so three typos
+  locked a real customer out for an hour. It now counts accounts created,
+  with a separate, generous limit on submissions.
+- **A registered customer is no longer told to set a password they already
+  have.** Whether an account has a password was recorded twice: in the
+  password itself, and in a separate row that only the set-password and
+  reset flows ever wrote. Registration wrote the first and not the second,
+  so every account made through the registration form was shown a
+  "Set Your Password" notice saying it had been created during checkout,
+  and the form it offered could never succeed, because it carried no
+  current password for the server to check. There is now one answer,
+  read from the account.
+
+### Installing with Composer
+
+- **`composer create-project whiskerent/whisker-cart`** installs the same
+  files the zip does, checks PHP and the required extensions, and hands
+  over to `/install/`. Inside any shop, `composer require` makes a library
+  available to custom code and plugins; Whisker loads `vendor/` whenever it
+  exists. Nothing changes for zip installs, and an update never touches
+  `vendor/` or a shop's own `composer.json`.
+
+### Server
+
+- **The installer and the dashboard say when private files are readable
+  from the internet.** The shipped `.htaccess` keeps `config/`, `app/` and
+  the database schema off the web, but nginx never reads it and Apache
+  ignores it under `AllowOverride None`, and until now nothing said so.
+  Four files that must be refused are requested over HTTP; a warning with
+  the fix appears if any come back.
+- **nginx gets the full set of rules** in the install guide: routing, the
+  access denials that `.htaccess` provides on Apache, and compression.
+
+### Appearance
+
+- **Icons are drawn, not typed.** Every emoji that stood in for an icon in
+  the storefront, the admin and the installer is replaced by an icon from
+  the Lucide set, drawn inline in the colour of the text beside it. Email
+  keeps its emoji, because mail clients strip inline images.
+- **The admin's two-column forms collapse on a phone.** They used to stay
+  two columns however narrow the screen.
+- Around a quarter of the inline styles in the views have moved into
+  stylesheet classes, with a test that keeps the count from rising again.
+
 ## v1.4.1 (10 September 2026)
 
 Database migrations run automatically when you next open the admin dashboard.

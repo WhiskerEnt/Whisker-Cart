@@ -4,7 +4,14 @@
     <div class="wk-card-header"><h2><?= $e($c['first_name'].' '.$c['last_name']) ?></h2></div>
     <div class="wk-card-body">
         <p><strong>Email:</strong> <?= $e($c['email']) ?></p>
+        <?php if (!empty($c['username'])): ?><p><strong>Username:</strong> <?= $e($c['username']) ?></p><?php endif; ?>
         <p><strong>Phone:</strong> <?= $e($c['phone']??'—') ?></p>
+        <?php foreach ($customFields ?? [] as $wkField):
+            $wkAnswer = (string)($customValues[$wkField['field_key']] ?? '');
+            if ($wkAnswer === '') continue;
+            if ($wkField['type'] === 'checkbox') $wkAnswer = 'Yes'; ?>
+        <p><strong><?= $e($wkField['label']) ?>:</strong> <?= nl2br($e($wkAnswer)) ?></p>
+        <?php endforeach; ?>
         <p><strong>Orders:</strong> <?= $c['total_orders'] ?></p>
         <p><strong>Total Spent:</strong> <?= \Core\View::price($c['total_spent']) ?></p>
         <p><strong>Joined:</strong> <?= date('M j, Y', strtotime($c['created_at'])) ?></p>
@@ -23,8 +30,7 @@
             kept for several years even after a deletion request.
         </p>
         <form method="POST" action="<?= \Core\View::url('admin/customers/'.$c['id'].'/pseudonymize') ?>"
-              onsubmit="return confirm('Pseudonymize this customer? Their personal data will be wiped and they will no longer be able to log in. Order records will be retained with anonymized contact details. This cannot be undone.')"
-              style="margin:0">
+              onsubmit="return confirm('Pseudonymize this customer? Their personal data will be wiped and they will no longer be able to log in. Order records will be retained with anonymized contact details. This cannot be undone.')" class="wk-m-0">
             <?= \Core\Session::csrfField() ?>
             <button type="submit" class="wk-btn" style="background:#dc2626;color:#fff;font-size:13px;padding:8px 16px;border-radius:6px;border:none;cursor:pointer;font-weight:700">Pseudonymize Customer</button>
         </form>

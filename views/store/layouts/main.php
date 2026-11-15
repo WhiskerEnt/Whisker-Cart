@@ -83,7 +83,7 @@ $currentSymbol = $currentCurrency === $baseCurrency
     <link rel="stylesheet" href="<?= \Core\View::asset('css/store.css') ?>">
 </head>
 <?php $storeTheme = \Core\Database::fetchValue("SELECT setting_value FROM wk_settings WHERE setting_group='general' AND setting_key='store_theme'") ?: 'purple'; ?>
-<body data-theme="<?= htmlspecialchars($storeTheme) ?>">
+<body data-theme="<?= htmlspecialchars($storeTheme) ?>"<?= \Core\Database::setting('general', 'image_fit') === 'cover' ? ' class="wk-img-fill"' : '' ?>>
 
 <a class="wk-skip-link" href="#wk-main">Skip to content</a>
 
@@ -199,25 +199,25 @@ $currentSymbol = $currentCurrency === $baseCurrency
             <div style="position:relative" id="accountMenu">
                 <button type="button" onclick="wkToggleAccount()" id="accountToggle" aria-haspopup="true" aria-expanded="false" style="background:none;border:2px solid var(--wk-border);border-radius:8px;padding:6px 12px;cursor:pointer;font-family:var(--font);font-size:13px;font-weight:800;color:var(--wk-purple-ink);display:flex;align-items:center;gap:6px;white-space:nowrap">
                     <?php if ($isLoggedIn): ?>
-                        👋 <span class="wk-btn-label"><?= $e($customer['first_name'] ?? 'Account') ?></span> ▾
+                        <?= $icon('user') ?> <span class="wk-btn-label"><?= $e($customer['first_name'] ?? 'Account') ?></span> ▾
                     <?php else: ?>
-                        👤 <span class="wk-btn-label">Account</span> ▾
+                        <?= $icon('user') ?> <span class="wk-btn-label">Account</span> ▾
                     <?php endif; ?>
                 </button>
                 <div id="accountDrop" style="display:none;position:absolute;right:0;top:calc(100% + 8px);background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,.1);width:200px;z-index:200;overflow:hidden">
                     <?php if ($isLoggedIn): ?>
-                        <a href="<?= $url('account') ?>" style="<?= $wkMenuItem ?>">📊 Dashboard</a>
-                        <a href="<?= $url('account/orders') ?>" style="<?= $wkMenuItem ?>">📦 My Orders</a>
-                        <a href="<?= $url('account/profile') ?>" style="<?= $wkMenuItem ?>">👤 Profile</a>
-                        <a href="<?= $url('account/addresses') ?>" style="<?= $wkMenuItem ?>">📍 Addresses</a>
+                        <a href="<?= $url('account') ?>" style="<?= $wkMenuItem ?>"><?= $icon('layout-dashboard') ?> Dashboard</a>
+                        <a href="<?= $url('account/orders') ?>" style="<?= $wkMenuItem ?>"><?= $icon('package') ?> My Orders</a>
+                        <a href="<?= $url('account/profile') ?>" style="<?= $wkMenuItem ?>"><?= $icon('user') ?> Profile</a>
+                        <a href="<?= $url('account/addresses') ?>" style="<?= $wkMenuItem ?>"><?= $icon('map-pin') ?> Addresses</a>
                         <form method="POST" action="<?= $url('account/logout') ?>" style="margin:0">
                             <?= \Core\Session::csrfField() ?>
                             <button type="submit" style="display:block;width:100%;padding:12px 16px;font-size:13px;font-weight:700;color:#ef4444;background:none;border:none;text-align:left;cursor:pointer;font-family:inherit">↪ Sign Out</button>
                         </form>
                     <?php else: ?>
                         <a href="<?= $url('account/login') ?>" style="<?= $wkMenuItem ?>">↪ Sign In</a>
-                        <a href="<?= $url('account/register') ?>" style="<?= $wkMenuItem ?>;color:var(--wk-purple-ink)">✨ Create Account</a>
-                        <a href="<?= $url('track') ?>" style="<?= $wkMenuItem ?>">📦 Track Order</a>
+                        <a href="<?= $url('account/register') ?>" style="<?= $wkMenuItem ?>;color:var(--wk-purple-ink)"><?= $icon('user-plus') ?> Create Account</a>
+                        <a href="<?= $url('track') ?>" style="<?= $wkMenuItem ?>"><?= $icon('package') ?> Track Order</a>
                     <?php endif; ?>
                 </div>
             </div>
@@ -240,7 +240,7 @@ $currentSymbol = $currentCurrency === $baseCurrency
             </script>
 
             <button class="wk-cart-btn" data-cart-open>
-                🛒 <span class="wk-btn-label">Cart</span> <span class="wk-cart-count" style="display:none">0</span>
+                <?= $icon('shopping-cart', 18) ?> <span class="wk-btn-label">Cart</span> <span class="wk-cart-count" style="display:none">0</span>
             </button>
         </div>
     </div>
@@ -268,7 +268,7 @@ $currentSymbol = $currentCurrency === $baseCurrency
         <button class="wk-cart-close" data-cart-close>✕ Close</button>
     </div>
     <div class="wk-cart-items">
-        <div class="wk-cart-empty"><div class="wk-cart-empty-icon">🛒</div><p style="font-weight:800">Cart is empty</p></div>
+        <div class="wk-cart-empty"><div class="wk-cart-empty-icon"><?= $icon('shopping-cart', 48) ?></div><p class="wk-heavy">Cart is empty</p></div>
     </div>
     <div class="wk-cart-footer">
         <div class="wk-cart-total">
@@ -292,10 +292,10 @@ $currentSymbol = $currentCurrency === $baseCurrency
         <?php if ($footerPhone || $footerEmail): ?>
         <div style="display:flex;justify-content:center;gap:24px;flex-wrap:wrap;font-size:13px;color:rgba(255,255,255,.7);font-weight:600">
             <?php if ($footerPhone): ?>
-                <a href="tel:<?= $e(preg_replace('/[^0-9+]/', '', $footerPhone)) ?>" style="color:rgba(255,255,255,.7)">📞 <?= $e($footerPhone) ?></a>
+                <a href="tel:<?= $e(preg_replace('/[^0-9+]/', '', $footerPhone)) ?>" style="color:rgba(255,255,255,.7)"><?= $icon('phone', 14) ?> <?= $e($footerPhone) ?></a>
             <?php endif; ?>
             <?php if ($footerEmail): ?>
-                <a href="mailto:<?= $e($footerEmail) ?>" style="color:rgba(255,255,255,.7)">✉️ <?= $e($footerEmail) ?></a>
+                <a href="mailto:<?= $e($footerEmail) ?>" style="color:rgba(255,255,255,.7)"><?= $icon('mail', 14) ?> <?= $e($footerEmail) ?></a>
             <?php endif; ?>
         </div>
         <?php endif; ?>
@@ -311,24 +311,29 @@ $currentSymbol = $currentCurrency === $baseCurrency
                 );
             } catch (\Exception $e) {}
             foreach ($wkPolicyPages as $wkPage): ?>
-                <a href="<?= $url('page/' . $wkPage['slug']) ?>" style="color:rgba(255,255,255,.5)"><?= $e($wkPage['title']) ?></a>
+                <a href="<?= $url('page/' . $wkPage['slug']) ?>" class="wk-footer-muted"><?= $e($wkPage['title']) ?></a>
             <?php endforeach; ?>
-            <a href="<?= $url('track') ?>" style="color:rgba(255,255,255,.5)">Track Order</a>
+            <a href="<?= $url('track') ?>" class="wk-footer-muted">Track Order</a>
             <?php if (\Core\Database::setting('privacy', 'cookie_consent', '0') === '1'): ?>
-                <a href="#" onclick="if(window.WhiskerConsent){WhiskerConsent.reopen();}return false;" style="color:rgba(255,255,255,.5)">Cookie Settings</a>
+                <a href="#" onclick="if(window.WhiskerConsent){WhiskerConsent.reopen();}return false;" class="wk-footer-muted">Cookie Settings</a>
             <?php endif; ?>
             <?php if ($isLoggedIn): ?>
-                <a href="<?= $url('account') ?>" style="color:rgba(255,255,255,.5)">My Account</a>
+                <a href="<?= $url('account') ?>" class="wk-footer-muted">My Account</a>
             <?php else: ?>
-                <a href="<?= $url('account/login') ?>" style="color:rgba(255,255,255,.5)">Sign In</a>
-                <a href="<?= $url('account/register') ?>" style="color:rgba(255,255,255,.5)">Create Account</a>
+                <a href="<?= $url('account/login') ?>" class="wk-footer-muted">Sign In</a>
+                <a href="<?= $url('account/register') ?>" class="wk-footer-muted">Create Account</a>
             <?php endif; ?>
         </div>
-        <div class="wk-footer-brand">🐱 Powered by <a href="https://github.com/WhiskerEnt/Whisker-Cart" target="_blank" rel="noopener" style="color:var(--wk-purple-ink);margin-left:4px">Whisker</a></div>
+        <div class="wk-footer-brand"><?= $icon('cat') ?> Powered by <a href="https://github.com/WhiskerEnt/Whisker-Cart" target="_blank" rel="noopener" style="color:var(--wk-purple-ink);margin-left:4px">Whisker</a></div>
         <div style="font-size:12px">&copy; <?= date('Y') ?> <?= $e($siteName) ?>. All rights reserved.</div>
     </div>
 </footer>
 
+<?php // Icons that scripts on the page build markup with ?>
+<template id="wk-icon-shopping-cart"><?= $icon('shopping-cart') ?></template>
+<template id="wk-icon-cart-empty"><?= $icon('shopping-cart', 48) ?></template>
+<template id="wk-icon-package"><?= $icon('package', 20) ?></template>
+<template id="wk-icon-clock"><?= $icon('clock', 14) ?></template>
 <script src="<?= \Core\View::asset('js/store.js') ?>"></script>
 
 <!-- Chatbot Widget -->
@@ -338,7 +343,7 @@ $chatbotEnabled = \Core\Database::fetchValue("SELECT setting_value FROM wk_setti
 if ($chatbotEnabled !== '0'):
 ?>
 <div id="wkChatbot">
-    <button id="wkChatToggle" onclick="toggleChat()" style="position:fixed;bottom:24px;right:24px;width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,var(--wk-purple),var(--wk-pink));border:none;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,.2);z-index:9999;display:flex;align-items:center;justify-content:center;font-size:24px;transition:transform .2s" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">💬</button>
+    <button id="wkChatToggle" onclick="toggleChat()" style="position:fixed;bottom:24px;right:24px;width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,var(--wk-purple),var(--wk-pink));border:none;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,.2);z-index:9999;display:flex;align-items:center;justify-content:center;font-size:24px;transition:transform .2s" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'"><span class="wk-chat-icon-open"><?= $icon('message-circle', 26) ?></span><span class="wk-chat-icon-close"><?= $icon('x', 26) ?></span></button>
 
     <div id="wkChatWindow" class="wk-chat-window" style="display:none;position:fixed;bottom:96px;right:24px;width:380px;max-height:520px;background:var(--wk-surface);border:2px solid var(--wk-border);border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.15);z-index:9999;overflow:hidden;display:none;flex-direction:column">
         <div style="background:linear-gradient(135deg,var(--wk-purple),var(--wk-pink));color:#fff;padding:16px 20px;display:flex;align-items:center;justify-content:space-between">
@@ -362,7 +367,8 @@ function toggleChat() {
     const w = document.getElementById('wkChatWindow');
     const b = document.getElementById('wkChatToggle');
     w.style.display = chatOpen ? 'flex' : 'none';
-    b.innerHTML = chatOpen ? '✕' : '💬';
+    document.body.classList.toggle('wk-chat-open', chatOpen);
+    b.classList.toggle('is-open', chatOpen);
     if (chatOpen && document.getElementById('wkChatMessages').children.length === 0) sendChat('hello');
 }
 

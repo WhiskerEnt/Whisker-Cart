@@ -2,6 +2,7 @@
 namespace App\Controllers\Admin;
 
 use Core\{Request, View, Database, Response, Session, Validator};
+use App\Services\Money;
 
 class ShippingController
 {
@@ -303,7 +304,7 @@ class ShippingController
             $method = 'flat';
         }
 
-        $num = fn($key) => round(max(0, (float) str_replace(',', '', (string) $request->input($key))), 2);
+        $num = fn($key) => Money::round(max(0, (float) str_replace(',', '', (string) $request->input($key))));
         $cap = trim((string) $request->input('per_item_cap'));
 
         return [
@@ -315,7 +316,7 @@ class ShippingController
             'free_threshold'  => $num('free_threshold'),
             'per_item'        => $num('per_item'),
             // Blank means no cap, which is not the same as a cap of zero.
-            'per_item_cap'    => $cap === '' ? null : round(max(0, (float) $cap), 2),
+            'per_item_cap'    => $cap === '' ? null : Money::round(max(0, (float) $cap)),
             'weight_base'     => $num('weight_base'),
             'weight_per_kg'   => $num('weight_per_kg'),
             'is_active'       => $request->input('is_active') === '0' ? 0 : 1,
@@ -354,7 +355,7 @@ class ShippingController
             'zip'           => $request->clean('zip') ?? '',
             'country'       => strtoupper(substr(trim((string)($request->input('country') ?? 'IN')), 0, 2)),
             'opening_hours' => $request->clean('opening_hours') ?? '',
-            'fee'           => $fee === '' ? null : round((float)$fee, 2),
+            'fee'           => $fee === '' ? null : Money::round((float)$fee),
             'is_active'     => 1,
             'sort_order'    => (int)($request->input('sort_order') ?? 0),
         ]);
@@ -392,7 +393,7 @@ class ShippingController
             'zip'           => $request->clean('zip') ?? '',
             'country'       => strtoupper(substr(trim((string)($request->input('country') ?? 'IN')), 0, 2)),
             'opening_hours' => $request->clean('opening_hours') ?? '',
-            'fee'           => $fee === '' ? null : round((float)$fee, 2),
+            'fee'           => $fee === '' ? null : Money::round((float)$fee),
             'is_active'     => $request->input('is_active') ? 1 : 0,
             'sort_order'    => (int)($request->input('sort_order') ?? 0),
         ], 'id=?', [$params['id']]);

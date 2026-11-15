@@ -17,7 +17,7 @@ $shipCharge = \Core\Database::fetchValue("SELECT setting_value FROM wk_settings 
     <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px">
         <div>
             <!-- Details -->
-            <div class="wk-card" style="margin-bottom:20px">
+            <div class="wk-mb-20 wk-card">
                 <div class="wk-card-header"><h2>Product Details</h2></div>
                 <div class="wk-card-body">
                     <div class="wk-form-group"><label>Product Name</label><input type="text" name="name" class="wk-input" required value="<?= $e($p['name']) ?>"></div>
@@ -64,13 +64,13 @@ $shipCharge = \Core\Database::fetchValue("SELECT setting_value FROM wk_settings 
             </div>
 
             <!-- Main Images -->
-            <div class="wk-card" style="margin-bottom:20px">
-                <div class="wk-card-header"><h2>📸 Product Images</h2><span style="font-size:12px;color:var(--wk-text-muted)"><?= count($images) ?> image<?= count($images)!==1?'s':'' ?></span></div>
+            <div class="wk-mb-20 wk-card">
+                <div class="wk-card-header"><h2><?= $icon('image') ?> Product Images</h2><span class="wk-note"><?= count($images) ?> image<?= count($images)!==1?'s':'' ?></span></div>
                 <div class="wk-card-body">
                     <div id="imageGallery" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:10px;margin-bottom:14px">
                         <?php foreach ($images as $i => $img): ?>
                         <div style="position:relative;border-radius:8px;overflow:hidden;border:2px solid <?= $img['is_primary']?'var(--wk-purple)':'var(--wk-border)' ?>;aspect-ratio:1;background:var(--wk-bg)" id="img-<?= $img['id'] ?>">
-                            <img src="<?= $url('storage/uploads/products/'.$img['image_path']) ?>" style="width:100%;height:100%;object-fit:cover">
+                            <img src="<?= $url('storage/uploads/products/'.$img['image_path']) ?>" class="wk-cover">
                             <?php if ($img['is_primary']): ?><div style="position:absolute;bottom:0;left:0;right:0;background:var(--wk-purple);color:#fff;font-size:9px;font-weight:800;text-align:center;padding:2px">★ PRIMARY</div><?php endif; ?>
                             <div style="position:absolute;top:4px;right:4px;display:flex;gap:3px">
                                 <?php if (!$img['is_primary']): ?><button type="button" onclick="setPrimary(<?= $img['id'] ?>)" style="background:var(--wk-purple);color:#fff;border:none;border-radius:4px;font-size:10px;padding:2px 6px;cursor:pointer">★</button><?php endif; ?>
@@ -80,19 +80,19 @@ $shipCharge = \Core\Database::fetchValue("SELECT setting_value FROM wk_settings 
                         <?php endforeach; ?>
                     </div>
                     <div id="dropZone" style="border:2px dashed var(--wk-border);border-radius:8px;padding:20px;text-align:center;cursor:pointer;transition:all .2s;background:var(--wk-bg)" onclick="document.getElementById('fileInput').click()">
-                        <div style="font-size:20px;margin-bottom:4px;opacity:.4">📸</div>
+                        <div style="font-size:20px;margin-bottom:4px;opacity:.4"><?= $icon('image', 20) ?></div>
                         <div style="font-weight:800;font-size:13px">Drop images or click to upload</div>
                         <input type="file" id="fileInput" multiple accept="image/*" style="display:none" onchange="handleFiles(this.files)">
                     </div>
-                    <div id="uploadProgress" style="margin-top:8px"></div>
+                    <div id="uploadProgress" class="wk-mt-8"></div>
                 </div>
             </div>
 
             <!-- Pricing -->
-            <div class="wk-card" style="margin-bottom:20px">
+            <div class="wk-mb-20 wk-card">
                 <div class="wk-card-header"><h2>Pricing & Inventory</h2></div>
                 <div class="wk-card-body">
-                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+                    <div class="wk-grid-3">
                         <div class="wk-form-group"><label>Price</label><input type="number" step="0.01" name="price" class="wk-input" required value="<?= $p['price'] ?>"></div>
                         <div class="wk-form-group"><label>Sale Price</label><input type="number" step="0.01" name="sale_price" class="wk-input" value="<?= $p['sale_price']??'' ?>"></div>
                         <div class="wk-form-group"><label>Stock <?= $variants['has_variants']?'<span style="font-weight:500;text-transform:none;color:var(--wk-green)">(auto from variants)</span>':'' ?></label><input type="number" <?= $variants['has_variants']?'':'name="stock_quantity"' ?> class="wk-input" value="<?= $p['stock_quantity'] ?>" <?= $variants['has_variants']?'disabled style="opacity:.6"':'' ?>></div>
@@ -102,10 +102,10 @@ $shipCharge = \Core\Database::fetchValue("SELECT setting_value FROM wk_settings 
             </div>
 
             <!-- Shipping & Weight -->
-            <div class="wk-card" style="margin-bottom:20px">
-                <div class="wk-card-header"><h2>🚚 Shipping & Weight</h2></div>
+            <div class="wk-mb-20 wk-card">
+                <div class="wk-card-header"><h2><?= $icon('truck') ?> Shipping & Weight</h2></div>
                 <div class="wk-card-body">
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+                    <div class="wk-grid-2">
                         <div class="wk-form-group"><label>Weight</label><input type="number" step="0.001" name="weight_value" class="wk-input" value="<?= $displayWeight>0?round($displayWeight,3):'' ?>"></div>
                         <div class="wk-form-group"><label>Unit</label><select name="weight_unit" class="wk-select"><?php foreach(['kg'=>'Kilograms','g'=>'Grams','lb'=>'Pounds','oz'=>'Ounces','ton'=>'Metric Tons'] as $u=>$l): ?><option value="<?= $u ?>" <?= $savedUnit===$u?'selected':'' ?>><?= $l ?></option><?php endforeach; ?></select></div>
                     </div>
@@ -116,9 +116,9 @@ $shipCharge = \Core\Database::fetchValue("SELECT setting_value FROM wk_settings 
 
             <!-- 2-Level Variants -->
             <div class="wk-card">
-                <div class="wk-card-header"><h2>🎨 Variants</h2><span style="font-size:12px;color:var(--wk-text-muted)"><?= count($variants['combos']) ?> combo<?= count($variants['combos'])!==1?'s':'' ?></span></div>
+                <div class="wk-card-header"><h2><?= $icon('palette') ?> Variants</h2><span class="wk-note"><?= count($variants['combos']) ?> combo<?= count($variants['combos'])!==1?'s':'' ?></span></div>
                 <div class="wk-card-body">
-                    <p style="font-size:12px;color:var(--wk-text-muted);margin-bottom:14px"><strong>Primary</strong> (e.g. Color) gets its own image gallery. <strong>Secondary</strong> (e.g. Size) gets stock/price per combo. Max 2 groups.</p>
+                    <p class="wk-note wk-mb-14"><strong>Primary</strong> (e.g. Color) gets its own image gallery. <strong>Secondary</strong> (e.g. Size) gets stock/price per combo. Max 2 groups.</p>
 
                     <div id="variantGroups">
                         <?php foreach ($variants['groups'] as $gi => $group): ?>
@@ -135,19 +135,19 @@ $shipCharge = \Core\Database::fetchValue("SELECT setting_value FROM wk_settings 
                     <?php if (count($variants['groups']) < 2): ?>
                     <button type="button" onclick="addVariantGroup()" class="wk-btn wk-btn-secondary wk-btn-sm" style="width:100%;justify-content:center;margin-bottom:10px">+ Add Variant Group</button>
                     <?php endif; ?>
-                    <button type="button" onclick="saveVariants()" class="wk-btn wk-btn-primary wk-btn-sm" style="width:100%;justify-content:center">Save & Generate Combinations</button>
+                    <button type="button" onclick="saveVariants()" class="wk-btn-block wk-btn wk-btn-primary wk-btn-sm">Save & Generate Combinations</button>
 
                     <!-- Primary Option Images -->
                     <?php if ($variants['primary'] && !empty($variants['primary']['options'])): ?>
                     <div style="margin-top:18px;border-top:1px solid var(--wk-border);padding-top:14px">
-                        <div style="font-weight:800;font-size:13px;margin-bottom:10px">📸 <?= $e($variants['primary']['name']) ?> Images</div>
+                        <div style="font-weight:800;font-size:13px;margin-bottom:10px"><?= $icon('image', 14) ?> <?= $e($variants['primary']['name']) ?> Images</div>
                         <?php foreach ($variants['primary']['options'] as $opt): ?>
                         <div style="background:var(--wk-bg);border-radius:8px;padding:12px;margin-bottom:8px">
-                            <div style="font-weight:800;font-size:13px;margin-bottom:8px"><?= $e($opt['value']) ?> <span style="font-weight:500;color:var(--wk-text-muted)">(<?= count($opt['images']??[]) ?> images)</span></div>
+                            <div style="font-weight:800;font-size:13px;margin-bottom:8px"><?= $e($opt['value']) ?> <span class="wk-subtle">(<?= count($opt['images']??[]) ?> images)</span></div>
                             <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap" id="optImages-<?= $opt['id'] ?>">
                                 <?php foreach ($opt['images'] ?? [] as $img): ?>
                                 <div style="position:relative;width:60px;height:60px;border-radius:6px;overflow:hidden;border:2px solid var(--wk-border)" id="vimg-<?= $img['id'] ?>">
-                                    <img src="<?= $url('storage/uploads/products/'.$img['image_path']) ?>" style="width:100%;height:100%;object-fit:cover">
+                                    <img src="<?= $url('storage/uploads/products/'.$img['image_path']) ?>" class="wk-cover">
                                     <button type="button" onclick="deleteOptionImage(<?= $img['id'] ?>)" style="position:absolute;top:1px;right:1px;background:rgba(239,68,68,.9);color:#fff;border:none;border-radius:3px;width:16px;height:16px;font-size:9px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
                                 </div>
                                 <?php endforeach; ?>
@@ -162,8 +162,8 @@ $shipCharge = \Core\Database::fetchValue("SELECT setting_value FROM wk_settings 
                     <?php if (!empty($variants['combos'])): ?>
                     <div style="margin-top:18px;border-top:1px solid var(--wk-border);padding-top:14px">
                         <div onclick="const b=document.getElementById('combosBody');b.style.display=b.style.display==='none'?'block':'none';this.querySelector('.ca').textContent=b.style.display==='none'?'▶':'▼'" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;padding:6px 0">
-                            <div style="font-weight:800;font-size:13px">Stock & Pricing <span style="color:var(--wk-text-muted);font-weight:600">(<?= count($variants['combos']) ?>)</span></div>
-                            <span class="ca" style="font-size:11px;color:var(--wk-text-muted)">▼</span>
+                            <div style="font-weight:800;font-size:13px">Stock & Pricing <span class="wk-muted wk-semibold">(<?= count($variants['combos']) ?>)</span></div>
+                            <span class="wk-fine ca">▼</span>
                         </div>
                         <div id="combosBody">
                         <?php foreach ($variants['combos'] as $combo): ?>
@@ -185,17 +185,20 @@ $shipCharge = \Core\Database::fetchValue("SELECT setting_value FROM wk_settings 
 
         <!-- Right Column -->
         <div>
-            <div class="wk-card" style="margin-bottom:20px">
+            <div class="wk-mb-20 wk-card">
                 <div class="wk-card-header"><h2>Organization</h2></div>
                 <div class="wk-card-body">
-                    <div class="wk-form-group"><label>Category</label><select name="category_id" class="wk-select" id="categorySelect"><option value="">No category</option><?php foreach ($categories as $cat): ?><option value="<?= $cat['id'] ?>" <?= $cat['id']==$p['category_id']?'selected':'' ?>><?= $cat['parent_name']?htmlspecialchars($cat['parent_name']).' → ':'' ?><?= htmlspecialchars($cat['name']) ?></option><?php endforeach; ?></select>
-                        <div style="margin-top:8px"><button type="button" class="wk-btn wk-btn-secondary wk-btn-sm" style="width:100%;justify-content:center" onclick="document.getElementById('qcBox').style.display=document.getElementById('qcBox').style.display==='none'?'block':'none'">+ Quick Add Category</button><div id="qcBox" style="display:none;margin-top:8px;padding:10px;background:var(--wk-bg);border-radius:8px"><input type="text" id="qcName" class="wk-input" placeholder="Category name" style="margin-bottom:6px"><button type="button" class="wk-btn wk-btn-primary wk-btn-sm" style="width:100%;justify-content:center" onclick="quickAddCategory()">Create</button></div></div>
+                    <div class="wk-form-group wk-showcase-pick">
+                        <label class="wk-check"><input type="checkbox" name="is_featured" value="1" <?= $p['is_featured']?'checked':'' ?>> <?= $icon('sparkles', 14) ?> Show in homepage slider</label>
+                        <div class="wk-hint">Ticked products lead the slider at the top of your homepage. With none ticked, it fills itself from your best-sellers and newest products.</div>
                     </div>
-                    <div class="wk-form-group"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" name="is_active" value="1" <?= $p['is_active']?'checked':'' ?>> Active</label></div>
-                    <div class="wk-form-group"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" name="is_featured" value="1" <?= $p['is_featured']?'checked':'' ?>> Featured</label></div>
+                    <div class="wk-form-group"><label>Category</label><select name="category_id" class="wk-select" id="categorySelect"><option value="">No category</option><?php foreach ($categories as $cat): ?><option value="<?= $cat['id'] ?>" <?= $cat['id']==$p['category_id']?'selected':'' ?>><?= $cat['parent_name']?htmlspecialchars($cat['parent_name']).' → ':'' ?><?= htmlspecialchars($cat['name']) ?></option><?php endforeach; ?></select>
+                        <div class="wk-mt-8"><button type="button" class="wk-btn-block wk-btn wk-btn-secondary wk-btn-sm" onclick="document.getElementById('qcBox').style.display=document.getElementById('qcBox').style.display==='none'?'block':'none'">+ Quick Add Category</button><div id="qcBox" style="display:none;margin-top:8px;padding:10px;background:var(--wk-bg);border-radius:8px"><input type="text" id="qcName" class="wk-mb-6 wk-input" placeholder="Category name"><button type="button" class="wk-btn-block wk-btn wk-btn-primary wk-btn-sm" onclick="quickAddCategory()">Create</button></div></div>
+                    </div>
+                    <div class="wk-form-group"><label class="wk-check"><input type="checkbox" name="is_active" value="1" <?= $p['is_active']?'checked':'' ?>> Active</label></div>
                 </div>
             </div>
-            <button type="submit" class="wk-btn wk-btn-primary" style="width:100%;justify-content:center">Update Product</button>
+            <button type="submit" class="wk-btn-block wk-btn wk-btn-primary">Update Product</button>
             <a href="<?= $url('admin/products') ?>" class="wk-btn wk-btn-secondary" style="width:100%;justify-content:center;margin-top:10px">Cancel</a>
 
             <?php
@@ -216,12 +219,27 @@ dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.styl
 dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor='var(--wk-border)'; });
 dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.style.borderColor='var(--wk-border)'; handleFiles(e.dataTransfer.files); });
 
+// A picture the server cannot take is reported, never skipped silently.
+async function readyToSend(original) {
+    if (!original.type.startsWith('image/')) { Whisker.toast(original.name+' is not a picture','error'); return null; }
+    const file = await Whisker.prepareImage(original);
+    if (file.size > Whisker.maxUploadBytes()) {
+        Whisker.toast(original.name+' is '+Whisker.sizeLabel(file.size)+'; this server accepts up to '+Whisker.sizeLabel(Whisker.maxUploadBytes())+'.','error');
+        return null;
+    }
+    return file;
+}
+async function sendPicture(url, form) {
+    const res = await fetch(url,{method:'POST',headers:{'X-CSRF-Token':csrfToken},body:form});
+    if (res.status === 413) return {success:false, message:'Your server refused a file this large before Whisker saw it. Ask your host to raise its upload size limit.'};
+    try { return await res.json(); } catch (e) { return {success:false, message:'Upload failed ('+res.status+').'}; }
+}
 async function handleFiles(files) {
-    for (const file of files) {
-        if (!file.type.startsWith('image/')||file.size>5*1024*1024) continue;
+    for (const original of files) {
+        const file = await readyToSend(original);
+        if (!file) continue;
         const form = new FormData(); form.append('image',file); form.append('product_id',productId);
-        const res = await fetch(baseUrl+'admin/products/upload-image',{method:'POST',headers:{'X-CSRF-Token':csrfToken},body:form});
-        const data = await res.json();
+        const data = await sendPicture(baseUrl+'admin/products/upload-image', form);
         if (data.success) { Whisker.toast('Uploaded!','success'); setTimeout(()=>location.reload(),500); }
         else Whisker.toast(data.message||data.error||'Failed','error');
     }
@@ -262,17 +280,17 @@ async function updateCombo(id,field,val) {
 
 // Primary option images
 async function uploadOptionImages(optionId, files) {
-    for (const file of files) {
-        if (!file.type.startsWith('image/')||file.size>5*1024*1024) continue;
+    for (const original of files) {
+        const file = await readyToSend(original);
+        if (!file) continue;
         const form=new FormData(); form.append('image',file); form.append('product_id',productId); form.append('option_id',optionId);
-        const res=await fetch(baseUrl+'admin/products/variants/upload-option-image',{method:'POST',headers:{'X-CSRF-Token':csrfToken},body:form});
-        const data=await res.json();
+        const data = await sendPicture(baseUrl+'admin/products/variants/upload-option-image', form);
         if (data.success) {
             const container=document.getElementById('optImages-'+optionId);
             const thumb=document.createElement('div');
             thumb.id='vimg-'+data.image_id;
             thumb.style.cssText='position:relative;width:60px;height:60px;border-radius:6px;overflow:hidden;border:2px solid var(--wk-purple)';
-            thumb.innerHTML=`<img src="${data.url}" style="width:100%;height:100%;object-fit:cover"><button type="button" onclick="deleteOptionImage(${data.image_id})" style="position:absolute;top:1px;right:1px;background:rgba(239,68,68,.9);color:#fff;border:none;border-radius:3px;width:16px;height:16px;font-size:9px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>`;
+            thumb.innerHTML=`<img src="${data.url}" class="wk-cover"><button type="button" onclick="deleteOptionImage(${data.image_id})" style="position:absolute;top:1px;right:1px;background:rgba(239,68,68,.9);color:#fff;border:none;border-radius:3px;width:16px;height:16px;font-size:9px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>`;
             container.insertBefore(thumb,container.lastElementChild);
             Whisker.toast('Uploaded!','success');
         } else Whisker.toast(data.message||'Failed','error');

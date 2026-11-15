@@ -2,14 +2,18 @@
 require_once __DIR__ . '/../../core/PaymentGatewayInterface.php';
 require_once __DIR__ . '/../../core/BaseGateway.php';
 
+use App\Services\CurrencyService;
+
 class StripeGateway extends \Core\BaseGateway
 {
     public function createOrder(array $order): array
     {
+        $currency = strtoupper(($order['currency'] ?? '') ?: CurrencyService::baseCurrency());
         $resp = $this->api('/checkout/sessions', [
             'payment_method_types'=>['card'], 'mode'=>'payment',
-            'line_items'=>[['price_data'=>['currency'=>strtolower($order['currency']??'usd'),
-                'unit_amount'=>(int)($order['total']*100), 'product_data'=>['name'=>'Order '.$order['order_number']]],
+            'line_items'=>[['price_data'=>['currency'=>strtolower($currency),
+                'unit_amount'=>CurrencyService::toMinorUnits((float)$order['total'], $currency),
+                'product_data'=>['name'=>'Order '.$order['order_number']]],
                 'quantity'=>1]],
             'success_url'=>\Core\View::url('order-success?order='.$order['order_number']),
             'cancel_url'=>\Core\View::url('checkout?cancelled=1'),
@@ -42,7 +46,7 @@ class StripeGateway extends \Core\BaseGateway
         // Report the amount actually paid so markOrderPaid() can run its
         // amount-mismatch check.
         if (isset($session['amount_total'])) {
-            $result['amount'] = (float)$session['amount_total'] / 100;
+            $result['amount'] = $this->paidAmount($session);
         }
         return $result;
     }
@@ -64,10 +68,10 @@ class StripeGateway extends \Core\BaseGateway
 
     public function refund(string $paymentId, float $amount, array $options = []): array
     {
-        $currency = $options['currency'] ?? 'USD';
+        $currency = ($options['currency'] ?? '') ?: CurrencyService::baseCurrency();
         $payload = [
             'payment_intent' => $paymentId,
-            'amount'         => \App\Services\CurrencyService::toMinorUnits($amount, $currency),
+            'amount'         => CurrencyService::toMinorUnits($amount, $currency),
         ];
         // Stripe only accepts these three; anything else is kept for our own record.
         if (in_array($options['reason'] ?? '', ['duplicate', 'fraudulent', 'requested_by_customer'], true)) {
@@ -160,18 +164,28 @@ class StripeGateway extends \Core\BaseGateway
         if (($payload['type'] ?? '') === 'checkout.session.completed') {
             $session = $payload['data']['object'] ?? [];
             $orderId = $session['metadata']['order_id'] ?? null;
-            $paidAmount = isset($session['amount_total']) ? (float)$session['amount_total'] / 100 : null;
+            $paidAmount = isset($session['amount_total']) ? $this->paidAmount($session) : null;
             if ($orderId) $this->markOrderPaid((int)$orderId, $session['payment_intent'] ?? '', $paidAmount);
         }
 
         \Core\Response::json(['status' => 'ok']);
     }
 
+    /**
+     * A session's amount_total is in the session's own currency's minor unit:
+     * cents for USD, whole yen for JPY.
+     */
+    private function paidAmount(array $session): float
+    {
+        $currency = (string)(($session['currency'] ?? '') ?: CurrencyService::baseCurrency());
+        return CurrencyService::fromMinorUnits((int)$session['amount_total'], $currency);
+    }
+
     /** HTTP status and transport error of the last api() call. */
     private int $lastHttp = 0;
     private string $lastTransportError = '';
 
-    private function api(string $ep, array $data=[], string $method='POST', array $headers=[]): array
+    protected function api(string $ep, array $data=[], string $method='POST', array $headers=[]): array
     {
         $ch = curl_init('https://api.stripe.com/v1' . $ep);
         $opts = [

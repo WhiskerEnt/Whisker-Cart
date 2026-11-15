@@ -73,6 +73,20 @@ class ServerConfigTest extends TestCase
     }
 
     /**
+     * A server that ignores .htaccess serves tests/ to anyone who asks, and the
+     * integration script empties the orders and products of the database the
+     * shop is configured for. It has to refuse to run unless started from the
+     * command line, before it loads anything.
+     */
+    public function testTheIntegrationScriptRunsFromTheCommandLineOnly(): void
+    {
+        $script = (string) file_get_contents(WK_ROOT . '/tests/ci/integration.php');
+        $guard = strpos($script, "if (PHP_SAPI !== 'cli') {");
+        $this->assertNotFalse($guard, 'a web request runs the integration script against the live database');
+        $this->assertLessThan(strpos($script, 'require '), $guard, 'the guard must come before anything is loaded');
+    }
+
+    /**
      * The hidden-file rule matches on a file's own name, so it never sees
      * .git/config — that file is called "config".
      */

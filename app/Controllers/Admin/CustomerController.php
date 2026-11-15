@@ -16,7 +16,9 @@ class CustomerController
         if (!$customer) { Response::notFound(); return; }
         $orders = Database::fetchAll("SELECT * FROM wk_orders WHERE customer_id=? ORDER BY created_at DESC", [$params['id']]);
         View::render('admin/customers/show', [
-            'pageTitle'=>$customer['first_name'].' '.$customer['last_name'], 'customer'=>$customer, 'orders'=>$orders
+            'pageTitle'=>$customer['first_name'].' '.$customer['last_name'], 'customer'=>$customer, 'orders'=>$orders,
+            'customFields' => \App\Services\AccountFieldService::allCustom(),
+            'customValues' => \App\Services\AccountFieldService::valuesFor((int)$customer['id']),
         ], 'admin/layouts/main');
     }
 
@@ -72,6 +74,13 @@ class CustomerController
                 // outright rather than orphaning them.
                 Database::query("DELETE FROM wk_carts WHERE customer_id=?", [$id]);
 
+                // Answers to the shop's own signup questions are personal
+                // data with no use once the customer is gone. An install that
+                // has not created the table yet has none to remove.
+                try {
+                    Database::query("DELETE FROM wk_customer_field_values WHERE customer_id=?", [$id]);
+                } catch (\Throwable $e) {}
+
                 // Scrub the wk_orders.customer_email / customer_phone fields
                 // on this customer's orders. The order rows themselves are
                 // retained (legal/financial obligation) but the contact
@@ -86,7 +95,7 @@ class CustomerController
                 // rejects it, so the account is unreachable. is_active=0
                 // doubles as a soft-delete flag for any admin queries that
                 // honor it.
-                Database::update('wk_customers', [
+                $scrub = [
                     'first_name'    => $stubName,
                     'last_name'     => '',
                     'email'         => $stubEmail,
@@ -94,7 +103,11 @@ class CustomerController
                     'password_hash' => '*',
                     'is_active'     => 0,
                     'email_verified'=> 0,
-                ], 'id=?', [$id]);
+                ];
+                if (Database::fetch("SHOW COLUMNS FROM wk_customers LIKE 'username'")) {
+                    $scrub['username'] = null;
+                }
+                Database::update('wk_customers', $scrub, 'id=?', [$id]);
             });
         } catch (\Throwable $e) {
             Session::flash('error', 'Could not pseudonymize customer. Please try again.');

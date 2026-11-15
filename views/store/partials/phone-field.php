@@ -6,11 +6,12 @@
  * its own copy:
  *   value       string  the stored number, split back into country and rest
  *   required    bool    default false
- *   inputStyle  string  inline style for the number box, to match the form
+ *   inputClass  string  class for both boxes, to match the form
+ *   inputStyle  string  inline style for the number box, where a class will not do
  *   selectStyle string  inline style for the picker; falls back to inputStyle
  *   name        string  field name, default 'phone'
  */
-$wkPhone       = ($wkPhone ?? []) + ['value' => '', 'required' => false, 'inputStyle' => '', 'selectStyle' => '', 'name' => 'phone'];
+$wkPhone       = ($wkPhone ?? []) + ['value' => '', 'required' => false, 'inputClass' => '', 'inputStyle' => '', 'selectStyle' => '', 'name' => 'phone'];
 $wkPhoneParts  = \App\Services\CountryService::splitPhone($wkPhone['value']);
 $wkPhoneChosen = $wkPhoneParts['code'] !== '' ? $wkPhoneParts['code'] : \App\Services\CountryService::storeCountry();
 $wkPhoneEsc    = fn($v) => \Core\View::e($v);
@@ -18,7 +19,7 @@ $wkPhoneSelSty = $wkPhone['selectStyle'] !== '' ? $wkPhone['selectStyle'] : $wkP
 ?>
 <div class="wk-phone-field">
     <select name="<?= $wkPhoneEsc($wkPhone['name']) ?>_code" aria-label="Country calling code"
-            data-wk-phone-code
+            data-wk-phone-code class="<?= $wkPhoneEsc($wkPhone['inputClass']) ?>"
             style="<?= $wkPhoneEsc($wkPhoneSelSty) ?>;padding-left:8px;padding-right:8px;font-size:13px">
         <?php foreach (\App\Services\CountryService::dialCodes() as $wkCc => $wkDial): ?>
             <option value="<?= $wkPhoneEsc($wkCc) ?>"<?= $wkCc === $wkPhoneChosen ? ' selected' : '' ?>><?= $wkPhoneEsc(\App\Services\CountryService::name($wkCc)) ?> (+<?= $wkPhoneEsc($wkDial) ?>)</option>
@@ -29,6 +30,6 @@ $wkPhoneSelSty = $wkPhone['selectStyle'] !== '' ? $wkPhone['selectStyle'] : $wkP
            placeholder="98765 43210" autocomplete="tel" maxlength="24"
            aria-label="Phone number"
            data-wk-validate="phone"<?= $wkPhone['required'] ? ' required' : '' ?>
-           style="<?= $wkPhoneEsc($wkPhone['inputStyle']) ?>">
+           class="<?= $wkPhoneEsc($wkPhone['inputClass']) ?>" style="<?= $wkPhoneEsc($wkPhone['inputStyle']) ?>">
 </div>
 <p class="wk-field-note" data-wk-note style="display:none"></p>

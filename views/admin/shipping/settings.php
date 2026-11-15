@@ -7,8 +7,8 @@ $carriers = [];
 try { $carriers = \Core\Database::fetchAll("SELECT * FROM wk_shipping_carriers WHERE is_active=1 ORDER BY name"); } catch(\Exception $e) {}
 ?>
 <div style="display:flex;gap:12px;margin-bottom:24px">
-    <a href="<?= $url('admin/shipping') ?>" class="wk-btn wk-btn-secondary">🚚 Manage Carriers</a>
-    <a href="<?= $url('admin/shipping/zones') ?>" class="wk-btn wk-btn-secondary">🌍 Shipping Zones</a>
+    <a href="<?= $url('admin/shipping') ?>" class="wk-btn wk-btn-secondary"><?= $icon('truck') ?> Manage Carriers</a>
+    <a href="<?= $url('admin/shipping/zones') ?>" class="wk-btn wk-btn-secondary"><?= $icon('globe') ?> Shipping Zones</a>
 </div>
 
 <form method="POST" action="<?= $url('admin/shipping/settings/update') ?>">
@@ -24,7 +24,7 @@ $allCountries = $CS::all();
 ?>
 <div class="wk-card" style="max-width:900px;margin-bottom:20px">
     <div class="wk-card-header">
-        <h2>🌍 Shipping Destinations</h2>
+        <h2><?= $icon('globe') ?> Shipping Destinations</h2>
         <span style="font-size:12px;color:var(--wk-text-muted);font-weight:600" id="destCount"></span>
     </div>
     <div class="wk-card-body">
@@ -165,7 +165,7 @@ $allCountries = $CS::all();
                         <div class="wk-form-group">
                             <label>Flat Rate Amount</label>
                             <input type="number" step="0.01" name="shipping_flat_rate" class="wk-input" value="<?= $v('shipping','flat_rate') ?: $v('checkout','shipping_flat_rate') ?>" placeholder="50.00">
-                            <div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">Same shipping charge for every order</div>
+                            <div class="wk-hint">Same shipping charge for every order</div>
                         </div>
                     </div>
 
@@ -185,7 +185,7 @@ $allCountries = $CS::all();
                         <div class="wk-form-group">
                             <label>Free Shipping Threshold</label>
                             <input type="number" step="0.01" name="shipping_free_threshold" class="wk-input" value="<?= $v('shipping','free_threshold') ?>" placeholder="500.00">
-                            <div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">Orders above this amount get free shipping</div>
+                            <div class="wk-hint">Orders above this amount get free shipping</div>
                         </div>
                     </div>
 
@@ -194,7 +194,7 @@ $allCountries = $CS::all();
                         <div class="wk-form-group">
                             <label>Charge Per Item</label>
                             <input type="number" step="0.01" name="shipping_per_item" class="wk-input" value="<?= $v('shipping','per_item') ?>" placeholder="10.00">
-                            <div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">Multiplied by total items in cart</div>
+                            <div class="wk-hint">Multiplied by total items in cart</div>
                         </div>
                         <div class="wk-form-group">
                             <label>Max Shipping Cap <span style="font-weight:500;text-transform:none">(optional)</span></label>
@@ -219,10 +219,10 @@ $allCountries = $CS::all();
 
         <div>
             <?php if (!empty($carriers)): ?>
-            <div class="wk-card" style="margin-bottom:20px">
-                <div class="wk-card-header"><h2>📦 Carrier Rates</h2><span style="font-size:12px;color:var(--wk-text-muted);font-weight:600">Optional overrides</span></div>
+            <div class="wk-mb-20 wk-card">
+                <div class="wk-card-header"><h2><?= $icon('package') ?> Carrier Rates</h2><span style="font-size:12px;color:var(--wk-text-muted);font-weight:600">Optional overrides</span></div>
                 <div class="wk-card-body">
-                    <p style="font-size:12px;color:var(--wk-text-muted);margin-bottom:14px">Set carrier-specific flat rates. Leave empty to use the default method.</p>
+                    <p class="wk-note wk-mb-14">Set carrier-specific flat rates. Leave empty to use the default method.</p>
                     <?php foreach ($carriers as $c): ?>
                     <div class="wk-form-group">
                         <label><?= htmlspecialchars($c['name']) ?></label>
@@ -233,43 +233,43 @@ $allCountries = $CS::all();
                 </div>
             </div>
             <?php else: ?>
-            <div class="wk-card" style="margin-bottom:20px">
+            <div class="wk-mb-20 wk-card">
                 <div class="wk-card-body" style="text-align:center;padding:28px;color:var(--wk-text-muted)">
-                    <div style="font-size:28px;margin-bottom:8px;opacity:.3">🚚</div>
+                    <div style="font-size:28px;margin-bottom:8px;opacity:.3"><?= $icon('truck', 28) ?></div>
                     <p style="font-weight:700;margin-bottom:4px">No carriers configured</p>
                     <p style="font-size:13px">Add carriers in <a href="<?= $url('admin/shipping') ?>" style="color:var(--wk-purple);font-weight:700">Shipping Carriers</a> to set per-carrier rates.</p>
                 </div>
             </div>
             <?php endif; ?>
 
-            <div class="wk-card" style="margin-bottom:20px">
-                <div class="wk-card-header"><h2>📦 Pickup Points (Lockers)</h2></div>
+            <div class="wk-mb-20 wk-card">
+                <div class="wk-card-header"><h2><?= $icon('package') ?> Pickup Points (Lockers)</h2></div>
                 <div class="wk-card-body">
-                    <p style="font-size:12px;color:var(--wk-text-muted);margin-bottom:14px">Let customers collect orders from a locker / collection point (InPost, Mondial Relay, DHL Packstation…) instead of home delivery. Manage the locations in the list below.</p>
+                    <p class="wk-note wk-mb-14">Let customers collect orders from a locker / collection point (InPost, Mondial Relay, DHL Packstation…) instead of home delivery. Manage the locations in the list below.</p>
                     <div class="wk-form-group">
                         <label>Pickup Delivery</label>
                         <select name="shipping_pickup_enabled" class="wk-select">
                             <option value="1" <?= ($s['shipping']['pickup_enabled'] ?? '0')==='1'?'selected':'' ?>>Enabled</option>
                             <option value="0" <?= ($s['shipping']['pickup_enabled'] ?? '0')!=='1'?'selected':'' ?>>Disabled</option>
                         </select>
-                        <div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">Shows a "Pickup point" option at checkout when at least one active location exists</div>
+                        <div class="wk-hint">Shows a "Pickup point" option at checkout when at least one active location exists</div>
                     </div>
                     <div class="wk-form-group">
                         <label>Default Pickup Fee</label>
                         <input type="number" step="0.01" name="shipping_pickup_fee" class="wk-input" value="<?= $v('shipping','pickup_fee') ?>" placeholder="0.00">
-                        <div style="font-size:11px;color:var(--wk-text-muted);margin-top:3px">Charged instead of the shipping method above. Empty or 0 = free. A location can override this with its own fee.</div>
+                        <div class="wk-hint">Charged instead of the shipping method above. Empty or 0 = free. A location can override this with its own fee.</div>
                     </div>
                 </div>
             </div>
 
-            <button type="submit" class="wk-btn wk-btn-primary" style="width:100%;justify-content:center">Save Shipping Settings</button>
+            <button type="submit" class="wk-btn-block wk-btn wk-btn-primary">Save Shipping Settings</button>
         </div>
     </div>
 </form>
 
 <!-- Pickup locations manager (separate forms — must not nest inside the settings form) -->
 <div class="wk-card" style="margin-top:24px;max-width:900px">
-    <div class="wk-card-header"><h2>📍 Pickup Locations</h2><span style="font-size:12px;color:var(--wk-text-muted);font-weight:600"><?= count($pickupLocations ?? []) ?> location<?= count($pickupLocations ?? [])!==1?'s':'' ?></span></div>
+    <div class="wk-card-header"><h2><?= $icon('map-pin') ?> Pickup Locations</h2><span style="font-size:12px;color:var(--wk-text-muted);font-weight:600"><?= count($pickupLocations ?? []) ?> location<?= count($pickupLocations ?? [])!==1?'s':'' ?></span></div>
     <div class="wk-card-body">
         <?php $wkCountries = \App\Services\CurrencyService::countries(); ?>
         <?php if (!empty($pickupLocations)): ?>
@@ -279,11 +279,11 @@ $allCountries = $CS::all();
                 <tbody>
                 <?php foreach ($pickupLocations as $loc): ?>
                 <tr>
-                    <td style="font-weight:700"><?= htmlspecialchars($loc['name']) ?><?php if ($loc['opening_hours']): ?><div style="font-size:11px;color:var(--wk-text-muted);font-weight:500">🕐 <?= htmlspecialchars($loc['opening_hours']) ?></div><?php endif; ?></td>
+                    <td class="wk-bold"><?= htmlspecialchars($loc['name']) ?><?php if ($loc['opening_hours']): ?><div style="font-size:11px;color:var(--wk-text-muted);font-weight:500"><?= $icon('clock', 12) ?> <?= htmlspecialchars($loc['opening_hours']) ?></div><?php endif; ?></td>
                     <td><?= htmlspecialchars($loc['carrier'] ?: '—') ?></td>
                     <td style="font-size:12px"><?= htmlspecialchars($loc['address_line1']) ?>, <?= htmlspecialchars($loc['city']) ?> <?= htmlspecialchars($loc['zip']) ?></td>
                     <td><?= htmlspecialchars($loc['country']) ?></td>
-                    <td style="font-family:var(--font-mono)"><?= $loc['fee'] !== null ? number_format((float)$loc['fee'], 2) : '<span style="color:var(--wk-text-muted)">default</span>' ?></td>
+                    <td class="wk-mono"><?= $loc['fee'] !== null ? number_format((float)$loc['fee'], 2) : '<span class="wk-muted">default</span>' ?></td>
                     <td><span class="wk-badge <?= $loc['is_active'] ? 'wk-badge-success' : 'wk-badge-danger' ?>"><?= $loc['is_active'] ? 'Active' : 'Off' ?></span></td>
                     <td>
                         <div style="display:flex;gap:6px">
@@ -319,15 +319,15 @@ $allCountries = $CS::all();
         </div>
         <?php else: ?>
         <div style="text-align:center;padding:20px;color:var(--wk-text-muted);margin-bottom:20px">
-            <div style="font-size:28px;margin-bottom:8px;opacity:.3">📍</div>
-            <p style="font-weight:700">No pickup locations yet — add the first one below.</p>
+            <div style="font-size:28px;margin-bottom:8px;opacity:.3"><?= $icon('map-pin', 28) ?></div>
+            <p class="wk-bold">No pickup locations yet — add the first one below.</p>
         </div>
         <?php endif; ?>
 
         <form method="POST" action="<?= $url('admin/shipping/pickup/store') ?>">
             <?= \Core\Session::csrfField() ?>
             <div style="font-weight:800;font-size:13px;margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--wk-text-muted)">Add Pickup Location</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div class="wk-grid-2">
                 <div class="wk-form-group"><label>Name *</label><input type="text" name="name" class="wk-input" required placeholder="e.g. InPost Locker WAW-123"></div>
                 <div class="wk-form-group"><label>Carrier / Network</label><input type="text" name="carrier" class="wk-input" placeholder="e.g. InPost, Mondial Relay, DHL"></div>
             </div>
@@ -337,7 +337,7 @@ $allCountries = $CS::all();
                 <div class="wk-form-group"><label>State</label><input type="text" name="state" class="wk-input"></div>
                 <div class="wk-form-group"><label>ZIP</label><input type="text" name="zip" class="wk-input"></div>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+            <div class="wk-grid-3">
                 <div class="wk-form-group"><label>Country</label>
                     <select name="country" class="wk-select">
                         <?php foreach ($wkCountries as $code => $info): ?>

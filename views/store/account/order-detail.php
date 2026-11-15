@@ -34,15 +34,15 @@ $countries = \App\Services\CurrencyService::countries();
             <a href="<?= $i['slug'] ? $url('product/'.$i['slug']) : '#' ?>" style="flex-shrink:0">
                 <div style="width:56px;height:56px;border-radius:8px;overflow:hidden;background:var(--wk-bg);display:flex;align-items:center;justify-content:center">
                     <?php if (!empty($i['image'])): ?>
-                        <img src="<?= $url('storage/uploads/products/'.$i['image']) ?>" style="width:100%;height:100%;object-fit:cover" alt="">
+                        <img src="<?= $url('storage/uploads/products/'.$i['image']) ?>" class="wk-fit" alt="">
                     <?php else: ?>
-                        <span style="font-size:20px;opacity:.3">📦</span>
+                        <span style="font-size:20px;opacity:.3"><?= $icon('package', 20) ?></span>
                     <?php endif; ?>
                 </div>
             </a>
             <div style="flex:1">
                 <a href="<?= $i['slug'] ? $url('product/'.$i['slug']) : '#' ?>" style="font-weight:700;font-size:14px;color:var(--wk-text);text-decoration:none"><?= $e($i['product_name']) ?></a>
-                <div style="font-size:12px;color:var(--wk-muted)">Qty: <?= $i['quantity'] ?> × <?= $price($i['unit_price']) ?></div>
+                <div class="wk-note">Qty: <?= $i['quantity'] ?> × <?= $price($i['unit_price']) ?></div>
             </div>
             <div style="font-family:var(--font-mono);font-weight:700;white-space:nowrap"><?= $price($i['total_price']) ?></div>
         </div>
@@ -103,14 +103,14 @@ $countries = \App\Services\CurrencyService::countries();
     <!-- Order Summary -->
     <div class="wk-collapse open">
         <div class="wk-collapse-header" onclick="this.parentElement.classList.toggle('open')">
-            💰 Order Summary <span class="wk-collapse-arrow">▼</span>
+            <?= $icon('wallet') ?> Order Summary <span class="wk-collapse-arrow">▼</span>
         </div>
         <div class="wk-collapse-body">
-            <div style="display:flex;justify-content:space-between;padding:4px 0"><span style="color:var(--wk-muted)">Subtotal</span><span style="font-weight:700"><?= $price($o['subtotal']) ?></span></div>
-            <div style="display:flex;justify-content:space-between;padding:4px 0"><span style="color:var(--wk-muted)">Tax</span><span style="font-weight:700"><?= $price($o['tax_amount']) ?></span></div>
-            <div style="display:flex;justify-content:space-between;padding:4px 0"><span style="color:var(--wk-muted)">Shipping</span><span style="font-weight:700"><?= $price($o['shipping_amount']) ?></span></div>
+            <div class="wk-summary-line"><span class="wk-muted">Subtotal</span><span class="wk-bold"><?= $price($o['subtotal']) ?></span></div>
+            <div class="wk-summary-line"><span class="wk-muted">Tax</span><span class="wk-bold"><?= $price($o['tax_amount']) ?></span></div>
+            <div class="wk-summary-line"><span class="wk-muted">Shipping</span><span class="wk-bold"><?= $price($o['shipping_amount']) ?></span></div>
             <?php if ($o['discount_amount'] > 0): ?>
-            <div style="display:flex;justify-content:space-between;padding:4px 0"><span style="color:#10b981">Discount</span><span style="font-weight:700;color:#10b981">-<?= $price($o['discount_amount']) ?></span></div>
+            <div class="wk-summary-line"><span style="color:#10b981">Discount</span><span style="font-weight:700;color:#10b981">-<?= $price($o['discount_amount']) ?></span></div>
             <?php endif; ?>
             <div style="display:flex;justify-content:space-between;padding:12px 0 0;border-top:2px solid var(--wk-border);margin-top:8px;font-size:18px"><span style="font-weight:900">Total</span><span style="font-weight:900;font-family:var(--font-mono)"><?= $price($o['total']) ?></span></div>
         </div>
@@ -119,7 +119,7 @@ $countries = \App\Services\CurrencyService::countries();
     <!-- Billing Address -->
     <div class="wk-collapse">
         <div class="wk-collapse-header" onclick="this.parentElement.classList.toggle('open')">
-            🧾 Billing Address <span class="wk-collapse-arrow">▼</span>
+            <?= $icon('receipt') ?> Billing Address <span class="wk-collapse-arrow">▼</span>
         </div>
         <div class="wk-collapse-body">
             <?php if (!empty($billing)): ?>
@@ -128,7 +128,7 @@ $countries = \App\Services\CurrencyService::countries();
                 <?= $e(($billing['city']??'').', '.($billing['state']??'').' '.($billing['zip']??'')) ?><br>
                 <?= $e(\App\Services\CountryService::name((string) ($billing['country'] ?? ''))) ?>
             <?php else: ?>
-                <span style="color:var(--wk-muted)">No billing address on file</span>
+                <span class="wk-muted">No billing address on file</span>
             <?php endif; ?>
         </div>
     </div>
@@ -137,7 +137,7 @@ $countries = \App\Services\CurrencyService::countries();
     <?php $isPickup = !empty($shipping_addr['pickup']); ?>
     <div class="wk-collapse">
         <div class="wk-collapse-header" onclick="this.parentElement.classList.toggle('open')">
-            <?= $isPickup ? '📦 Pickup Point' : '📍 Shipping Address' ?> <span class="wk-collapse-arrow">▼</span>
+            <?= $isPickup ? $icon('package') . ' Pickup Point' : $icon('map-pin') . ' Shipping Address' ?> <span class="wk-collapse-arrow">▼</span>
         </div>
         <div class="wk-collapse-body">
             <?php if (!empty($shipping_addr)): ?>
@@ -146,10 +146,10 @@ $countries = \App\Services\CurrencyService::countries();
                 <?php if (!empty($shipping_addr['line2'])): ?><?= $e($shipping_addr['line2']) ?><br><?php endif; ?>
                 <?= $e(($shipping_addr['city']??'').', '.($shipping_addr['state']??'').' '.($shipping_addr['zip']??'')) ?>
                 <?php if ($isPickup && !empty($shipping_addr['opening_hours'])): ?>
-                    <br><span style="color:var(--wk-muted);font-size:13px">🕐 <?= $e($shipping_addr['opening_hours']) ?></span>
+                    <br><span style="color:var(--wk-muted);font-size:13px"><?= $icon('clock', 14) ?> <?= $e($shipping_addr['opening_hours']) ?></span>
                 <?php endif; ?>
             <?php else: ?>
-                <span style="color:var(--wk-muted)">Same as billing address</span>
+                <span class="wk-muted">Same as billing address</span>
             <?php endif; ?>
         </div>
     </div>
@@ -157,20 +157,20 @@ $countries = \App\Services\CurrencyService::countries();
     <!-- Payment Method -->
     <div class="wk-collapse">
         <div class="wk-collapse-header" onclick="this.parentElement.classList.toggle('open')">
-            💳 Payment Method <span class="wk-collapse-arrow">▼</span>
+            <?= $icon('credit-card') ?> Payment Method <span class="wk-collapse-arrow">▼</span>
         </div>
         <div class="wk-collapse-body">
-            <div style="display:flex;justify-content:space-between;padding:4px 0">
-                <span style="color:var(--wk-muted)">Gateway</span>
-                <span style="font-weight:700"><?= $e(ucfirst($o['payment_gateway']??'Not selected')) ?></span>
+            <div class="wk-summary-line">
+                <span class="wk-muted">Gateway</span>
+                <span class="wk-bold"><?= $e(ucfirst($o['payment_gateway']??'Not selected')) ?></span>
             </div>
-            <div style="display:flex;justify-content:space-between;padding:4px 0">
-                <span style="color:var(--wk-muted)">Payment Status</span>
+            <div class="wk-summary-line">
+                <span class="wk-muted">Payment Status</span>
                 <span style="font-weight:700;color:<?= $o['payment_status']==='captured'?'#10b981':'#f59e0b' ?>"><?= ucfirst($o['payment_status']??'Pending') ?></span>
             </div>
             <?php if (!empty($o['payment_id'])): ?>
-            <div style="display:flex;justify-content:space-between;padding:4px 0">
-                <span style="color:var(--wk-muted)">Transaction ID</span>
+            <div class="wk-summary-line">
+                <span class="wk-muted">Transaction ID</span>
                 <span style="font-family:var(--font-mono);font-size:12px;font-weight:700"><?= $e($o['payment_id']) ?></span>
             </div>
             <?php endif; ?>
@@ -180,7 +180,7 @@ $countries = \App\Services\CurrencyService::countries();
     <!-- Tracking & Status Updates -->
     <div class="wk-collapse <?= !empty($notes['tracking_number']) ? 'open' : '' ?>">
         <div class="wk-collapse-header" onclick="this.parentElement.classList.toggle('open')">
-            📦 Tracking & Updates
+            <?= $icon('package') ?> Tracking & Updates
             <?php if (!empty($notes['tracking_number'])): ?>
                 <span style="font-size:11px;font-weight:700;background:#d1fae5;color:#10b981;padding:2px 8px;border-radius:10px;margin-left:8px">SHIPPED</span>
             <?php endif; ?>
@@ -190,17 +190,17 @@ $countries = \App\Services\CurrencyService::countries();
             <?php if (!empty($notes['tracking_number'])): ?>
                 <div style="background:var(--wk-bg);border-radius:8px;padding:16px;margin-bottom:12px">
                     <div style="font-size:11px;font-weight:800;text-transform:uppercase;color:var(--wk-purple-ink);margin-bottom:8px">Shipment Info</div>
-                    <div style="display:flex;justify-content:space-between;padding:4px 0">
-                        <span style="color:var(--wk-muted)">Carrier</span>
-                        <span style="font-weight:700"><?= $e($notes['shipping_carrier']??'') ?></span>
+                    <div class="wk-summary-line">
+                        <span class="wk-muted">Carrier</span>
+                        <span class="wk-bold"><?= $e($notes['shipping_carrier']??'') ?></span>
                     </div>
-                    <div style="display:flex;justify-content:space-between;padding:4px 0">
-                        <span style="color:var(--wk-muted)">Tracking Number</span>
+                    <div class="wk-summary-line">
+                        <span class="wk-muted">Tracking Number</span>
                         <span style="font-family:var(--font-mono);font-weight:700;color:var(--wk-purple-ink)"><?= $e($notes['tracking_number']) ?></span>
                     </div>
                     <?php if (!empty($notes['shipped_at'])): ?>
-                    <div style="display:flex;justify-content:space-between;padding:4px 0">
-                        <span style="color:var(--wk-muted)">Shipped On</span>
+                    <div class="wk-summary-line">
+                        <span class="wk-muted">Shipped On</span>
                         <span style="font-weight:600"><?= date('M j, Y g:i A', strtotime($notes['shipped_at'])) ?></span>
                     </div>
                     <?php endif; ?>
@@ -214,25 +214,25 @@ $countries = \App\Services\CurrencyService::countries();
             <div style="padding-left:20px;border-left:2px solid var(--wk-border);margin-left:8px">
                 <?php
                 $timeline = [];
-                $timeline[] = ['time' => $o['created_at'], 'label' => 'Order Placed', 'icon' => '🛒', 'color' => '#8b5cf6'];
+                $timeline[] = ['time' => $o['created_at'], 'label' => 'Order Placed', 'icon' => 'shopping-cart', 'color' => '#8b5cf6'];
 
                 if ($o['payment_status'] === 'captured') {
-                    $timeline[] = ['time' => $o['updated_at'], 'label' => 'Payment Confirmed', 'icon' => '✅', 'color' => '#10b981'];
+                    $timeline[] = ['time' => $o['updated_at'], 'label' => 'Payment Confirmed', 'icon' => 'circle-check', 'color' => '#10b981'];
                 }
                 if (!empty($notes['shipped_at'])) {
-                    $timeline[] = ['time' => $notes['shipped_at'], 'label' => 'Shipped — ' . ($notes['shipping_carrier']??'') . ' #' . ($notes['tracking_number']??''), 'icon' => '📦', 'color' => '#3b82f6'];
+                    $timeline[] = ['time' => $notes['shipped_at'], 'label' => 'Shipped — ' . ($notes['shipping_carrier']??'') . ' #' . ($notes['tracking_number']??''), 'icon' => 'package', 'color' => '#3b82f6'];
                 }
                 if ($o['status'] === 'delivered') {
-                    $timeline[] = ['time' => $o['updated_at'], 'label' => 'Delivered', 'icon' => '🎉', 'color' => '#10b981'];
+                    $timeline[] = ['time' => $o['updated_at'], 'label' => 'Delivered', 'icon' => 'party-popper', 'color' => '#10b981'];
                 }
                 if ($o['status'] === 'cancelled') {
-                    $timeline[] = ['time' => $o['updated_at'], 'label' => 'Order Cancelled', 'icon' => '❌', 'color' => '#ef4444'];
+                    $timeline[] = ['time' => $o['updated_at'], 'label' => 'Order Cancelled', 'icon' => 'circle-x', 'color' => '#ef4444'];
                 }
 
                 foreach (array_reverse($timeline) as $event):
                 ?>
                 <div style="position:relative;padding:0 0 20px 20px">
-                    <div style="position:absolute;left:-11px;top:2px;width:20px;height:20px;border-radius:50%;background:<?= $event['color'] ?>;display:flex;align-items:center;justify-content:center;font-size:10px"><?= $event['icon'] ?></div>
+                    <div style="position:absolute;left:-11px;top:2px;width:20px;height:20px;border-radius:50%;background:<?= $event['color'] ?>;display:flex;align-items:center;justify-content:center;color:#fff"><?= $icon($event['icon'], 12) ?></div>
                     <div style="font-weight:700;font-size:13px"><?= $e($event['label']) ?></div>
                     <div style="font-size:11px;color:var(--wk-muted)"><?= date('M j, Y g:i A', strtotime($event['time'])) ?></div>
                 </div>
@@ -271,7 +271,7 @@ $countries = \App\Services\CurrencyService::countries();
             You can cancel this order until <strong><?= $e(date('g:ia \o\n j M', $cancelBy)) ?></strong>.
         </p>
     <?php endif; ?>
-    <form method="POST" action="<?= $url('account/order/cancel/'.$o['id']) ?>" onsubmit="return confirm('Are you sure you want to cancel this order? This cannot be undone.')" style="margin-top:8px">
+    <form method="POST" action="<?= $url('account/order/cancel/'.$o['id']) ?>" onsubmit="return confirm('Are you sure you want to cancel this order? This cannot be undone.')" class="wk-mt-8">
         <?= \Core\Session::csrfField() ?>
         <button type="submit" style="width:100%;padding:14px;background:none;border:2px solid #ef4444;border-radius:8px;color:#ef4444;font-family:var(--font);font-size:14px;font-weight:800;cursor:pointer;transition:all .2s">
             Cancel Order

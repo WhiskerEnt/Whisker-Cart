@@ -80,37 +80,19 @@ class MobileLayoutTest extends TestCase
     // ── Room to read ─────────────────────────────────────────────────────
 
     /**
-     * The contact bar reserves a strip down one side of the page. On a phone
-     * that strip is a sixth of the screen, so there it folds into its button.
+     * The contact button used to reserve a strip down one side of the page;
+     * from a corner it reserves nothing. On a phone the menu button is just
+     * its icon, and the dock's tiles are a little smaller.
      */
-    public function testThePhoneDoesNotReserveAColumnForTheContactBar(): void
+    public function testThePhoneGivesTheContactButtonNoColumn(): void
     {
         $css = $this->css();
-        $mobile = substr($css, strrpos($css, '/* ── Phones'));
-
-        $this->assertStringContainsString('.wk-social-inner { display: none; }', $mobile,
-            'the bar stays open on a phone and keeps its column');
-        $this->assertStringContainsString('.wk-social.is-open .wk-social-inner { display: flex; }', $mobile,
-            'folded away with no way to open it');
-        $this->assertMatchesRegularExpression(
-            '/body\.wk-has-social-left\s+\.wk-container,\s*\n\s*body\.wk-has-social-right \.wk-container \{ padding-left: 16px; padding-right: 16px; \}/',
-            $mobile,
-            'the page still holds a gutter open for a bar that is no longer there'
-        );
-    }
-
-    /** The button that opens it has to exist whatever the shopkeeper chose. */
-    public function testTheContactToggleIsAlwaysInTheMarkup(): void
-    {
-        $partial = (string) file_get_contents(WK_ROOT . '/views/store/partials/social-bar.php');
-
-        $toggle = strpos($partial, 'class="wk-social-toggle"');
-        $this->assertNotFalse($toggle, 'there is no toggle button');
-
-        // It must not sit behind the admin's collapse setting any more.
-        $before = substr($partial, 0, $toggle);
-        $this->assertStringNotContainsString('<?php if ($collapsed): ?>', $before,
-            'a shop set to always-show renders no toggle, so a phone cannot fold the bar away');
+        $this->assertStringNotContainsString('wk-has-social', $css);
+        $phone = substr($css, strpos($css, '@media (max-width: 600px) {', strpos($css, '/* ── Contact button')));
+        $phone = substr($phone, 0, strpos($phone, "\n}\n"));
+        $this->assertStringContainsString('.wk-contact-button-label { display: none; }', $phone);
+        $this->assertStringContainsString('.wk-contact-style-dock .wk-contact-dock { display: none; }', $phone, 'a bar of tiles would cover the page on a phone');
+        $this->assertStringContainsString('.wk-contact-style-dock .wk-contact-button { display: inline-flex; }', $phone);
     }
 
     /** Two cards side by side, until the screen is genuinely too narrow. */

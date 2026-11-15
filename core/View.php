@@ -54,6 +54,9 @@ class View
             throw new \RuntimeException("View not found: {$view} ({$file})");
         }
 
+        // Every view, layout and partial can call $icon('cart').
+        $icon = fn (string $name, int $size = 16, string $class = '', string $label = '') => self::icon($name, $size, $class, $label);
+
         extract($data, EXTR_SKIP);
         ob_start();
         require $file;
@@ -98,6 +101,30 @@ class View
     public static function e(string $value): string
     {
         return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+    }
+
+    /**
+     * An inline SVG icon from the Lucide set in Core\Icons.
+     *
+     * Icons are decorative: each sits beside a text label, so the SVG is
+     * hidden from assistive technology. Pass a label when an icon stands
+     * alone, as on an icon-only button, and it becomes the accessible name.
+     * The markup is emitted in full each time rather than through a
+     * sprite, so it works in fragments fetched later and in JavaScript.
+     */
+    public static function icon(string $name, int $size = 16, string $class = '', string $label = ''): string
+    {
+        if (!isset(Icons::SET[$name])) {
+            throw new \InvalidArgumentException("Unknown icon: {$name}");
+        }
+        $a11y = $label === ''
+            ? 'aria-hidden="true"'
+            : 'role="img" aria-label="' . self::e($label) . '"';
+        $class = trim('wk-icon ' . $class);
+
+        return '<svg class="' . self::e($class) . '" width="' . $size . '" height="' . $size . '" viewBox="0 0 24 24"'
+            . ' fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"'
+            . ' ' . $a11y . ' focusable="false">' . Icons::SET[$name] . '</svg>';
     }
 
     /**
@@ -217,8 +244,19 @@ class View
         // <source> would keep winning and the picture would never change.
         if (!$webp || !empty($opts['no_webp'])) return $img;
 
-        return '<picture><source type="image/webp" srcset="'
-             . self::e(self::url('storage/uploads/products/' . $webp))
-             . '">' . $img . '</picture>';
+        // With the card-sized copy on offer as well, the browser takes the
+        // smallest one that is still sharp for the space and the screen.
+        $srcset = self::e(self::url('storage/uploads/products/' . $webp));
+        $card = \App\Services\ImageService::cardName($filename);
+        if ($card && $dims) {
+            $cardW = (int) round($dims[0] * \App\Services\ImageService::CARD_EDGE / max($dims[0], $dims[1]));
+            $srcset = self::e(self::url('storage/uploads/products/' . $card)) . ' ' . $cardW . 'w, '
+                    . $srcset . ' ' . $dims[0] . 'w';
+            $sizes = $opts['sizes'] ?? '(max-width: 768px) 50vw, 320px';
+            return '<picture><source type="image/webp" srcset="' . $srcset . '" sizes="' . self::e($sizes) . '">'
+                 . $img . '</picture>';
+        }
+
+        return '<picture><source type="image/webp" srcset="' . $srcset . '">' . $img . '</picture>';
     }
 }

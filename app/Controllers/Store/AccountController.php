@@ -3,6 +3,7 @@ namespace App\Controllers\Store;
 
 use Core\{Request, View, Database, Response, Session, Validator, RateLimiter};
 use App\Services\EmailService;
+use App\Services\AccountFieldService as AccountFields;
 
 class AccountController
 {
@@ -23,66 +24,114 @@ class AccountController
     public function register(Request $request, array $params = []): void
     {
         if (!Session::verifyCsrf($request->input('wk_csrf'))) {
-            Session::flash('error', 'Session expired.'); Response::redirect(View::url('account/register')); return;
+            self::rejectRegistration($request, 'Your session expired. Please submit the form again.'); return;
         }
 
-        // Rate limit: 3 registrations per IP per hour
+        // Two limits. Submissions are counted generously, so somebody who
+        // mistypes a few times is not locked out; accounts actually created
+        // are counted strictly, just before the insert.
         $ip = $request->ip();
-        if (!RateLimiter::attempt('register', $ip, 3, 3600)) {
-            Session::flash('error', 'Too many registration attempts. Please try again later.');
-            Response::redirect(View::url('account/register')); return;
+        if (!RateLimiter::attempt('register_submit', $ip, 20, 3600)) {
+            self::rejectRegistration($request, 'Too many attempts. Please try again later.'); return;
         }
 
-        $v = new Validator($request->all(), [
-            'first_name' => 'required|min:2', 'last_name' => 'required|min:1',
-            'email' => 'required|email', 'password' => 'required|min:8',
-        ]);
-        if ($v->fails()) { Session::flash('error', $v->firstError()); Response::redirect(View::url('account/register')); return; }
+        // The shop decides which of these it asks for; email and password are
+        // the identity and the credential, so they are always both.
+        $rules = ['email' => 'required|email', 'password' => 'required|min:8'];
+        if (AccountFields::isRequired('first_name')) $rules['first_name'] = 'required|min:2';
+        if (AccountFields::isRequired('last_name'))  $rules['last_name']  = 'required|min:1';
+
+        $v = new Validator($request->all(), $rules);
+        if ($v->fails()) { self::rejectRegistration($request, $v->firstError()); return; }
 
         // The same three rules the form shows while the password is typed.
         $pass = $request->input('password');
         if (!preg_match('/[0-9]/', $pass)) {
-            Session::flash('error', 'Password must contain at least one number.');
-            Response::redirect(View::url('account/register')); return;
+            self::rejectRegistration($request, 'Password must contain at least one number.'); return;
         }
         if (!preg_match('/[^a-zA-Z0-9]/', $pass)) {
-            Session::flash('error', 'Password must contain at least one special character.');
-            Response::redirect(View::url('account/register')); return;
+            self::rejectRegistration($request, 'Password must contain at least one special character.'); return;
         }
 
-        $phoneError = \App\Services\CountryService::phoneError(
-            $request->clean('phone_code'), $request->clean('phone')
-        );
-        if ($phoneError !== null) {
-            Session::flash('error', $phoneError);
-            Response::redirect(View::url('account/register')); return;
+        $phone = '';
+        if (AccountFields::isShown('phone')) {
+            $phoneError = \App\Services\CountryService::phoneError(
+                $request->clean('phone_code'), $request->clean('phone'), AccountFields::isRequired('phone')
+            );
+            if ($phoneError !== null) { self::rejectRegistration($request, $phoneError); return; }
+            $phone = \App\Services\CountryService::joinPhone(
+                $request->clean('phone_code'), $request->clean('phone')
+            );
         }
+
+        $username = null;
+        if (AccountFields::isShown('username')) {
+            $typed = trim((string)$request->input('username'));
+            if ($typed === '') {
+                if (AccountFields::isRequired('username')) {
+                    self::rejectRegistration($request, 'Username is required.'); return;
+                }
+            } else {
+                $error = AccountFields::usernameError($typed);
+                if ($error !== null) { self::rejectRegistration($request, $error); return; }
+                if (Database::fetchValue("SELECT COUNT(*) FROM wk_customers WHERE username=?", [$typed])) {
+                    self::rejectRegistration($request, 'That username is taken.'); return;
+                }
+                $username = $typed;
+            }
+        }
+
+        $customFields = AccountFields::custom(true);
+        $customError = AccountFields::validateCustom($customFields, $request->all());
+        if ($customError !== null) { self::rejectRegistration($request, $customError); return; }
 
         // Verify the password/confirmation match server-side, consistent with
         // every other password flow in the app.
         if ($pass !== $request->input('password_confirm')) {
-            Session::flash('error', 'Passwords do not match.');
-            Response::redirect(View::url('account/register')); return;
+            self::rejectRegistration($request, 'Passwords do not match.'); return;
         }
 
         if (Database::fetchValue("SELECT COUNT(*) FROM wk_customers WHERE email=?", [$request->clean('email')])) {
-            Session::flash('error', 'An account with this email already exists.');
-            Response::redirect(View::url('account/register')); return;
+            self::rejectRegistration($request, 'An account with this email already exists.'); return;
         }
 
-        $id = Database::insert('wk_customers', [
-            'first_name' => $request->clean('first_name'), 'last_name' => $request->clean('last_name'),
+        if (!RateLimiter::attempt('register', $ip, 3, 3600)) {
+            self::rejectRegistration($request, 'Too many accounts have been created from this connection. Please try again later.'); return;
+        }
+
+        $row = [
+            'first_name' => (string)$request->clean('first_name'), 'last_name' => (string)$request->clean('last_name'),
             'email' => $request->clean('email'),
-            'phone' => \App\Services\CountryService::joinPhone(
-                $request->clean('phone_code'), $request->clean('phone')
-            ),
+            'phone' => $phone,
             'password_hash' => password_hash($request->input('password'), PASSWORD_BCRYPT, ['cost' => 12]),
             'is_active' => 1,
-        ]);
+        ];
+        if ($username !== null) $row['username'] = $username;
+
+        $id = Database::insert('wk_customers', $row);
+        AccountFields::saveCustom($id, $customFields, $request->all());
         Session::setCustomer($id);
         EmailService::sendWelcome($request->clean('email'), $request->clean('first_name'));
         Session::flash('success', 'Welcome! Your account has been created.');
         Response::redirect(View::url('account'));
+    }
+
+    /**
+     * Send the form back with the message and everything that was typed,
+     * minus the password. A rejected signup should not mean typing it all
+     * again, which is how a shop loses the customer at the second attempt.
+     */
+    private static function rejectRegistration(Request $request, string $message): void
+    {
+        $keep = [];
+        foreach ($request->all() as $name => $value) {
+            if (is_string($value) && !str_contains($name, 'password') && $name !== 'wk_csrf') {
+                $keep[$name] = $value;
+            }
+        }
+        $_SESSION['wk_register_old'] = $keep;
+        Session::flash('error', $message);
+        Response::redirect(View::url('account/register'));
     }
 
     public function showLogin(Request $request, array $params = []): void
@@ -99,10 +148,11 @@ class AccountController
 
         // Require both fields before consuming a rate-limit slot — an empty
         // submit shouldn't count against the IP's attempt budget.
+        $noun = AccountFields::usernameLogin() ? 'email or username' : 'email';
         $emailRaw = trim((string)$request->input('email'));
         $passRaw = (string)$request->input('password');
         if ($emailRaw === '' || $passRaw === '') {
-            Session::flash('error', 'Please enter both email and password.');
+            Session::flash('error', "Please enter both your {$noun} and password.");
             Response::redirect(View::url('account/login')); return;
         }
 
@@ -114,15 +164,25 @@ class AccountController
             Response::redirect(View::url('account/login')); return;
         }
 
-        $email = $request->clean('email');
-        $customer = Database::fetch("SELECT id, password_hash, is_active FROM wk_customers WHERE email=?", [$email]);
+        // A username cannot contain @, so whichever was typed is unambiguous.
+        if (str_contains($emailRaw, '@') || !AccountFields::usernameLogin()) {
+            $customer = Database::fetch(
+                "SELECT id, password_hash, is_active FROM wk_customers WHERE email=?",
+                [$request->clean('email')]
+            );
+        } else {
+            $customer = Database::fetch(
+                "SELECT id, password_hash, is_active FROM wk_customers WHERE username=?",
+                [$emailRaw]
+            );
+        }
 
         // Timing attack prevention: always run password_verify
         $hash = $customer ? $customer['password_hash'] : self::DUMMY_HASH;
         $passwordValid = password_verify($request->input('password'), $hash);
 
         if (!$customer || !$customer['is_active'] || !$passwordValid) {
-            Session::flash('error', 'Invalid email or password.');
+            Session::flash('error', "That {$noun} and password do not match an account.");
             Response::redirect(View::url('account/login')); return;
         }
 
@@ -166,26 +226,37 @@ class AccountController
         $customer = Database::fetch("SELECT * FROM wk_customers WHERE id=?", [Session::customerId()]);
         $recentOrders = Database::fetchAll("SELECT * FROM wk_orders WHERE customer_id=? ORDER BY created_at DESC LIMIT 5", [Session::customerId()]);
 
-        // The DB-backed customer_flags entry is the single source of truth
-        // for whether this customer has set a password.
-        $hasSetPassword = (bool)Database::fetchValue(
-            "SELECT setting_value FROM wk_settings WHERE setting_group='customer_flags' AND setting_key=?",
-            ['password_set_' . Session::customerId()]
-        );
-
         View::render('store/account/dashboard', [
             'pageTitle' => 'My Account', 'customer' => $customer,
-            'recentOrders' => $recentOrders, 'needsPassword' => !$hasSetPassword,
+            'recentOrders' => $recentOrders, 'needsPassword' => !self::hasPassword($customer),
         ], 'store/layouts/main');
     }
 
     // ── Profile ──────────────────────────────────
 
+    /**
+     * Whether this customer can sign in with a password.
+     *
+     * Checkout creates an account for a guest with the sentinel '*' in
+     * password_hash, which password_verify always rejects. That sentinel is
+     * the whole answer, so the question is asked of the customer row rather
+     * than of anything kept alongside it.
+     */
+    private static function hasPassword(?array $customer): bool
+    {
+        $hash = (string)($customer['password_hash'] ?? '');
+        return $hash !== '' && $hash !== '*';
+    }
+
     public function profile(Request $request, array $params = []): void
     {
         if (!Session::customerId()) { Response::redirect(View::url('account/login')); return; }
         $customer = Database::fetch("SELECT * FROM wk_customers WHERE id=?", [Session::customerId()]);
-        View::render('store/account/profile', ['pageTitle' => 'My Profile', 'customer' => $customer], 'store/layouts/main');
+        View::render('store/account/profile', [
+            'pageTitle' => 'My Profile', 'customer' => $customer,
+            'hasPassword' => self::hasPassword($customer),
+            'customValues' => AccountFields::valuesFor((int)$customer['id']),
+        ], 'store/layouts/main');
     }
 
     public function updateProfile(Request $request, array $params = []): void
@@ -193,21 +264,54 @@ class AccountController
         if (!Session::customerId() || !Session::verifyCsrf($request->input('wk_csrf'))) {
             Session::flash('error', 'Session expired.'); Response::redirect(View::url('account/profile')); return;
         }
-        $phoneError = \App\Services\CountryService::phoneError(
-            $request->clean('phone_code'), $request->clean('phone')
-        );
-        if ($phoneError !== null) {
-            Session::flash('error', $phoneError);
-            Response::redirect(View::url('account/profile')); return;
+        $custId = Session::customerId();
+        $fail = function (string $message): void {
+            Session::flash('error', $message);
+            Response::redirect(View::url('account/profile'));
+        };
+
+        // Only fields the shop still asks for are written. A field it has
+        // switched off keeps whatever the customer gave before, rather than
+        // being blanked by a form that no longer shows it.
+        $update = [];
+        foreach (['first_name', 'last_name'] as $key) {
+            if (!AccountFields::isShown($key)) continue;
+            $value = trim((string)$request->clean($key));
+            if ($value === '' && AccountFields::isRequired($key)) { $fail(AccountFields::label($key) . ' is required.'); return; }
+            $update[$key] = $value;
         }
 
-        Database::update('wk_customers', [
-            'first_name' => $request->clean('first_name'),
-            'last_name'  => $request->clean('last_name'),
-            'phone'      => \App\Services\CountryService::joinPhone(
+        if (AccountFields::isShown('phone')) {
+            $phoneError = \App\Services\CountryService::phoneError(
+                $request->clean('phone_code'), $request->clean('phone'), AccountFields::isRequired('phone')
+            );
+            if ($phoneError !== null) { $fail($phoneError); return; }
+            $update['phone'] = \App\Services\CountryService::joinPhone(
                 $request->clean('phone_code'), $request->clean('phone')
-            ),
-        ], 'id=?', [Session::customerId()]);
+            );
+        }
+
+        if (AccountFields::isShown('username')) {
+            $typed = trim((string)$request->input('username'));
+            if ($typed === '') {
+                if (AccountFields::isRequired('username')) { $fail('Username is required.'); return; }
+                $update['username'] = null;
+            } else {
+                $error = AccountFields::usernameError($typed);
+                if ($error !== null) { $fail($error); return; }
+                if (Database::fetchValue("SELECT COUNT(*) FROM wk_customers WHERE username=? AND id<>?", [$typed, $custId])) {
+                    $fail('That username is taken.'); return;
+                }
+                $update['username'] = $typed;
+            }
+        }
+
+        $customFields = AccountFields::custom();
+        $customError = AccountFields::validateCustom($customFields, $request->all());
+        if ($customError !== null) { $fail($customError); return; }
+
+        if ($update) Database::update('wk_customers', $update, 'id=?', [$custId]);
+        AccountFields::saveCustom($custId, $customFields, $request->all());
         Session::flash('success', 'Profile updated!');
         Response::redirect(View::url('account/profile'));
     }
@@ -221,18 +325,20 @@ class AccountController
         }
 
         // Changing a password requires the current password, not just a valid
-        // session. Exception: guest-checkout accounts hold the sentinel '*'
-        // password_hash — they have no password to prove yet, so they may set
-        // one directly.
+        // session. An account with no password yet has nothing to prove, so it
+        // may set one directly.
         $custId = Session::customerId();
         $current = Database::fetch(
             "SELECT password_hash FROM wk_customers WHERE id=?",
             [$custId]
         );
-        $isGuestShell = $current
-            && ($current['password_hash'] === '*' || $current['password_hash'] === '');
+        if (!$current) {
+            Session::flash('error', 'Session expired.');
+            Response::redirect(View::url('account/profile'));
+            return;
+        }
 
-        if (!$isGuestShell) {
+        if (self::hasPassword($current)) {
             $currentPass = (string)$request->input('current_password');
             if ($currentPass === '' || !password_verify($currentPass, $current['password_hash'])) {
                 // Rate-limit current-password attempts.
@@ -252,13 +358,6 @@ class AccountController
         Database::update('wk_customers', [
             'password_hash' => password_hash($newPass, PASSWORD_BCRYPT, ['cost' => 12]),
         ], 'id=?', [$custId]);
-
-        // Mark password as set
-        Database::query(
-            "INSERT INTO wk_settings (setting_group, setting_key, setting_value) VALUES ('customer_flags', ?, '1')
-             ON DUPLICATE KEY UPDATE setting_value='1'",
-            ['password_set_' . $custId]
-        );
 
         Session::flash('success', 'Password updated!');
         Response::redirect(View::url('account/profile'));
@@ -648,16 +747,6 @@ class AccountController
         // Update password
         Database::update('wk_customers', ['password_hash' => password_hash($newPass, PASSWORD_BCRYPT, ['cost' => 12])], 'id=?', [$id]);
 
-        // Mark password as set: after a completed reset the customer knows
-        // their password, so the dashboard's "Set Your Password" CTA hides.
-        try {
-            Database::query(
-                "INSERT INTO wk_settings (setting_group, setting_key, setting_value) VALUES ('customer_flags', ?, '1')
-                 ON DUPLICATE KEY UPDATE setting_value='1'",
-                ['password_set_' . $id]
-            );
-        } catch (\Exception $e) {}
-
         // Delete tokens from both tables
         try { Database::query("DELETE FROM wk_password_resets WHERE user_type='customer' AND user_id=?", [$id]); } catch (\Exception $e) {}
         try { Database::query("DELETE FROM wk_settings WHERE setting_group='reset_tokens' AND setting_key=?", ['token_' . $id]); } catch (\Exception $e) {}
@@ -665,7 +754,6 @@ class AccountController
         // Cleanup expired tokens from new table
         try { Database::query("DELETE FROM wk_password_resets WHERE expires_at < NOW()"); } catch (\Exception $e) {}
 
-        Database::query("INSERT INTO wk_settings (setting_group, setting_key, setting_value) VALUES ('customer_flags', ?, '1') ON DUPLICATE KEY UPDATE setting_value='1'", ['password_set_' . $id]);
 
         Session::flash('success', 'Password reset! You can now sign in.');
         Response::redirect(View::url('account/login'));

@@ -85,11 +85,12 @@ class InvoiceService
         .header { display:flex; justify-content:space-between; margin-bottom:40px; }
         .invoice-title { font-size:32px; font-weight:900; color:#8b5cf6; }
         table { width:100%; border-collapse:collapse; }
+        .wk-icon { vertical-align:-0.125em; }
     </style>
 </head>
 <body>
 <div class="no-print" style="background:#8b5cf6;color:#fff;padding:12px;text-align:center;font-weight:700;font-size:14px">
-    <button onclick="window.print()" style="background:#fff;color:#8b5cf6;border:none;padding:8px 24px;border-radius:6px;font-weight:800;cursor:pointer;margin-right:12px">🖨 Print / Save as PDF</button>
+    <button onclick="window.print()" style="background:#fff;color:#8b5cf6;border:none;padding:8px 24px;border-radius:6px;font-weight:800;cursor:pointer;margin-right:12px">' . \Core\View::icon('printer', 14) . ' Print / Save as PDF</button>
     <button onclick="window.close()" style="background:transparent;color:#fff;border:1px solid #fff;padding:8px 24px;border-radius:6px;font-weight:700;cursor:pointer">Close</button>
 </div>
 <div class="invoice">

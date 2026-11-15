@@ -118,6 +118,12 @@ img { max-width: 100%; height: auto; display: block; }
    parent then measures against the wrapper instead of the parent. */
 picture { display: contents; }
 
+/* ── Icons ──────────────────────────────────── */
+/* Inline SVG from View::icon(). Sized by its width/height attributes and
+   coloured by the text it sits in; the baseline shift lines it up with
+   lowercase letters. */
+.wk-icon { display: inline-block; vertical-align: -0.125em; flex-shrink: 0; }
+
 /* ── Branded Page Loader ────────────────────── */
 .wk-page-loader {
     position: fixed; inset: 0; background: var(--wk-bg);
@@ -279,11 +285,11 @@ picture { display: contents; }
 }
 
 .wk-product-img {
-    aspect-ratio: 4/3; background: var(--wk-bg);
+    aspect-ratio: 4/3; background: var(--wk-surface);
     overflow: hidden; position: relative;
     flex-shrink: 0; /* keep the 4/3 image from squishing in the flex column */
 }
-.wk-product-img img { width: 100%; height: 100%; object-fit: cover; transition: transform .5s; }
+.wk-product-img img { width: 100%; height: 100%; object-fit: contain; transition: transform .5s; }
 .wk-product-card:hover .wk-product-img img { transform: scale(1.08); }
 
 .wk-product-badge {
@@ -367,7 +373,7 @@ picture { display: contents; }
     width: 60px; height: 60px; border-radius: var(--radius-sm);
     background: var(--wk-bg); overflow: hidden; flex-shrink: 0;
 }
-.wk-cart-item-img img { width: 100%; height: 100%; object-fit: cover; }
+.wk-cart-item-img img { width: 100%; height: 100%; object-fit: contain; }
 .wk-cart-item-info { flex: 1; }
 .wk-cart-item-name { font-weight: 800; font-size: 14px; margin-bottom: 2px; }
 .wk-cart-item-price { font-family: var(--font-mono); font-size: 14px; font-weight: 700; }
@@ -728,7 +734,7 @@ picture { display: contents; }
 .wk-search-row:last-of-type { border-bottom: none; }
 .wk-search-row:hover, .wk-search-row.active { background: var(--wk-purple-soft); }
 .wk-search-thumb {
-    width: 42px; height: 42px; border-radius: var(--radius-sm); object-fit: cover;
+    width: 42px; height: 42px; border-radius: var(--radius-sm); object-fit: contain;
     background: var(--wk-bg); flex-shrink: 0;
 }
 .wk-search-info { flex: 1; min-width: 0; }
@@ -1045,131 +1051,144 @@ picture { display: contents; }
 .wk-qa-form small.is-bad { color: var(--wk-red); font-weight: 700; }
 .wk-qa-form small.is-ok  { color: var(--wk-green); font-weight: 700; }
 
-/* ── Floating contact bar ──────────────────────────────────────────── */
-/* The wrapper spans the viewport height but takes no pointer events, so the
-   space between icons never intercepts a click meant for the page. Only the
-   links themselves are clickable. */
-.wk-social {
-    position: fixed; top: 50%; transform: translateY(-50%);
-    z-index: 850; pointer-events: none;
-    transition: opacity .2s ease, visibility .2s ease;
+/* ── Contact button ───────────────────────────────────────────────── */
+/* Floats in a bottom corner on a sheet of frosted glass: the page shows
+   through, blurred, so it sits on any background without a hard edge. The
+   glass is the shop's own surface colour, so it suits every theme. The
+   wrapper takes no clicks; only what is inside it does, so the space around
+   the button never swallows a tap meant for the page. */
+.wk-contact {
+    --wk-glass: color-mix(in srgb, var(--wk-surface) 74%, transparent);
+    --wk-glass-line: color-mix(in srgb, var(--wk-text) 11%, transparent);
+    --wk-glass-shadow: 0 12px 32px rgba(0,0,0,.14), 0 1px 3px rgba(0,0,0,.08);
+    position: fixed; bottom: calc(20px + env(safe-area-inset-bottom)); z-index: 950;
+    display: flex; flex-direction: column; align-items: flex-start; gap: 10px;
+    pointer-events: none;
+    transition: opacity .25s ease, transform .25s ease, visibility .25s;
 }
-.wk-social-left  { left: 14px; }
-.wk-social-right { right: 14px; }
-.wk-social.is-hidden { opacity: 0; visibility: hidden; }
+.wk-contact > * { pointer-events: auto; }
+.wk-contact-left  { left: calc(20px + env(safe-area-inset-left)); }
+.wk-contact-right { right: calc(20px + env(safe-area-inset-right)); align-items: flex-end; }
 
-/* An author display declaration beats the hidden attribute, so a closed
-   panel would stay laid out — invisible, but still taking clicks. */
-.wk-social-inner[hidden] { display: none; }
-/* No overflow of any kind: setting one axis to auto makes the other auto
-   too, which clipped each icon's shadow at a hard rectangular edge. Ten
-   channels stack to about 500px and fit; a shop with more than that wants
-   the collapsed mode. */
-.wk-social-inner {
-    display: flex; flex-direction: column; gap: 9px;
+/* On the right it would sit on the chat bubble, so it waits above it. */
+body:has(#wkChatToggle) .wk-contact-right { bottom: calc(100px + env(safe-area-inset-bottom)); }
+
+/* Out of the way of anything that takes over the screen. */
+body:has(.wk-cookie.is-open) .wk-contact,
+body:has(.wk-cart-drawer.open) .wk-contact,
+body.wk-chat-open .wk-contact { opacity: 0; visibility: hidden; transform: translateY(10px); }
+
+.wk-contact-dock, .wk-contact-card, .wk-contact-button {
+    background: var(--wk-glass);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    backdrop-filter: saturate(180%) blur(20px);
+    border: 1px solid var(--wk-glass-line);
+    box-shadow: var(--wk-glass-shadow);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .wk-contact { --wk-glass: var(--wk-surface); }
 }
 
-.wk-social-link {
-    pointer-events: auto;
-    position: relative; flex: 0 0 auto;
-    width: 42px; height: 42px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    background: var(--wk-social-brand, var(--wk-purple));
-    color: #fff; text-decoration: none;
-    box-shadow: 0 3px 12px rgba(0,0,0,.18);
-    transition: transform .18s ease, box-shadow .18s ease;
+/* Each channel is a small tile in its own colour, like an app icon. */
+.wk-contact-tile {
+    position: relative; flex-shrink: 0; display: grid; place-items: center;
+    width: 40px; height: 40px; border-radius: 11px;
+    background: var(--wk-brand, var(--wk-purple)); color: #fff; text-decoration: none;
 }
-.wk-social-link svg { width: 20px; height: 20px; display: block; }
-.wk-social-link:hover { transform: scale(1.08); box-shadow: 0 6px 20px rgba(0,0,0,.26); }
-.wk-social-link:focus-visible { outline: 3px solid var(--wk-purple); outline-offset: 3px; }
+.wk-contact-tile svg { width: 20px; height: 20px; display: block; }
+.wk-brand-whatsapp  { --wk-brand: #25D366; }
+.wk-brand-phone     { --wk-brand: #0f766e; }
+.wk-brand-email     { --wk-brand: #6366f1; }
+.wk-brand-facebook  { --wk-brand: #1877F2; }
+.wk-brand-instagram { --wk-brand: #E4405F; }
+.wk-brand-telegram  { --wk-brand: #26A5E4; }
+.wk-brand-x         { --wk-brand: #111111; }
+.wk-brand-youtube   { --wk-brand: #FF0000; }
+.wk-brand-tiktok    { --wk-brand: #111111; }
+.wk-brand-linkedin  { --wk-brand: #0A66C2; }
 
-/* Name appears on hover, growing away from the screen edge. */
-.wk-social-label {
-    position: absolute; top: 50%; transform: translateY(-50%);
-    white-space: nowrap; font-size: 12px; font-weight: 800; line-height: 1;
-    padding: 7px 11px; border-radius: 7px;
-    background: var(--wk-text); color: var(--wk-surface);
-    opacity: 0; pointer-events: none;
-    transition: opacity .16s ease;
+/* Dock: every channel in one bar, the tile under the pointer lifting a
+   little and naming itself. The menu is in the markup too, for phones. */
+.wk-contact-style-dock .wk-contact-button,
+.wk-contact-style-dock .wk-contact-card { display: none; }
+.wk-contact-dock { display: flex; gap: 8px; padding: 7px; border-radius: 20px; }
+.wk-contact-dock .wk-contact-tile { transition: transform .22s cubic-bezier(.32,.72,0,1); }
+.wk-contact-dock .wk-contact-tile:hover,
+.wk-contact-dock .wk-contact-tile:focus-visible { transform: translateY(-4px) scale(1.08); }
+.wk-contact-dock .wk-contact-tile:focus-visible { outline: 3px solid var(--wk-purple); outline-offset: 3px; }
+.wk-contact-tip {
+    position: absolute; bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%);
+    padding: 5px 10px; border-radius: 8px; white-space: nowrap; pointer-events: none;
+    background: var(--wk-text); color: var(--wk-surface); font-size: 12px; font-weight: 700;
+    opacity: 0; transition: opacity .15s ease;
 }
-.wk-social-left  .wk-social-label { left: calc(100% + 9px); }
-.wk-social-right .wk-social-label { right: calc(100% + 9px); }
-.wk-social-link:hover .wk-social-label,
-.wk-social-link:focus-visible .wk-social-label { opacity: 1; }
+.wk-contact-tile:hover .wk-contact-tip,
+.wk-contact-tile:focus-visible .wk-contact-tip { opacity: 1; }
 
-/* Below the point where the 1200px container still leaves a gutter, the bar
-   would start sitting over the page, so it gets smaller and tucks in. */
-@media (max-width: 1320px) {
-    .wk-social-left  { left: 8px; }
-    .wk-social-right { right: 8px; }
-    .wk-social-link { width: 38px; height: 38px; }
-    .wk-social-link svg { width: 18px; height: 18px; }
+/* Menu: one button, opening a card of channels above it. */
+.wk-contact-button {
+    display: inline-flex; align-items: center; gap: 8px; height: 48px; padding: 0 18px 0 14px;
+    border-radius: 999px; cursor: pointer; color: var(--wk-text);
+    font-family: var(--font); font-size: 15px; font-weight: 700;
+    transition: padding .3s cubic-bezier(.32,.72,0,1), transform .18s ease;
 }
-@media (max-width: 720px) {
-    .wk-social-inner { gap: 7px; }
-    .wk-social-link { width: 32px; height: 32px; box-shadow: 0 2px 8px rgba(0,0,0,.16); }
-    .wk-social-link svg { width: 15px; height: 15px; }
-    /* Touch devices have no hover, and the label would cover the page. */
-    .wk-social-label { display: none; }
+.wk-contact-button:active { transform: scale(.96); }
+.wk-contact-button:focus-visible { outline: 3px solid var(--wk-purple); outline-offset: 3px; }
+.wk-contact-button-icon { display: grid; place-items: center; width: 20px; height: 20px; }
+.wk-contact-button-icon .wk-icon { grid-area: 1 / 1; transition: opacity .2s ease, transform .3s cubic-bezier(.32,.72,0,1); }
+.wk-contact-i-close { opacity: 0; transform: rotate(-90deg) scale(.6); }
+.wk-contact.is-open .wk-contact-i-open { opacity: 0; transform: rotate(90deg) scale(.6); }
+.wk-contact.is-open .wk-contact-i-close { opacity: 1; transform: none; }
+.wk-contact-button-label {
+    display: inline-block; max-width: 110px; overflow: hidden; white-space: nowrap;
+    transition: max-width .3s cubic-bezier(.32,.72,0,1), opacity .2s ease;
 }
+/* Folded to its icon while the shopper scrolls down; open again on the way up. */
+.wk-contact.is-compact:not(.is-open) .wk-contact-button { padding: 0 13px; gap: 0; }
+.wk-contact.is-compact:not(.is-open) .wk-contact-button-label { max-width: 0; opacity: 0; }
+
+.wk-contact-card {
+    width: 260px; padding: 6px; border-radius: 18px;
+    opacity: 0; transform: translateY(10px) scale(.95); transform-origin: bottom left;
+    transition: opacity .2s ease, transform .3s cubic-bezier(.32,.72,0,1);
+}
+.wk-contact-right .wk-contact-card { transform-origin: bottom right; }
+.wk-contact.is-open .wk-contact-card { opacity: 1; transform: none; }
+.wk-contact-card[hidden] { display: none; }
+.wk-contact-card-title { padding: 8px 10px 6px; font-size: 13px; font-weight: 700; color: var(--wk-muted); }
+.wk-contact-card nav { display: grid; gap: 2px; }
+.wk-contact-row {
+    display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 12px;
+    color: var(--wk-text); text-decoration: none; font-size: 15px; font-weight: 700;
+}
+.wk-contact-row:hover, .wk-contact-row:focus-visible {
+    background: color-mix(in srgb, var(--wk-text) 7%, transparent); outline: none;
+}
+.wk-contact-row .wk-contact-tile { width: 30px; height: 30px; border-radius: 8px; }
+.wk-contact-row .wk-contact-tile svg { width: 16px; height: 16px; }
+.wk-contact-row-label { flex: 1; min-width: 0; }
+.wk-contact-row-go { color: var(--wk-muted); }
+
+@media (max-width: 600px) {
+    .wk-contact { bottom: calc(16px + env(safe-area-inset-bottom)); }
+    .wk-contact-left  { left: calc(16px + env(safe-area-inset-left)); }
+    .wk-contact-right { right: calc(16px + env(safe-area-inset-right)); }
+    body:has(#wkChatToggle) .wk-contact-right { bottom: calc(92px + env(safe-area-inset-bottom)); }
+    /* A phone gets the one button, as its icon alone, whichever style the
+       shop chose: a bar of tiles would cover the page. The card that opens
+       names everything. */
+    .wk-contact-style-dock .wk-contact-dock { display: none; }
+    .wk-contact-style-dock .wk-contact-button { display: inline-flex; }
+    .wk-contact-style-dock .wk-contact-card:not([hidden]) { display: block; }
+    .wk-contact-button { padding: 0 13px; }
+    .wk-contact-button-label { display: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
-    .wk-social, .wk-social-link, .wk-social-label { transition: none; }
-    .wk-social-link:hover { transform: none; }
-}
-
-/* Keep the page clear of the contact bar.
-   Above 1340px the centred 1200px container already leaves a wide enough
-   gutter; below it the bar would start sitting over the content, so the
-   container gives up the space instead. */
-@media (max-width: 1340px) {
-    body.wk-has-social-left  .wk-container { padding-left: 72px; }
-    body.wk-has-social-right .wk-container { padding-right: 72px; }
-}
-@media (max-width: 720px) {
-    body.wk-has-social-left  .wk-container { padding-left: 50px; }
-    body.wk-has-social-right .wk-container { padding-right: 50px; }
-}
-
-/* Collapsed mode: one button, opening into the column. */
-.wk-social-toggle {
-    pointer-events: auto;
-    width: 42px; height: 42px; border-radius: 50%; border: none; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    background: linear-gradient(135deg, var(--wk-purple), var(--wk-pink));
-    color: #fff; box-shadow: 0 3px 12px rgba(0,0,0,.18);
-    transition: transform .18s ease, box-shadow .18s ease;
-}
-.wk-social-toggle:hover { transform: scale(1.08); box-shadow: 0 6px 20px rgba(0,0,0,.26); }
-.wk-social-toggle:focus-visible { outline: 3px solid var(--wk-purple); outline-offset: 3px; }
-.wk-social-toggle svg { width: 20px; height: 20px; display: block; }
-.wk-social-toggle-close { display: none; }
-.wk-social.is-open .wk-social-toggle-open { display: none; }
-.wk-social.is-open .wk-social-toggle-close { display: block; }
-
-/* The button sits at the bottom of the stack so the icons open upward,
-   away from the page rather than across it. */
-.wk-social-collapsible { display: flex; flex-direction: column-reverse; gap: 9px; align-items: center; }
-.wk-social-collapsible .wk-social-inner { gap: 9px; }
-.wk-social-collapsible .wk-social-link {
-    opacity: 0; transform: translateY(10px) scale(.85);
-    transition: opacity .18s ease, transform .18s ease;
-    transition-delay: calc(var(--wk-social-i, 0) * 35ms);
-}
-.wk-social.is-open .wk-social-link { opacity: 1; transform: none; }
-
-@media (max-width: 1320px) {
-    .wk-social-toggle { width: 38px; height: 38px; }
-    .wk-social-toggle svg { width: 18px; height: 18px; }
-}
-@media (max-width: 720px) {
-    .wk-social-toggle { width: 34px; height: 34px; }
-    .wk-social-toggle svg { width: 16px; height: 16px; }
-    .wk-social-collapsible, .wk-social-collapsible .wk-social-inner { gap: 7px; }
-}
-@media (prefers-reduced-motion: reduce) {
-    .wk-social-toggle, .wk-social-collapsible .wk-social-link { transition: none; }
-    .wk-social-toggle:hover { transform: none; }
-    .wk-social-collapsible .wk-social-link { opacity: 1; transform: none; }
+    .wk-contact, .wk-contact-card, .wk-contact-button, .wk-contact-button-label,
+    .wk-contact-button-icon .wk-icon, .wk-contact-dock .wk-contact-tile { transition: none; }
+    .wk-contact-dock .wk-contact-tile:hover, .wk-contact-dock .wk-contact-tile:focus-visible,
+    .wk-contact-card, .wk-contact.is-open .wk-contact-card { transform: none; }
 }
 
 /* ── Exit-intent prompt ────────────────────────────────────────────── */
@@ -1300,12 +1319,6 @@ input.wk-field-invalid { border-color: #ef4444 !important; }
    Written last so it settles anything above it. The screen is 375px wide and
    about 70 of those were going to margins and a strip of icons. */
 @media (max-width: 768px) {
-    /* The bar folds into its button here whatever the shopkeeper chose for
-       desktop, and the page stops reserving a column for it. */
-    .wk-social-inner { display: none; }
-    .wk-social.is-open .wk-social-inner { display: flex; }
-    body.wk-has-social-left  .wk-container,
-    body.wk-has-social-right .wk-container { padding-left: 16px; padding-right: 16px; }
     .wk-container { padding-left: 16px; padding-right: 16px; }
 
     /* Logo, account and cart on one line instead of three. */
@@ -1365,11 +1378,6 @@ input.wk-field-invalid { border-color: #ef4444 !important; }
     .wk-buy-row { flex-wrap: wrap; gap: 12px; }
     .wk-buy-row .wk-buy-cta { flex: 1 0 100%; width: 100%; }
 
-    /* Folded away, the contact button sat over the middle of the page. Down in
-       the corner it is still to hand and over nothing. */
-    .wk-social:not(.is-open) { top: auto; bottom: 84px; transform: none; }
-    .wk-social-left:not(.is-open)  { left: 12px; }
-    .wk-social-right:not(.is-open) { right: 12px; }
 }
 
 
@@ -1416,7 +1424,7 @@ input.wk-field-invalid { border-color: #ef4444 !important; }
     width: 96px; height: 96px; border-radius: 10px; overflow: hidden; background: var(--wk-bg);
     display: flex; align-items: center; justify-content: center; font-size: 26px; flex-shrink: 0;
 }
-.wk-cart-line-img img { width: 100%; height: 100%; object-fit: cover; }
+.wk-cart-line-img img { width: 100%; height: 100%; object-fit: contain; }
 .wk-cart-line-info { grid-area: info; min-width: 0; }
 .wk-cart-line-name { font-weight: 800; font-size: 15px; color: var(--wk-text); text-decoration: none; display: block; }
 .wk-cart-line-name:hover { color: var(--wk-purple-ink); }
@@ -1540,9 +1548,112 @@ input.wk-field-invalid { border-color: #ef4444 !important; }
     display: flex; align-items: center; justify-content: center;
     aspect-ratio: 1; background: var(--wk-bg); overflow: hidden;
 }
-.wk-recent-img img { width: 100%; height: 100%; object-fit: cover; }
+.wk-recent-img img { width: 100%; height: 100%; object-fit: contain; }
 .wk-recent-name {
     display: block; padding: 10px 12px; font-size: 13px; font-weight: 700;
     color: var(--wk-text); line-height: 1.4;
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
+
+/* ── Product pictures ───────────────────────── */
+/* A product picture is shown whole, centred in its frame, so a tall or wide
+   photo is never cut off at the top and bottom or the sides. A shop can
+   choose to fill the frame instead (Settings, Appearance), which crops the
+   edges; that adds wk-img-fill to the body. The blurred slide background is
+   decoration and always fills. */
+.wk-fit { display: block; width: 100%; height: 100%; object-fit: contain; }
+.wk-thumb-48 { width: 48px; height: 48px; flex-shrink: 0; border-radius: var(--radius-sm); background: var(--wk-surface); }
+.wk-cat-tile-img { transition: transform .3s; }
+a:hover .wk-cat-tile-img { transform: scale(1.05); }
+@media (prefers-reduced-motion: reduce) { .wk-cat-tile-img, a:hover .wk-cat-tile-img { transition: none; transform: none; } }
+.wk-img-fill .wk-fit,
+.wk-img-fill .wk-product-img img,
+.wk-img-fill .wk-row-card-img img,
+.wk-img-fill .wk-cart-item-img img,
+.wk-img-fill .wk-cart-line-img img,
+.wk-img-fill .wk-recent-img img,
+.wk-img-fill .wk-search-thumb { object-fit: cover; }
+
+/* ── Product rows ───────────────────────────── */
+.wk-pb-0 { padding-bottom: 0 !important; }
+.wk-row-scroll {
+    display: flex; gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory;
+    padding-bottom: 12px; -webkit-overflow-scrolling: touch;
+}
+.wk-row-card {
+    flex: 0 0 220px; scroll-snap-align: start; display: flex; flex-direction: column;
+    background: var(--wk-surface); border: 2px solid var(--wk-border); border-radius: 16px;
+    overflow: hidden; color: inherit; text-decoration: none; transition: border-color .2s, transform .2s;
+}
+.wk-row-card:hover { border-color: var(--wk-purple); transform: translateY(-2px); }
+.wk-row-card:focus-visible { outline: 3px solid var(--wk-purple); outline-offset: 2px; }
+.wk-row-card-img { position: relative; display: block; height: 180px; background: var(--wk-surface); overflow: hidden; }
+.wk-row-card-img img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.wk-row-card-empty { display: flex; height: 100%; align-items: center; justify-content: center; opacity: .15; }
+.wk-row-badge {
+    position: absolute; top: 10px; left: 10px; background: #dc2626; color: #fff;
+    font-size: 12px; font-weight: 800; padding: 4px 10px; border-radius: 8px;
+}
+.wk-row-badge-out { left: auto; right: 10px; background: #4b5563; }
+.wk-row-card-body { display: block; padding: 14px 16px; }
+.wk-row-card-name {
+    display: block; font-weight: 800; font-size: 14px; color: var(--wk-text); margin-bottom: 6px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+@media (prefers-reduced-motion: reduce) { .wk-row-card, .wk-row-card:hover { transition: none; transform: none; } }
+
+/* ── A note only the signed-in shopkeeper sees ─ */
+.wk-admin-note { background: #1e1b2e; color: #fff; font-size: 13px; }
+.wk-admin-note-inner { display: flex; align-items: center; gap: 12px; padding-top: 10px; padding-bottom: 10px; }
+.wk-admin-note-tag {
+    flex-shrink: 0; background: #fbbf24; color: #1e1b2e; font-size: 11px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: .5px; padding: 3px 8px; border-radius: 6px;
+}
+.wk-admin-note-text { flex: 1; line-height: 1.5; }
+.wk-admin-note a { color: #ddd6fe; font-weight: 700; text-decoration: underline; }
+.wk-admin-note-close { display: flex; padding: 6px; background: none; border: 0; color: #fff; opacity: .75; cursor: pointer; }
+.wk-admin-note-close:hover, .wk-admin-note-close:focus-visible { opacity: 1; }
+@media (max-width: 600px) { .wk-admin-note-inner { flex-wrap: wrap; } }
+
+/* ── Utilities ──────────────────────────────── */
+/* Single-purpose classes for what used to be written inline on element
+   after element. The spacing steps are the ones the views already use.
+   The text and spacing ones carry !important because they stand in for
+   inline styles, which won over every rule; without it a rule such as
+   .wk-footer a would quietly take back a footer link's colour. */
+.wk-muted { color: var(--wk-muted) !important; }
+.wk-note { font-size: 12px !important; color: var(--wk-muted) !important; }
+.wk-bold { font-weight: 700 !important; }
+.wk-heavy { font-weight: 800 !important; }
+.wk-mono { font-family: var(--font-mono) !important; }
+.wk-link { color: var(--wk-purple-ink) !important; font-weight: 700 !important; }
+.wk-footer-muted { color: rgba(255,255,255,.5) !important; }
+.wk-label { display: block; font-size: 11px !important; font-weight: 800 !important; text-transform: uppercase; color: var(--wk-muted) !important; margin-bottom: 4px !important; }
+.wk-eyebrow { display: block; font-size: 12px !important; font-weight: 800 !important; text-transform: uppercase; letter-spacing: .5px; color: var(--wk-muted) !important; margin-bottom: 6px !important; }
+.wk-mb-4 { margin-bottom: 4px !important; }
+.wk-mb-12 { margin-bottom: 12px !important; }
+.wk-mb-14 { margin-bottom: 14px !important; }
+.wk-mb-16 { margin-bottom: 16px !important; }
+.wk-mb-20 { margin-bottom: 20px !important; }
+.wk-mb-24 { margin-bottom: 24px !important; }
+.wk-mt-8 { margin-top: 8px !important; }
+.wk-mt-14 { margin-top: 14px !important; }
+.wk-mt-20 { margin-top: 20px !important; }
+.wk-field-label { display: block; font-size: 11px !important; font-weight: 800 !important; text-transform: uppercase; letter-spacing: .5px; color: var(--wk-muted) !important; margin-bottom: 4px !important; }
+.wk-field-input { width: 100%; padding: 10px 14px; border: 2px solid var(--wk-border); border-radius: 8px; font-family: var(--font); font-size: 14px; font-weight: 600; outline: none; background: var(--wk-surface); color: var(--wk-text); transition: border-color .2s; }
+.wk-field-input-lg { width: 100%; padding: 12px 16px; border: 2px solid var(--wk-border); border-radius: 10px; font-family: var(--font); font-size: 14px; font-weight: 600; outline: none; background: var(--wk-surface); color: var(--wk-text); transition: border-color .2s; }
+.wk-block-link { display: block; text-align: center; text-decoration: none; }
+.wk-field-textarea { resize: vertical; }
+.wk-subtle { font-weight: 500 !important; text-transform: none; letter-spacing: 0; }
+.wk-check { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.wk-field-select { cursor: pointer; }
+.wk-status-open { color: var(--wk-green); }
+.wk-status-progress { color: #3b82f6; }
+.wk-status-waiting { color: var(--wk-yellow); }
+.wk-status-resolved { color: var(--wk-green); }
+.wk-status-closed { color: var(--wk-muted); }
+#wkChatToggle .wk-chat-icon-close, #wkChatToggle.is-open .wk-chat-icon-open { display: none; }
+#wkChatToggle.is-open .wk-chat-icon-close { display: inline-block; }
+.wk-summary-line { display: flex; justify-content: space-between; padding: 4px 0; }
+.wk-page-intro { text-align: center; margin-bottom: 32px; }
+.wk-panel { background: var(--wk-surface); border: 2px solid var(--wk-border); border-radius: var(--radius); padding: 28px; margin-bottom: 20px; }

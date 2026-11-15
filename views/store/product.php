@@ -65,19 +65,19 @@ foreach ($variants['combos'] ?? [] as $combo) {
 
             <!-- Images -->
             <div>
-                <div id="mainImage" style="background:var(--wk-bg);border-radius:var(--radius);overflow:hidden;aspect-ratio:1;display:flex;align-items:center;justify-content:center;margin-bottom:12px;border:2px solid var(--wk-border)">
+                <div id="mainImage" style="background:var(--wk-surface);border-radius:var(--radius);overflow:hidden;aspect-ratio:1;display:flex;align-items:center;justify-content:center;margin-bottom:12px;border:2px solid var(--wk-border)">
                     <?php if (!empty($images)): ?>
-                        <?= \Core\View::productImage($images[0]['image_path'], $p['name'], ['eager' => true, 'no_webp' => true, 'id' => 'mainImg', 'style' => 'width:100%;height:100%;object-fit:cover']) ?>
+                        <?= \Core\View::productImage(\App\Services\ImageService::bestName($images[0]['image_path']), $p['name'], ['eager' => true, 'no_webp' => true, 'id' => 'mainImg', 'class' => 'wk-fit']) ?>
                     <?php else: ?>
-                        <span style="font-size:80px;opacity:.15">📦</span>
+                        <span style="font-size:80px;opacity:.15"><?= $icon('package', 72) ?></span>
                     <?php endif; ?>
                 </div>
                 <div id="thumbGallery" style="display:flex;gap:8px;flex-wrap:wrap">
                     <?php foreach ($images as $i => $img): ?>
-                    <div onclick="setMainImage('<?= $url('storage/uploads/products/'.$img['image_path']) ?>',this)"
+                    <div onclick="setMainImage('<?= $url('storage/uploads/products/'.\App\Services\ImageService::bestName($img['image_path'])) ?>',this)"
                          class="wk-thumb"
                          style="width:64px;height:64px;border-radius:8px;overflow:hidden;cursor:pointer;border:2px solid <?= $i===0?'var(--wk-purple)':'var(--wk-border)' ?>;transition:border-color .2s">
-                        <img src="<?= $url('storage/uploads/products/'.$img['image_path']) ?>" style="width:100%;height:100%;object-fit:cover" alt="">
+                        <img src="<?= $url('storage/uploads/products/'.(\App\Services\ImageService::cardName($img['image_path']) ?? \App\Services\ImageService::bestName($img['image_path']))) ?>" class="wk-fit" alt="" loading="lazy">
                     </div>
                     <?php endforeach; ?>
                 </div>
@@ -105,7 +105,7 @@ foreach ($variants['combos'] ?? [] as $combo) {
                     </a>
                 <?php endif; ?>
 
-                <div id="priceDisplay" class="wk-product-price" style="margin-bottom:20px">
+                <div id="priceDisplay" class="wk-mb-20 wk-product-price">
                     <span class="current" style="font-size:28px"><?= $showPrice($prc) ?></span>
                     <?php if ($p['sale_price'] && $p['sale_price'] < $p['price']): ?>
                         <br><span class="original" style="font-size:16px"><?= $showPrice($p['price']) ?></span>
@@ -133,9 +133,9 @@ foreach ($variants['combos'] ?? [] as $combo) {
 
                 <!-- Variant Selectors -->
                 <?php if ($hasVariants): ?>
-                <div id="variantSelector" style="margin-bottom:20px">
+                <div id="variantSelector" class="wk-mb-20">
                     <?php foreach ($variants['groups'] as $group): ?>
-                    <div style="margin-bottom:14px">
+                    <div class="wk-mb-14">
                         <label style="display:block;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--wk-muted);margin-bottom:8px"><?= $e($group['name']) ?></label>
                         <div style="display:flex;gap:8px;flex-wrap:wrap">
                             <?php foreach ($group['options'] as $opt): ?>
@@ -189,7 +189,7 @@ foreach ($variants['combos'] ?? [] as $combo) {
                         <button type="button" class="wk-qty-btn" style="width:40px;height:36px;font-size:18px" onclick="let i=document.getElementById('product-qty');i.value=Math.min(999,parseInt(i.value)+1)">+</button>
                     </div>
                     <button id="addToCartBtn" class="wk-add-btn wk-buy-cta" data-add-to-cart="<?= $p['id'] ?>" <?= $hasVariants ? 'disabled style="opacity:.5;cursor:not-allowed"' : '' ?>>
-                        <?= $hasVariants ? 'Select options above' : '🛒 Add to Cart' ?>
+                        <?= $hasVariants ? 'Select options above' : $icon('shopping-cart') . ' Add to Cart' ?>
                     </button>
                 </div>
                 <?php else: ?>
@@ -213,19 +213,19 @@ foreach ($variants['combos'] ?? [] as $combo) {
         <?php if (!empty($related)): ?>
         <div style="margin-top:60px">
             <h2 style="font-size:22px;font-weight:900;margin-bottom:8px">You might also like</h2>
-            <p style="color:var(--wk-muted);font-size:14px;margin-bottom:24px">More from this category</p>
+            <p class="wk-muted wk-mb-24">More from this category</p>
             <div class="wk-product-grid">
                 <?php foreach ($related as $rp): $rprc = $rp['sale_price'] ?: $rp['price']; ?>
                 <div class="wk-product-card" onclick="window.location='<?= $url('product/'.$rp['slug']) ?>'">
                     <div class="wk-product-img">
-                        <?php if ($rp['image']): ?><?= \Core\View::productImage($rp['image'], $rp['name']) ?><?php else: ?><div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:48px;opacity:.15">📦</div><?php endif; ?>
+                        <?php if ($rp['image']): ?><?= \Core\View::productImage($rp['image'], $rp['name']) ?><?php else: ?><div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:48px;opacity:.15"><?= $icon('package', 48) ?></div><?php endif; ?>
                     </div>
                     <div class="wk-product-info">
                         <div class="wk-product-name"><?= $e($rp['name']) ?></div>
                         <?= \App\Services\ReviewService::cardRatingHtml((int) $rp['id']) ?>
                         <div class="wk-product-price"><span class="current"><?= $showPrice($rprc) ?></span></div>
                     </div>
-                    <button class="wk-add-btn" data-add-to-cart="<?= $rp['id'] ?>">🛒 Add to Cart</button>
+                    <button class="wk-add-btn" data-add-to-cart="<?= $rp['id'] ?>"><?= $icon('shopping-cart') ?> Add to Cart</button>
                 </div>
                 <?php endforeach; ?>
             </div>
@@ -333,7 +333,7 @@ function findMatchingCombo() {
             const gallery = document.getElementById('thumbGallery');
             gallery.innerHTML = match.images.map((src, i) =>
                 `<div onclick="setMainImage('${src}',this)" class="wk-thumb" style="width:64px;height:64px;border-radius:8px;overflow:hidden;cursor:pointer;border:2px solid ${i===0?'var(--wk-purple)':'var(--wk-border)'};transition:border-color .2s">
-                    <img src="${src}" style="width:100%;height:100%;object-fit:cover" alt="">
+                    <img src="${src}" class="wk-fit" alt="">
                 </div>`
             ).join('');
         }
@@ -344,7 +344,9 @@ function findMatchingCombo() {
             addBtn.disabled = !inStock;
             addBtn.style.opacity = inStock ? '1' : '.5';
             addBtn.style.cursor = inStock ? 'pointer' : 'not-allowed';
-            addBtn.textContent = (inStock ? '🛒 Add to Cart — ' : 'Out of Stock — ') + match.label;
+            addBtn.textContent = '';
+            if (inStock) addBtn.appendChild(document.getElementById('wk-icon-shopping-cart').content.cloneNode(true));
+            addBtn.append((inStock ? ' Add to Cart — ' : 'Out of Stock — ') + match.label);
         }
         msg.textContent = '';
         const tag = document.createElement('span');

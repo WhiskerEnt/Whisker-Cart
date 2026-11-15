@@ -265,12 +265,15 @@ class UpdateService
     private const MAX_BACKUPS = 3;
 
     /**
-     * Directories to skip when creating backup (uploads don't change during updates).
+     * Directories left out of the pre-update backup. An update never
+     * touches them, so there is nothing to restore.
      */
     private static array $backupSkipDirs = [
         'storage/uploads',
         'storage/cache',
         'storage/logs',
+        'vendor',
+        'node_modules',
     ];
 
     /**

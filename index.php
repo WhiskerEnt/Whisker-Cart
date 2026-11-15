@@ -17,6 +17,13 @@ if (!file_exists(WK_ROOT . '/config/config.php')) {
 // ── Load autoloader ──────────────────────────────
 require_once WK_ROOT . '/core/autoload.php';
 
+// vendor/ exists only when a shop has added libraries with Composer.
+// Its loader maps App\ and Core\ to the same directories as ours, so a
+// class comes from the same file whichever loader answers first.
+if (is_file(WK_ROOT . '/vendor/autoload.php')) {
+    require_once WK_ROOT . '/vendor/autoload.php';
+}
+
 // ── Load configuration ───────────────────────────
 $config = require WK_ROOT . '/config/config.php';
 
