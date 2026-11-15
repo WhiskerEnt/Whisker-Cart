@@ -219,12 +219,27 @@ dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.styl
 dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor='var(--wk-border)'; });
 dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.style.borderColor='var(--wk-border)'; handleFiles(e.dataTransfer.files); });
 
+// A picture the server cannot take is reported, never skipped silently.
+async function readyToSend(original) {
+    if (!original.type.startsWith('image/')) { Whisker.toast(original.name+' is not a picture','error'); return null; }
+    const file = await Whisker.prepareImage(original);
+    if (file.size > Whisker.maxUploadBytes()) {
+        Whisker.toast(original.name+' is '+Whisker.sizeLabel(file.size)+'; this server accepts up to '+Whisker.sizeLabel(Whisker.maxUploadBytes())+'.','error');
+        return null;
+    }
+    return file;
+}
+async function sendPicture(url, form) {
+    const res = await fetch(url,{method:'POST',headers:{'X-CSRF-Token':csrfToken},body:form});
+    if (res.status === 413) return {success:false, message:'Your server refused a file this large before Whisker saw it. Ask your host to raise its upload size limit.'};
+    try { return await res.json(); } catch (e) { return {success:false, message:'Upload failed ('+res.status+').'}; }
+}
 async function handleFiles(files) {
-    for (const file of files) {
-        if (!file.type.startsWith('image/')||file.size>5*1024*1024) continue;
+    for (const original of files) {
+        const file = await readyToSend(original);
+        if (!file) continue;
         const form = new FormData(); form.append('image',file); form.append('product_id',productId);
-        const res = await fetch(baseUrl+'admin/products/upload-image',{method:'POST',headers:{'X-CSRF-Token':csrfToken},body:form});
-        const data = await res.json();
+        const data = await sendPicture(baseUrl+'admin/products/upload-image', form);
         if (data.success) { Whisker.toast('Uploaded!','success'); setTimeout(()=>location.reload(),500); }
         else Whisker.toast(data.message||data.error||'Failed','error');
     }
@@ -265,11 +280,11 @@ async function updateCombo(id,field,val) {
 
 // Primary option images
 async function uploadOptionImages(optionId, files) {
-    for (const file of files) {
-        if (!file.type.startsWith('image/')||file.size>5*1024*1024) continue;
+    for (const original of files) {
+        const file = await readyToSend(original);
+        if (!file) continue;
         const form=new FormData(); form.append('image',file); form.append('product_id',productId); form.append('option_id',optionId);
-        const res=await fetch(baseUrl+'admin/products/variants/upload-option-image',{method:'POST',headers:{'X-CSRF-Token':csrfToken},body:form});
-        const data=await res.json();
+        const data = await sendPicture(baseUrl+'admin/products/variants/upload-option-image', form);
         if (data.success) {
             const container=document.getElementById('optImages-'+optionId);
             const thumb=document.createElement('div');

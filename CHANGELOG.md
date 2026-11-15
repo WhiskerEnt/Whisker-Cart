@@ -8,6 +8,52 @@ All notable changes to Whisker are recorded here. Versions follow
 Database migrations run automatically when you next open the admin dashboard.
 No manual SQL is needed. Existing shops keep the signup form they had.
 
+### The homepage
+
+- **The homepage slider is never empty.** It used to show only products
+  ticked Featured, a box that was off by default and said nothing about the
+  homepage, so a shop that just added products got a plain banner with its
+  name on it. The slider now fills its places from what the shop already
+  has: products you chose, then best-sellers, then products added in the
+  last 60 days, then products on sale, then a pick that changes once a day.
+  Products with a photo come first, and nothing out of stock is picked
+  automatically. Choose six or more yourself and only your choices appear.
+- **"Featured" is now "Show in homepage slider"**, explains what it does,
+  and comes first on the product form. The product list and the homepage
+  settings say where the slider's products are coming from, and when you
+  are signed in, the storefront shows the same in a note shoppers never see.
+- **The Classic homepage's featured row works.** Its carousel had no styles
+  and showed one product at a time across the whole page; it is now a row
+  of product cards, the same as the Modern homepage's sale row.
+
+### Product pictures
+
+- **Photos of 10 to 15 MB upload.** Many hosts accept 2 MB per upload, and
+  Whisker's own limit was 5 MB; on the product edit page a larger file was
+  skipped without a word. Large photos are now made ready in your browser
+  before they are sent: brought down to 2400 pixels on the longest side and
+  saved as WebP at a quality the eye cannot tell from the original. A 16 MB
+  photo arrives as about 1 MB. When a picture still cannot be accepted, the
+  page says why and what the server's limit is.
+- **Sharper pictures.** Pictures are kept at up to 2400 pixels instead of
+  1600, so zooming in on a product shows detail, and saved at a higher
+  quality. Logos and other PNG graphics are converted to lossless WebP,
+  which keeps every pixel. Product cards and thumbnails are served a smaller
+  copy, so pages are no heavier for it.
+- **Phone photos are the right way up.** A phone saves a portrait photo
+  sideways and records the turn separately; that record was being discarded
+  without the turn being applied.
+- **Large photos no longer run the server out of memory.** Opening a
+  6000 by 4000 pixel photo takes over 100 MB; Whisker now asks for the
+  memory it needs, where the host allows, instead of quietly storing the
+  photo unconverted.
+- **Pictures are shown whole.** Product cards and the product page cropped
+  every photo to fill a fixed frame, cutting off the top and bottom of tall
+  photos and the sides of wide ones. The whole picture now shows, on a plain
+  border. Shops that prefer full frames can switch back under Settings,
+  Appearance.
+- Deleting a picture now deletes its WebP copies as well.
+
 ### Payments
 
 - **Gateways are asked for the exact total.** Stripe and Razorpay converted

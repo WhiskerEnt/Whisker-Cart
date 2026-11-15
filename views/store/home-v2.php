@@ -31,7 +31,7 @@ $gridProducts = $products;
             <!-- Background image -->
             <?php if ($p['image']): ?>
             <div class="wk-hero-slide-bg">
-                <?= \Core\View::productImage($p['image'], '', ['eager' => $i === 0]) ?>
+                <?= \Core\View::productImage($p['image'], '', ['eager' => $i === 0, 'sizes' => '150px']) ?>
             </div>
             <?php endif; ?>
             <!-- Gradient overlay -->
@@ -56,7 +56,7 @@ $gridProducts = $products;
                 </div>
                 <div class="wk-hero-slide-img" onclick="window.location='<?= $url('product/'.urlencode($p['slug'])) ?>'">
                     <?php if ($p['image']): ?>
-                    <?= \Core\View::productImage($p['image'], $p['name'], ['eager' => $i === 0]) ?>
+                    <?= \Core\View::productImage($p['image'], $p['name'], ['eager' => $i === 0, 'sizes' => '(max-width: 768px) 90vw, 560px']) ?>
                     <?php endif; ?>
                 </div>
             </div>

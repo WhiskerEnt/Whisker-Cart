@@ -11,6 +11,7 @@ $currentPath = (new \Core\Request())->path();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle ?? 'Admin') ?> — Whisker</title>
     <meta name="csrf-token" content="<?= \Core\Session::csrfToken() ?>">
+    <meta name="wk-max-upload" content="<?= (int) \App\Services\ImageService::maxUploadBytes() ?>">
     <script>
     // CSRF: Auto-inject token into all POST fetch calls (must run before any page scripts)
     (function(){

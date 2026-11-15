@@ -12,6 +12,68 @@ const Whisker = {
         this.initMicroInteractions();
     },
 
+    // ── Pictures, before they are sent ────────────
+    // A photo straight off a phone is often 10 to 15 MB, and many hosts take
+    // 2 MB per upload. Anything larger than the server accepts, or wider than
+    // the shop keeps, is redrawn here first: longest edge at most 2400px,
+    // saved as WebP at a quality the eye cannot tell from the original. The
+    // browser has already turned it the right way up. Smaller files go as
+    // they are, and the server does the rest.
+    MAX_EDGE: 2400,
+
+    maxUploadBytes() {
+        const n = parseInt(document.querySelector('meta[name="wk-max-upload"]')?.content || '', 10);
+        return n > 0 ? n : 2 * 1024 * 1024;
+    },
+
+    async prepareImage(file) {
+        const limit = this.maxUploadBytes();
+        // GIFs may be animated, and a canvas would keep only the first frame.
+        if (!/^image\/(jpeg|png|webp)$/.test(file.type) || typeof createImageBitmap !== 'function') return file;
+
+        let bitmap;
+        try { bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' }); }
+        catch (e) { return file; }
+
+        const longest = Math.max(bitmap.width, bitmap.height);
+        if (longest <= this.MAX_EDGE && file.size <= limit) { bitmap.close?.(); return file; }
+
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const encode = (type, quality) => new Promise((done) => canvas.toBlob(done, type, quality));
+        const draw = (edge) => {
+            const scale = Math.min(1, edge / longest);
+            canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+            canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+        };
+
+        // Highest quality first; step down only as far as the server needs.
+        const attempts = [[this.MAX_EDGE, 0.95], [this.MAX_EDGE, 0.9], [this.MAX_EDGE, 0.85], [2000, 0.85], [1600, 0.85]];
+        let blob = null, drawnAt = 0;
+        for (const [edge, quality] of attempts) {
+            if (edge !== drawnAt) { draw(edge); drawnAt = edge; }
+            blob = await encode('image/webp', quality);
+            // A browser that cannot write WebP hands back a PNG instead.
+            if (blob && blob.type !== 'image/webp') blob = await encode('image/jpeg', quality);
+            if (blob && blob.size <= limit) break;
+        }
+        bitmap.close?.();
+        if (!blob) return file;
+
+        const ext = blob.type === 'image/webp' ? 'webp' : 'jpg';
+        const name = (file.name.replace(/\.[^.]+$/, '') || 'photo') + '.' + ext;
+        return new File([blob], name, { type: blob.type, lastModified: Date.now() });
+    },
+
+    /** "15.2 MB", for messages. */
+    sizeLabel(bytes) {
+        return bytes >= 1048576 ? (bytes / 1048576).toFixed(1).replace(/\.0$/, '') + ' MB' : Math.max(1, Math.round(bytes / 1024)) + ' KB';
+    },
+
     // ── Page Loader ───────────────────────────────
     hideLoader() {
         const loader = document.getElementById('pageLoader');

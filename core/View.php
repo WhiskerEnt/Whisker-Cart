@@ -244,8 +244,19 @@ class View
         // <source> would keep winning and the picture would never change.
         if (!$webp || !empty($opts['no_webp'])) return $img;
 
-        return '<picture><source type="image/webp" srcset="'
-             . self::e(self::url('storage/uploads/products/' . $webp))
-             . '">' . $img . '</picture>';
+        // With the card-sized copy on offer as well, the browser takes the
+        // smallest one that is still sharp for the space and the screen.
+        $srcset = self::e(self::url('storage/uploads/products/' . $webp));
+        $card = \App\Services\ImageService::cardName($filename);
+        if ($card && $dims) {
+            $cardW = (int) round($dims[0] * \App\Services\ImageService::CARD_EDGE / max($dims[0], $dims[1]));
+            $srcset = self::e(self::url('storage/uploads/products/' . $card)) . ' ' . $cardW . 'w, '
+                    . $srcset . ' ' . $dims[0] . 'w';
+            $sizes = $opts['sizes'] ?? '(max-width: 768px) 50vw, 320px';
+            return '<picture><source type="image/webp" srcset="' . $srcset . '" sizes="' . self::e($sizes) . '">'
+                 . $img . '</picture>';
+        }
+
+        return '<picture><source type="image/webp" srcset="' . $srcset . '">' . $img . '</picture>';
     }
 }

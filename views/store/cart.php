@@ -55,7 +55,7 @@ $count = array_sum(array_column($items, 'quantity'));
                         <li class="wk-cart-line" data-line="<?= (int) $item['id'] ?>">
                             <a href="<?= $url('product/' . urlencode($item['slug'])) ?>" class="wk-cart-line-img">
                                 <?php if ($item['image']): ?>
-                                    <?= \Core\View::productImage($item['image'], $item['name']) ?>
+                                    <?= \Core\View::productImage($item['image'], $item['name'], ['sizes' => '96px']) ?>
                                 <?php else: ?>
                                     <?= $icon('package', 20) ?>
                                 <?php endif; ?>

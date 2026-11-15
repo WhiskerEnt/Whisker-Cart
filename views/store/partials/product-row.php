@@ -19,7 +19,7 @@ $wkRowPrice = fn($amount) => \App\Services\CurrencyService::displayPrice((float)
     <a href="<?= $wkRowEsc($wkLink) ?>" class="wk-row-card">
         <span class="wk-row-card-img">
             <?php if ($wkP['image']): ?>
-                <?= \Core\View::productImage($wkP['image'], $wkP['name']) ?>
+                <?= \Core\View::productImage($wkP['image'], $wkP['name'], ['sizes' => '220px']) ?>
             <?php else: ?>
                 <span class="wk-row-card-empty"><?= $icon('package', 40) ?></span>
             <?php endif; ?>

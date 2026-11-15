@@ -177,14 +177,21 @@ dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor='var(-
 dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.style.borderColor='var(--wk-border)'; dropZone.style.background='var(--wk-bg)'; handleFiles(e.dataTransfer.files); });
 
 async function handleFiles(files) {
-    for (const file of files) {
-        if (!file.type.startsWith('image/')) continue;
-        if (file.size > 5*1024*1024) { Whisker.toast(file.name+' is too large (max 5MB)','error'); continue; }
+    for (const original of files) {
+        if (!original.type.startsWith('image/')) continue;
 
         const bar = document.createElement('div');
         bar.style.cssText='padding:8px 12px;background:var(--wk-purple-soft);border-radius:6px;font-size:12px;font-weight:700;color:var(--wk-purple);margin-bottom:8px';
-        bar.textContent='Uploading '+file.name+'...';
+        bar.textContent='Preparing '+original.name+'...';
         document.getElementById('uploadProgress').appendChild(bar);
+
+        const file = await Whisker.prepareImage(original);
+        if (file.size > Whisker.maxUploadBytes()) {
+            bar.style.background='var(--wk-red-soft)'; bar.style.color='var(--wk-red)';
+            bar.textContent='✗ '+original.name+' is '+Whisker.sizeLabel(file.size)+'; this server accepts up to '+Whisker.sizeLabel(Whisker.maxUploadBytes())+'.';
+            continue;
+        }
+        bar.textContent='Uploading '+original.name+(file !== original ? ' ('+Whisker.sizeLabel(original.size)+', sent as '+Whisker.sizeLabel(file.size)+')' : '')+'...';
 
         const form = new FormData();
         form.append('image', file);
@@ -193,6 +200,7 @@ async function handleFiles(files) {
 
         try {
             const res = await fetch(baseUrl+'admin/products/upload-image', {method:'POST', body:form});
+            if (res.status === 413) throw new Error('Your server refused a file this large before Whisker saw it. Ask your host to raise its upload size limit.');
             const data = await res.json();
             if (data.success) {
                 bar.style.background='var(--wk-green-soft)'; bar.style.color='var(--wk-green)';
@@ -203,7 +211,7 @@ async function handleFiles(files) {
                 bar.style.background='var(--wk-red-soft)'; bar.style.color='var(--wk-red)';
                 bar.textContent='✗ '+(data.message||'Failed');
             }
-        } catch(e) { bar.style.background='var(--wk-red-soft)'; bar.style.color='var(--wk-red)'; bar.textContent='✗ Upload error'; }
+        } catch(e) { bar.style.background='var(--wk-red-soft)'; bar.style.color='var(--wk-red)'; bar.textContent='✗ '+(e.message && e.message.includes('server') ? e.message : 'Upload error'); }
     }
 }
 

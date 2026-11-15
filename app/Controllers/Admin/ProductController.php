@@ -220,8 +220,7 @@ class ProductController
         // Delete images from disk
         $images = Database::fetchAll("SELECT image_path FROM wk_product_images WHERE product_id=?", [$params['id']]);
         foreach ($images as $img) {
-            $path = WK_ROOT . '/storage/uploads/products/' . $img['image_path'];
-            if (file_exists($path)) @unlink($path);
+            \App\Services\ImageService::deleteFiles($img['image_path']);
         }
 
         Database::delete('wk_products', 'id = ?', [$params['id']]);
@@ -240,7 +239,7 @@ class ProductController
         $file = $_FILES['image'] ?? null;
         if (!$file || $file['error'] !== UPLOAD_ERR_OK) {
             $errorMessages = [
-                UPLOAD_ERR_INI_SIZE   => 'File exceeds server upload limit',
+                UPLOAD_ERR_INI_SIZE   => self::tooLargeMessage(),
                 UPLOAD_ERR_FORM_SIZE  => 'File exceeds form limit',
                 UPLOAD_ERR_PARTIAL    => 'File only partially uploaded',
                 UPLOAD_ERR_NO_FILE    => 'No file selected',
@@ -288,8 +287,8 @@ class ProductController
             return;
         }
 
-        if ($file['size'] > 5 * 1024 * 1024) {
-            Response::json(['success' => false, 'message' => 'Max file size is 5MB'], 400);
+        if ($file['size'] > \App\Services\ImageService::MAX_UPLOAD_BYTES) {
+            Response::json(['success' => false, 'message' => self::tooLargeMessage()], 400);
             return;
         }
 
@@ -387,8 +386,7 @@ class ProductController
         $image = Database::fetch("SELECT * FROM wk_product_images WHERE id=?", [$imageId]);
 
         if ($image) {
-            $filepath = WK_ROOT . '/storage/uploads/products/' . $image['image_path'];
-            if (file_exists($filepath)) @unlink($filepath);
+            \App\Services\ImageService::deleteFiles($image['image_path']);
             Database::delete('wk_product_images', 'id=?', [$imageId]);
 
             if ($image['is_primary']) {
@@ -507,8 +505,8 @@ class ProductController
             Response::json(['success' => false, 'message' => 'Only JPG, PNG, WebP, GIF allowed'], 400);
             return;
         }
-        if ($file['size'] > 5 * 1024 * 1024) {
-            Response::json(['success' => false, 'message' => 'Max 5MB'], 400);
+        if ($file['size'] > \App\Services\ImageService::MAX_UPLOAD_BYTES) {
+            Response::json(['success' => false, 'message' => self::tooLargeMessage()], 400);
             return;
         }
 
@@ -604,5 +602,18 @@ class ProductController
                 [$key . '_' . $productId, trim($value)]
             );
         }
+    }
+
+    /**
+     * Why a picture was too big, in terms the shopkeeper can act on. The
+     * product pages shrink large photos in the browser before sending them,
+     * so this is mostly reached by browsers too old to do that.
+     */
+    private static function tooLargeMessage(): string
+    {
+        $limit = \App\Services\ImageService::humanBytes(\App\Services\ImageService::maxUploadBytes());
+        return 'That picture is larger than this server accepts (' . $limit . '). '
+             . 'Try a current version of Chrome, Edge, Firefox or Safari, which shrink large photos before sending them, '
+             . 'or ask your host to raise upload_max_filesize and post_max_size.';
     }
 }
