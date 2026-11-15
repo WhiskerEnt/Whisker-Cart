@@ -30,7 +30,7 @@ Upload it to any ₹99/month shared hosting, run the 6-step installer, and you h
 
 **🌍 Global Tax Engine** — GST (India, with CGST+SGST/IGST split), VAT (all 27 EU countries + UK), US Sales Tax (all 50 states, nexus-based). Custom rates per country/state. Tax breakdown on invoices. Works automatically based on customer address.
 
-**📦 Zero Dependencies** — No Composer, no Node, no framework. Pure PHP. Upload to any hosting and it works. The entire cart is ~290KB zipped.
+**📦 Zero Dependencies** — No Composer, no Node, no framework. Pure PHP. Upload to any hosting and it works. The entire cart is about 560KB zipped.
 
 **🇮🇳 India-First Payments** — Razorpay (UPI, cards, netbanking) is a first-class citizen, not a third-party plugin. Plus Stripe, CCAvenue, and crypto via NOWPayments.
 
